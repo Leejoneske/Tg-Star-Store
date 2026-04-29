@@ -126,6 +126,41 @@ window.TonUtils = {
         };
     },
 
+    normalizeAddress(address) {
+        if (address === null || address === undefined) return '';
+        if (typeof address === 'object') {
+            if (typeof address.address !== 'undefined') {
+                return this.normalizeAddress(address.address);
+            }
+            if (typeof address.base64 !== 'undefined') {
+                return this.normalizeAddress(address.base64);
+            }
+            if (typeof address.toString === 'function') {
+                const str = address.toString();
+                if (str && str !== '[object Object]') {
+                    return this.normalizeAddress(str);
+                }
+            }
+            return '';
+        }
+
+        const trimmed = String(address).trim();
+        if (!trimmed) return '';
+
+        if ((trimmed.startsWith('EQ') || trimmed.startsWith('UQ') || trimmed.startsWith('tEQ') || trimmed.startsWith('tUQ'))) {
+            if (trimmed.length >= 40) {
+                return trimmed;
+            }
+            return '';
+        }
+
+        if (trimmed.includes(':') && /^[-0-9]+:[a-fA-F0-9]{64}$/.test(trimmed)) {
+            return this.formatAddress(trimmed);
+        }
+
+        return trimmed;
+    },
+
     /**
      * Validate if address looks like a valid TON address
      */

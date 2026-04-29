@@ -2633,13 +2633,21 @@ function updateUserInterface(user) {
 function restoreWalletState() {
     const savedWalletConnected = localStorage.getItem('walletConnected');
     const savedWalletAddress = localStorage.getItem('walletAddress');
-    
-    if (savedWalletConnected === 'true' && savedWalletAddress) {
+    const normalizedWalletAddress = TonUtils?.normalizeAddress(savedWalletAddress) || '';
+
+    if (savedWalletConnected === 'true' && normalizedWalletAddress) {
         walletConnected = true;
-        currentWalletAddress = savedWalletAddress;
-        console.log('Restored wallet state:', savedWalletAddress);
+        currentWalletAddress = normalizedWalletAddress;
+        console.log('Restored wallet state:', normalizedWalletAddress);
         return true;
     }
+
+    if (savedWalletConnected === 'true') {
+        console.warn('Clearing invalid saved wallet state:', savedWalletAddress);
+        localStorage.removeItem('walletConnected');
+        localStorage.removeItem('walletAddress');
+    }
+
     walletConnected = false;
     currentWalletAddress = '';
     return false;
@@ -2689,12 +2697,22 @@ function initWalletConnection() {
 
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
-            currentWalletAddress = wallet.account.address;
-            walletConnected = true;
-            localStorage.setItem('walletConnected', 'true');
-            localStorage.setItem('walletAddress', currentWalletAddress);
+            const normalizedAddress = TonUtils.normalizeAddress(wallet.account.address);
+            if (normalizedAddress) {
+                currentWalletAddress = normalizedAddress;
+                walletConnected = true;
+                localStorage.setItem('walletConnected', 'true');
+                localStorage.setItem('walletAddress', currentWalletAddress);
+            } else {
+                console.warn('Invalid wallet address from TON Connect:', wallet.account.address);
+                currentWalletAddress = '';
+                walletConnected = false;
+                localStorage.removeItem('walletConnected');
+                localStorage.removeItem('walletAddress');
+            }
+
             // Block testnet wallets immediately
-            if (isTestnetWallet(wallet) && !currentUserIsAdmin) {
+            if (walletConnected && isTestnetWallet(wallet) && !currentUserIsAdmin) {
                 showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
                 // Attempt to disconnect gracefully
                 setTimeout(async () => { 
@@ -2765,18 +2783,36 @@ function updateWalletButton() {
     if (walletConnected && currentWalletAddress) {
         btn.classList.add('wallet-connected');
         
+        // Normalize the address before display
+        let normalizedAddress = currentWalletAddress;
+        if (typeof TonUtils !== 'undefined') {
+            normalizedAddress = TonUtils.normalizeAddress(currentWalletAddress) || currentWalletAddress;
+        }
+
+        if (!normalizedAddress || (typeof TonUtils !== 'undefined' && !TonUtils.isValidAddress(normalizedAddress))) {
+            console.warn('Invalid wallet address detected, resetting display state:', currentWalletAddress);
+            currentWalletAddress = '';
+            walletConnected = false;
+            localStorage.removeItem('walletConnected');
+            localStorage.removeItem('walletAddress');
+            btn.classList.remove('wallet-connected');
+            btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${walletText}`;
+            btn.disabled = false;
+            return;
+        }
+
         // Format address properly using TON Utils
-        let displayAddress = currentWalletAddress;
-        let fullAddress = currentWalletAddress;
+        let displayAddress = normalizedAddress;
+        let fullAddress = normalizedAddress;
         
         if (typeof TonUtils !== 'undefined') {
-            const addressInfo = TonUtils.getDisplayAddress(currentWalletAddress);
+            const addressInfo = TonUtils.getDisplayAddress(normalizedAddress);
             displayAddress = addressInfo.short;
             fullAddress = addressInfo.full;
             console.log('📍 Wallet formatted:', { original: currentWalletAddress, display: displayAddress, full: fullAddress });
         } else {
             // Fallback if TonUtils not available
-            displayAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+            displayAddress = `${normalizedAddress.slice(0, 4)}...${normalizedAddress.slice(-4)}`;
         }
         
         btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address" title="${fullAddress}">${displayAddress}</span>`;
