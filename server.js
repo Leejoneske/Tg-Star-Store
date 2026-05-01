@@ -18364,16 +18364,16 @@ app.listen(PORT, async () => {
         // Log calendar information for debugging
         const monthStr = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        console.log(`[Scheduler 📅] Calendar: Today is ${monthStr}, Day ${dayOfMonth}/${daysInMonth}`);
+        console.log(`[Scheduler] Calendar: Today is ${monthStr}, Day ${dayOfMonth}/${daysInMonth}`);
         
         // CRITICAL: Only process auto-withdrawals on day 1 of the month
         // This prevents multiple withdrawals and ensures all reminders have been sent first
         if (dayOfMonth !== 1) {
-          console.log(`[Scheduler ⏭️] Skipping withdrawal processing - Today is day ${dayOfMonth}, need day 1 (next occurrence: ${monthStr.includes('May') ? 'June' : 'next month'} 1st)`);
+          console.log(`[Scheduler] Skipping withdrawal processing - Today is day ${dayOfMonth}, need day 1 (next occurrence: ${monthStr.includes('May') ? 'June' : 'next month'} 1st)`);
           return;
         }
         
-        console.log('[Scheduler ✓ DAY 1 DETECTED] Starting end-of-month auto-withdrawals...');
+        console.log('[Scheduler] DAY 1 DETECTED - Starting end-of-month auto-withdrawals...');
         
         // Define date range for this month (used both for dedup + balance lookup)
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -18439,13 +18439,13 @@ app.listen(PORT, async () => {
               // Only send wallet reminders on last day of month or day 1 (not day 29)
               if (isLastDayOfMonth || isFirstDayOfMonth) {
                 // Check if reminder already sent today to prevent duplicates when scheduler runs multiple times per hour
-                const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                 const reminderType = isLastDayOfMonth ? 'final' : 'last_chance';
                 
                 const alreadySentToday = await WalletReminder.findOne({
                   userId: ambassador.id,
                   reminderType: reminderType,
-                  month: monthStr,
+                  month: monthKey,
                   dayOfMonth: dayOfMonth
                 });
                 
@@ -18465,7 +18465,7 @@ app.listen(PORT, async () => {
                         email: ambassador.ambassadorEmail,
                         reminderType: reminderType,
                         dayOfMonth: dayOfMonth,
-                        month: monthStr,
+                        month: monthKey,
                         balance: availableBalance,
                         sentAt: new Date()
                       });
