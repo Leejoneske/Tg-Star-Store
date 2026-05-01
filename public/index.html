@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,7 +22,7 @@
     <!-- API Utility Script (restored) -->
     <script src="/js/api.js?v=5"></script>
     <!-- TON Address Utilities -->
-    <script src="/js/ton-utils.js?v=2"></script>
+    <script src="/js/ton-utils.js?v=3"></script>
     <!-- Transaction Modal - Auto-verification -->
     <script src="/js/transaction-modal.js?v=2" data-cfasync="false" defer></script>
     <!-- Transaction Verification Service -->
@@ -2746,7 +2747,10 @@ function initWalletConnection() {
         btn.addEventListener('click', async () => {
             btn.disabled = true;
             try {
-                if (walletConnected) {
+                // Treat as connected if either our state OR the SDK reports a connection,
+                // so a stale SDK connection is always cleaned up first.
+                const sdkConnected = !!(tonConnectUI && tonConnectUI.connected);
+                if (walletConnected || sdkConnected) {
                     await tonConnectUI.disconnect();
                 } else {
                     console.log('🔗 Opening wallet connection modal...');
