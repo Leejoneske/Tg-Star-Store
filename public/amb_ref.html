@@ -10,6 +10,12 @@
     <meta http-equiv="Expires" content="0">
     <title>Ambassador - StarStore</title>
     
+    <!-- Preload critical resources for faster page load -->
+    <link rel="preload" href="/css/theme.css?v=4" as="style">
+    <link rel="preload" href="/css/theme-additional.css?v=10" as="style">
+    <link rel="preload" href="/js/translations.js?v=11" as="script">
+    <link rel="preload" href="/js/bottomnav-init.js?v=3" as="script">
+    
     <!-- Load Telegram API first -->
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     
@@ -62,22 +68,30 @@
                     return;
                 }
                 
-                // Verify ambassador status via API (non-blocking - don't wait)
-                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`, { signal: AbortSignal.timeout(3000) })
+                // Verify ambassador status via API with cache fallback (non-blocking - don't wait)
+                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`, { signal: AbortSignal.timeout(2000) })
                     .then(r => r.ok ? r.json() : null)
                     .then(data => {
                         if (data && !data.isAmbassador) {
                             console.log('User is not ambassador, redirecting');
+                            // Clear cache when user is no longer ambassador
+                            try { localStorage.removeItem('ambassadorStatus_v1'); } catch (e) {}
                             window.location.href = '/referral.html';
                         } else if (data && data.isAmbassador) {
                             console.log('✓ Ambassador verified, showing ambassador page');
+                            // Cache positive result
+                            try {
+                                localStorage.setItem('ambassadorStatus_v1', JSON.stringify({
+                                    userId, isAmbassador: true, timestamp: Date.now()
+                                }));
+                            } catch (e) {}
                         } else {
                             console.log('Could not verify ambassador status, staying on page');
                         }
                     })
                     .catch(err => {
                         console.log('Error checking ambassador status (non-blocking):', err.message);
-                        // On error, stay on page - user might be ambassador
+                        // On error, stay on page - user might be ambassador (will show with empty data but no redirect)
                     });
             }
             
@@ -923,41 +937,43 @@
             state.authError = true;
         }
         
-        // Wait for TranslationUtils to be available before applying
-        const waitForTranslations = () => {
-            return new Promise(resolve => {
-                if (typeof TranslationUtils !== 'undefined') {
-                    resolve();
-                } else {
-                    const check = setInterval(() => {
-                        if (typeof TranslationUtils !== 'undefined') {
-                            clearInterval(check);
-                            resolve();
-                        }
-                    }, 10);
-                    // Failsafe timeout
-                    setTimeout(() => {
-                        clearInterval(check);
-                        resolve();
-                    }, 500);
+        // Show page skeleton immediately (don't wait for translations)
+        // Translations will apply asyncly in background
+        const applyTranslationsAsync = async () => {
+            if (typeof TranslationUtils !== 'undefined') {
+                try {
+                    TranslationUtils.applyTranslations?.();
+                    console.log('✓ Translations applied');
+                } catch (e) {
+                    console.warn('Translation application failed:', e);
                 }
-            });
+            } else {
+                // Wait for TranslationUtils to be available with timeout
+                const waitStart = Date.now();
+                while (typeof TranslationUtils === 'undefined' && (Date.now() - waitStart) < 300) {
+                    await new Promise(r => setTimeout(r, 10));
+                }
+                if (typeof TranslationUtils !== 'undefined') {
+                    TranslationUtils.applyTranslations?.();
+                    console.log('✓ Translations applied (async)');
+                }
+            }
         };
-
-        // Apply translations early
-        await waitForTranslations();
-        if (typeof TranslationUtils !== 'undefined') {
-            TranslationUtils.applyTranslations?.();
-        }
+        
+        // Start loading translations in background (don't block page render)
+        applyTranslationsAsync();
         
         // Load bottom nav and referral data in parallel (don't block UI on these)
         try {
-            await Promise.all([
+            // Start loading immediately, page shows UI while this completes
+            Promise.all([
                 loadBottomNav(),
                 loadReferralData()
-            ]);
+            ]).catch(e => {
+                console.error('Error loading page data:', e);
+            });
         } catch (e) {
-            console.error('Error loading page data:', e);
+            console.error('Error starting data loads:', e);
         }
     });
     
