@@ -658,10 +658,7 @@
     <div id="noticeModal" class="notice-modal" style="display: none;">
         <div class="notice-content">
             <div class="notice-title" data-translate="importantNotice">Important Notice</div>
-            <div class="notice-text" data-translate="noticeText">
-                Please note that we will hold your Stars for a mandatory 21-day period before processing a payout.
-                By clicking "Continue", you acknowledge and agree to these terms.
-            </div>
+            <div class="notice-text" data-translate="noticeText"></div>
             <button id="continueButton" class="notice-button" data-translate="continue">Continue</button>
         </div>
     </div>
@@ -1869,14 +1866,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateLanguageTexts();
     createTransactionDetailsPanel();
     
-    
-            // Show content immediately
-        appContent.style.display = 'block';
-    
-    // Check notice status after a small delay 
-    setTimeout(() => {
-        checkNoticeStatus();
-    }, 800);
+    // Check notice status first - let it decide what to show
+    checkNoticeStatus();
     
     // Set up refresh interval for transactions 
     setInterval(fetchTransactions, 10000);

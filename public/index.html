@@ -2813,7 +2813,7 @@ function updateWalletButton() {
             return;
         }
 
-        // Format address properly using TON Utils
+        // Format address properly using TON Utils - prefer UQ format
         let displayAddress = normalizedAddress;
         let fullAddress = normalizedAddress;
         
@@ -2823,8 +2823,9 @@ function updateWalletButton() {
             fullAddress = addressInfo.full;
             console.log('📍 Wallet formatted:', { original: currentWalletAddress, display: displayAddress, full: fullAddress });
         } else {
-            // Fallback if TonUtils not available
-            displayAddress = `${normalizedAddress.slice(0, 4)}...${normalizedAddress.slice(-4)}`;
+            // Fallback if TonUtils not available - format as UQDUY...XXXX or show first 8 chars + last 4
+            const addr = normalizedAddress;
+            displayAddress = addr.startsWith('UQ') ? `${addr.substring(0, 8)}...${addr.slice(-4)}` : `${addr.slice(0, 4)}...${addr.slice(-4)}`;
         }
         
         btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address" title="${fullAddress}">${displayAddress}</span>`;
