@@ -1,3 +1,4 @@
+
 /**
  * TON Address Utilities
  * Handles conversion and formatting of TON wallet addresses
@@ -166,20 +167,22 @@ window.TonUtils = {
      */
     isValidAddress(address) {
         if (!address) return false;
-        
-        const trimmed = address.trim();
-        
-        // Standard format
-        if ((trimmed.startsWith('EQ') || trimmed.startsWith('UQ') || trimmed.startsWith('tEQ') || trimmed.startsWith('tUQ')) 
-            && trimmed.length > 40 && trimmed.length < 50) {
+
+        const trimmed = String(address).trim();
+
+        // Standard user-friendly format: EQ.../UQ.../tEQ.../tUQ...
+        // Canonical length is 48 chars but some wallets return slightly longer
+        // base64url-encoded forms (49-56). Accept anything >= 40 chars made of
+        // base64url-safe characters.
+        if (/^t?(EQ|UQ)[A-Za-z0-9_\-]{38,}$/.test(trimmed)) {
             return true;
         }
-        
-        // Hex format
-        if (/^[-0-9]+:[a-fA-F0-9]{64}$/.test(trimmed)) {
+
+        // Raw hex format: 0:<64 hex> or -1:<64 hex>
+        if (/^-?\d+:[a-fA-F0-9]{64}$/.test(trimmed)) {
             return true;
         }
-        
+
         return false;
     }
 };
