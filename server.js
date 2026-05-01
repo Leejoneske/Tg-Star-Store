@@ -2,6 +2,15 @@
 
 require('dotenv').config();
 
+// Process resilience: prevent crash from unhandled background errors (e.g., Mongoose buffer timeouts when DB unavailable in dev)
+process.on('unhandledRejection', (reason) => {
+    console.error('[unhandledRejection]', reason && reason.message ? reason.message : reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[uncaughtException]', err && err.message ? err.message : err);
+});
+
+
 // Repository restored to stable state - April 19, 2026
 // All pages and routing working as expected
 // Deployment: April 19, 2026 - 04:52 UTC - Force rebuild with fresh file serving
@@ -213,7 +222,11 @@ app.use(cors({
             /^https:\/\/amb-starstore\.vercel\.app$/,
             /^https:\/\/amb\.starstore\.app$/,
             /^https:\/\/amb\.starstore\.site$/,
-            /^https:\/\/.*ambassador.*\.vercel\.app$/
+            /^https:\/\/.*ambassador.*\.vercel\.app$/,
+            // Lovable preview/sandbox environments
+            /^https:\/\/.*\.lovableproject\.com$/,
+            /^https:\/\/.*\.lovable\.app$/,
+            /^https:\/\/.*\.lovable\.dev$/
         ];
         
         const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
@@ -10555,6 +10568,22 @@ bot.on('callback_query', async (query) => {
 
         await bot.sendMessage(withdrawal.userId, userMessage);
 
+        // Send email receipt for ambassador withdrawals
+        if (withdrawal.isAmbassadorWithdrawal) {
+            try {
+                const ambUser = await User.findOne({ id: withdrawal.userId }).lean();
+                const ambEmail = ambUser && ambUser.ambassadorEmail;
+                const ambName = (ambUser && ambUser.username) || 'Ambassador';
+                if (ambEmail && emailService && typeof emailService.sendWithdrawalApproved === 'function' && action === 'complete') {
+                    await emailService.sendWithdrawalApproved(ambEmail, ambName, withdrawal.amount, '');
+                } else if (ambEmail && emailService && typeof emailService.sendWithdrawalDeclined === 'function' && finalDecline) {
+                    await emailService.sendWithdrawalDeclined(ambEmail, ambName, query.declineReason || 'Declined');
+                }
+            } catch (emailErr) {
+                console.warn('Failed to send ambassador withdrawal email receipt:', emailErr.message);
+            }
+        }
+
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
 
@@ -18340,39 +18369,41 @@ app.listen(PORT, async () => {
         
         console.log('[Scheduler] Day 1 detected - processing end-of-month auto-withdrawals...');
         
-        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
-        
-        // Check if withdrawals already processed today to prevent duplicates
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-        const alreadyProcessed = await ReferralWithdrawal.findOne({
-          isAmbassadorWithdrawal: true,
-          createdAt: { $gte: today, $lt: todayEnd }
-        });
-        
-        if (alreadyProcessed) {
-          console.log(`[Scheduler] Withdrawals already processed today (${alreadyProcessed._id}), skipping duplicate run`);
-          return;
-        }
-        
+        // Define date range for this month (used both for dedup + balance lookup)
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const monthStr = now.toISOString().substring(0, 7);
+
         // Find all ambassadors (have ambassadorEmail set)
         const ambassadors = await User.find({
           ambassadorEmail: { $exists: true, $ne: null }
         }).lean();
-        
+
         console.log(`[Scheduler] Found ${ambassadors.length} total ambassadors`);
-        
+
         let processedCount = 0;
         let skippedCount = 0;
         let reminderCount = 0;
-        
-        // Define date range for this month
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        
+        let alreadyDoneCount = 0;
+
         // Process each ambassador
         for (const ambassador of ambassadors) {
           try {
+            // Per-ambassador dedup: skip if a withdrawal was already created
+            // for this ambassador for this month (prevents duplicate runs while
+            // still allowing other ambassadors to be processed)
+            const existingThisMonth = await ReferralWithdrawal.findOne({
+              userId: ambassador.id,
+              isAmbassadorWithdrawal: true,
+              ambassadorMonth: monthStr
+            }).lean();
+
+            if (existingThisMonth) {
+              console.log(`[Scheduler] ${ambassador.username}: already processed this month (${existingThisMonth._id})`);
+              alreadyDoneCount++;
+              continue;
+            }
+
             // Calculate available balance from non-withdrawn referrals
             const availableReferrals = await Referral.countDocuments({
               referrerUserId: ambassador.id,
@@ -18383,9 +18414,9 @@ app.listen(PORT, async () => {
               status: 'active',
               withdrawn: { $ne: true }
             });
-            
+
             const availableBalance = availableReferrals * 0.5;
-            
+
             // Skip if balance is below minimum withdrawal (0.5 USDT)
             if (availableBalance < 0.5) {
               console.log(`[Scheduler] Skipping ${ambassador.username}: insufficient balance ($${availableBalance.toFixed(2)})`);
@@ -18559,7 +18590,7 @@ app.listen(PORT, async () => {
           }
         }
         
-        console.log(`[Scheduler] ✅ End-of-month processing complete - Processed: ${processedCount}, Skipped: ${skippedCount}, Reminders: ${reminderCount}`);
+        console.log(`[Scheduler] ✅ End-of-month processing complete - Processed: ${processedCount}, Skipped: ${skippedCount}, AlreadyDone: ${alreadyDoneCount}, Reminders: ${reminderCount}`);
       } catch (error) {
         console.error('[Scheduler] Error processing end-of-month withdrawals:', error);
       }
