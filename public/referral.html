@@ -20,9 +20,48 @@
         }
     </script>
     
+    <!-- Prefetch ambassador page to start loading in background immediately -->
+    <link rel="prefetch" href="/amb_ref.html">
+    <link rel="preconnect" href="/api">
+    
     <!-- Check if user is ambassador - redirect to ambassador page if yes -->
     <script>
         (function() {
+            // Cache TTL: 30 minutes (ambassador status rarely changes mid-session)
+            const AMBASSADOR_CACHE_KEY = 'ambassadorStatus_v1';
+            const AMBASSADOR_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+            
+            // Get cached ambassador status if valid
+            function getCachedAmbassadorStatus(userId) {
+                try {
+                    const cached = localStorage.getItem(AMBASSADOR_CACHE_KEY);
+                    if (cached) {
+                        const { isAmbassador, userId: cachedUserId, timestamp } = JSON.parse(cached);
+                        // Check if cache is still valid and for same user
+                        if (cachedUserId === userId && (Date.now() - timestamp) < AMBASSADOR_CACHE_TTL) {
+                            console.log('✓ Using cached ambassador status:', isAmbassador);
+                            return isAmbassador;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore cache read errors
+                }
+                return null;
+            }
+            
+            // Store ambassador status in cache
+            function setCachedAmbassadorStatus(userId, isAmbassador) {
+                try {
+                    localStorage.setItem(AMBASSADOR_CACHE_KEY, JSON.stringify({
+                        userId,
+                        isAmbassador,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    // Ignore cache write errors
+                }
+            }
+            
             // Get user ID from Telegram WebApp OR localStorage (fallback from previous login)
             function getUserId() {
                 try {
@@ -59,7 +98,7 @@
                 return null;
             }
             
-            // Check ambassador status and redirect if ambassador
+            // Check ambassador status and redirect if ambassador (with caching)
             function checkAndRedirect() {
                 const userId = getUserId();
                 
@@ -68,20 +107,34 @@
                     return; // Show regular page
                 }
                 
-                // Check if user is ambassador
-                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`)
+                // Check cache first before API call
+                const cachedStatus = getCachedAmbassadorStatus(userId);
+                if (cachedStatus !== null) {
+                    if (cachedStatus) {
+                        console.log('✓ Redirecting ambassador (from cache) to ambassador page');
+                        window.location.href = '/amb_ref.html';
+                    }
+                    // If cached as non-ambassador, show regular page (no else needed)
+                    return;
+                }
+                
+                // No cache hit - check with API
+                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`, { signal: AbortSignal.timeout(3000) })
                     .then(r => r.ok ? r.json() : null)
                     .then(data => {
                         if (data && data.isAmbassador) {
+                            setCachedAmbassadorStatus(userId, true);
                             console.log('✓ User is ambassador, redirecting to ambassador page');
                             window.location.href = '/amb_ref.html';
                         } else {
+                            // Cache negative result too to avoid repeated API calls
+                            setCachedAmbassadorStatus(userId, false);
                             console.log('User is not ambassador, showing regular referral page');
                         }
                     })
                     .catch(err => {
                         console.log('Could not check ambassador status:', err.message);
-                        // On error, show regular page
+                        // On error, show regular page (don't redirect)
                     });
             }
             
