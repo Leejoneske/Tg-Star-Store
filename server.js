@@ -18324,7 +18324,8 @@ app.listen(PORT, async () => {
   
   // Initialize end-of-month withdrawal scheduler
   if (schedule && schedule.scheduleEndOfMonthTask) {
-    schedule.scheduleEndOfMonthTask(async () => {
+    // Define the withdrawal processing function
+    const processAmbassadorWithdrawals = async () => {
       try {
         console.log('[Scheduler] Processing end-of-month ambassador withdrawals...');
         
@@ -18563,13 +18564,21 @@ app.listen(PORT, async () => {
       } catch (error) {
         console.error('[Scheduler] Error processing end-of-month withdrawals:', error);
       }
-    });
+    };
+
+    // Call immediately on startup to catch day 1 if we're already on it
+    console.log('[Scheduler] Running initial end-of-month check on startup...');
+    processAmbassadorWithdrawals();
+
+    // Then set up the scheduler through the schedule object for hourly checks
+    schedule.scheduleEndOfMonthTask(processAmbassadorWithdrawals);
     console.log('📅 End-of-month automatic withdrawal scheduler initialized');
   }
 
   // Initialize periodic referral repair scheduler (every 2 hours)
   if (schedule && schedule.schedulePeriodicRepair) {
-    schedule.schedulePeriodicRepair(async () => {
+    // Define the periodic repair function
+    const runPeriodicRepair = async () => {
       try {
         console.log('[Scheduler] Starting periodic referral repair scan...');
         
@@ -18616,7 +18625,16 @@ app.listen(PORT, async () => {
       } catch (error) {
         console.error('[Scheduler] Error in periodic repair scan:', error);
       }
-    });
+    };
+
+    // Run immediately on startup (after a small delay to ensure DB is ready)
+    setTimeout(() => {
+      console.log('[Scheduler] Running initial periodic repair check on startup...');
+      runPeriodicRepair();
+    }, 2000);
+
+    // Then set up the scheduler through the schedule object for 2-hour checks
+    schedule.schedulePeriodicRepair(runPeriodicRepair);
     console.log('🔧 Periodic referral repair scheduler initialized (runs every 2 hours)');
   }
 });

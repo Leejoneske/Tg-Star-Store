@@ -638,14 +638,7 @@
             const emailInput = document.getElementById('email');
             const submitBtn = form.querySelector('.submit-btn');
 
-            // Auto-fill name/username from Telegram WebApp or URL param (no longer needed for form)
-            async function attemptAutofill() {
-                try {
-                    if (window.Telegram?.WebApp) {
-                        try { window.Telegram.WebApp.ready(); } catch (_) {}
-                    }
-                } catch (_) {}
-            }
+            // Build headers with authentication
             function buildHeaders() {
                 const h = { 'Content-Type': 'application/json' };
                 if (window.Telegram?.WebApp?.initData) h['x-telegram-init-data'] = window.Telegram.WebApp.initData;
@@ -653,6 +646,37 @@
                 if (id) h['x-telegram-id'] = String(id);
                 return h;
             }
+
+            // Load user data and pre-fill email if available
+            async function loadUserData() {
+                try {
+                    const headers = buildHeaders();
+                    const response = await fetch(`/api/me?${CACHE_BUSTER}`, { headers });
+                    if (response.ok) {
+                        const userData = await response.json();
+                        console.log('✓ User data loaded:', userData);
+                        // Note: We don't pre-fill email as per form design, but we've verified the user exists
+                        return userData;
+                    } else {
+                        console.warn('⚠️ Could not load user data:', response.status);
+                    }
+                } catch (err) {
+                    console.warn('⚠️ Failed to load user data:', err.message);
+                }
+                return null;
+            }
+
+            // Auto-fill name/username from Telegram WebApp or URL param
+            async function attemptAutofill() {
+                try {
+                    if (window.Telegram?.WebApp) {
+                        try { window.Telegram.WebApp.ready(); } catch (_) {}
+                    }
+                } catch (_) {}
+                // Also load user data to verify they're authenticated
+                await loadUserData();
+            }
+            
             attemptAutofill();
             // Retry once shortly after in case Telegram SDK initializes slightly later
             setTimeout(attemptAutofill, 300);
