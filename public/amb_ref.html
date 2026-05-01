@@ -885,6 +885,9 @@
     
     const userId = getValidUserId();
 
+    // API Base URL
+    const BASE_API_URL = window.location.origin + '/api';
+
     // Ambassador level config
     const LEVELS = [
         { id:'tier-1', label:'Explorer',  min:0,  next:30, earnings:'$15+',  stars:50  },
