@@ -18362,14 +18362,14 @@ app.listen(PORT, async () => {
         const dayOfMonth = now.getDate();
         
         // Log calendar information for debugging
-        const monthStr = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        const calendarMonthStr = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        console.log(`[Scheduler] Calendar: Today is ${monthStr}, Day ${dayOfMonth}/${daysInMonth}`);
+        console.log(`[Scheduler] Calendar: Today is ${calendarMonthStr}, Day ${dayOfMonth}/${daysInMonth}`);
         
         // CRITICAL: Only process auto-withdrawals on day 1 of the month
         // This prevents multiple withdrawals and ensures all reminders have been sent first
         if (dayOfMonth !== 1) {
-          console.log(`[Scheduler] Skipping withdrawal processing - Today is day ${dayOfMonth}, need day 1 (next occurrence: ${monthStr.includes('May') ? 'June' : 'next month'} 1st)`);
+          console.log(`[Scheduler] Skipping withdrawal processing - Today is day ${dayOfMonth}, need day 1 (next occurrence: ${calendarMonthStr.includes('May') ? 'June' : 'next month'} 1st)`);
           return;
         }
         
