@@ -1,5 +1,6 @@
 
 
+
 require('dotenv').config();
 
 // Process resilience: prevent crash from unhandled background errors (e.g., Mongoose buffer timeouts when DB unavailable in dev)
@@ -18857,8 +18858,8 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 		]);
 
 		const merged = [
-			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
-			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, stars: b.stars, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.stars, stars: s.stars, status: s.status, dateCreated: s.dateCreated }))
 		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
 
 		const start = (page - 1) * limit;
