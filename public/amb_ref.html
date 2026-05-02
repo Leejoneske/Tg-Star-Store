@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1112,36 +1113,6 @@
         console.error('[Referral Data] All retry attempts failed:', lastError);
         state.referralLink = fallbackLink();
         updateUI(); // Show empty/fallback state
-            }
-            
-            const data = await res.json();
-            if (data.success) {
-                state.referralLink   = data.referralLink || fallbackLink();
-                // Get wallet address from API response (ambassadorStats spread into response)
-                state.walletAddress  = data.walletAddress || data.ambassadorWalletAddress || null;
-                state.referrals      = data.referrals || [];
-                state.withdrawHistory = data.withdrawHistory || [];
-                
-                // Calculate totalEarned from fetched referrals ONLY (current month for ambassadors)
-                // This ensures balance matches the referrals actually fetched, not all-time from API
-                const activeRefCount = state.referrals.filter(r => r.status === 'active').length;
-                const calculatedTotalEarned = activeRefCount * 0.5; // Level 1 rate: $0.5 per active referral
-                
-                state.stats = {
-                    referralsCount:  parseInt(data.stats?.activeReferralsCount  || data.activeReferralsCount || 0),
-                    totalEarned:     calculatedTotalEarned,
-                    pendingAmount:   parseFloat(data.stats?.pendingAmount  || data.pendingAmount || 0),
-                    freeStars:       parseInt(data.freeStars        || 0),
-                    avgTransaction:  parseInt(data.avgTransaction   || 0)
-                };
-                state.lastRefresh = Date.now();
-                state.authError = false;
-            }
-        } catch (e) {
-            console.error('Load error:', e);
-            state.referralLink = fallbackLink();
-        }
-        updateUI();
     }
 
     function fallbackLink() {
