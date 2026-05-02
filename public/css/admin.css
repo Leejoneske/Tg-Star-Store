@@ -1,4 +1,5 @@
 
+
 /* Admin overrides on top of Bootstrap 5.
    Keep this file small — Bootstrap provides the base. */
 
@@ -49,31 +50,60 @@ a { text-decoration: none; }
 /* Login screen */
 #login-screen {
     position: fixed; inset: 0; z-index: 1900;
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(59,130,246,.25), transparent 60%),
+        radial-gradient(900px 500px at 100% 110%, rgba(139,92,246,.22), transparent 60%),
+        linear-gradient(135deg, #0b1220 0%, #0f172a 60%, #111827 100%);
     display: flex; align-items: center; justify-content: center;
     padding: 24px;
+    overflow: hidden;
 }
+#login-screen::before,
+#login-screen::after {
+    content: ""; position: absolute; border-radius: 50%;
+    filter: blur(60px); opacity: .35; pointer-events: none;
+}
+#login-screen::before { width: 380px; height: 380px; background: #3b82f6; top: -120px; left: -120px; }
+#login-screen::after  { width: 420px; height: 420px; background: #8b5cf6; bottom: -160px; right: -140px; }
+
 .login-card {
-    width: 100%; max-width: 420px;
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 20px 50px -10px rgba(15,23,42,.35);
-    padding: 36px 32px;
+    position: relative; z-index: 1;
+    width: 100%; max-width: 440px;
+    background: rgba(255,255,255,.98);
+    border: 1px solid rgba(255,255,255,.6);
+    border-radius: 18px;
+    box-shadow:
+        0 30px 80px -20px rgba(2,6,23,.6),
+        0 8px 24px -8px rgba(2,6,23,.4);
+    padding: 40px 36px 32px;
+    backdrop-filter: blur(10px);
 }
+.login-card .form-control-lg { border-radius: 10px; padding: .75rem .9rem; }
+.login-card .btn-lg { border-radius: 10px; font-weight: 600; letter-spacing: .01em; }
+.login-card .form-text { color: #64748b; }
+
 .login-logo {
-    width: 56px; height: 56px;
-    border-radius: 14px;
-    background: #2563eb; color: #fff;
+    width: 64px; height: 64px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+    color: #fff;
     display: flex; align-items: center; justify-content: center;
-    font-size: 22px; margin: 0 auto 14px;
-    box-shadow: 0 8px 20px -8px rgba(37,99,235,.6);
+    font-size: 26px; margin: 0 auto 18px;
+    box-shadow:
+        0 14px 30px -10px rgba(59,130,246,.7),
+        inset 0 -2px 6px rgba(0,0,0,.15),
+        inset 0 2px 6px rgba(255,255,255,.25);
 }
+.login-card h1 { font-size: 1.35rem; letter-spacing: -.01em; color: #0f172a; }
+.login-card p.text-muted { color: #64748b !important; font-size: .9rem; }
+
 .input-otp {
     text-align: center;
-    letter-spacing: .35em;
-    font-weight: 600;
+    letter-spacing: .5em;
+    font-weight: 700;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 1.1rem;
+    font-size: 1.25rem;
+    border-radius: 10px;
 }
 
 /* App shell */
