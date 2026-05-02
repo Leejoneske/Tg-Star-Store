@@ -1,4 +1,5 @@
 
+
 /* StarStore Admin — controller (Bootstrap 5) */
 (() => {
 'use strict';
@@ -84,11 +85,48 @@ const Confirm = {
 
 // ---------------------- API ----------------------
 let TOKEN = localStorage.getItem('admin_token') || null;
+let CSRF  = sessionStorage.getItem('admin_csrf') || null;
+
+async function fetchCsrfIfNeeded() {
+    if (CSRF) return CSRF;
+    try {
+        const res = await fetch('/api/admin/csrf', {
+            headers: TOKEN ? { 'x-telegram-id': TOKEN } : {},
+            credentials: 'same-origin'
+        });
+        if (res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (data && data.csrfToken) {
+                CSRF = data.csrfToken;
+                try { sessionStorage.setItem('admin_csrf', CSRF); } catch {}
+            }
+        }
+    } catch {}
+    return CSRF;
+}
 
 async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     if (TOKEN) headers['x-telegram-id'] = TOKEN;
-    const res = await fetch(path, { ...opts, headers });
+    const method = (opts.method || 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+        if (!CSRF) await fetchCsrfIfNeeded();
+        if (CSRF) headers['x-csrf-token'] = CSRF;
+    }
+    let res = await fetch(path, { ...opts, headers, credentials: 'same-origin' });
+    if (res.status === 403 && method !== 'GET' && method !== 'HEAD') {
+        let probe = null;
+        try { probe = await res.clone().json(); } catch {}
+        if (probe && /csrf/i.test(probe.error || '')) {
+            CSRF = null;
+            try { sessionStorage.removeItem('admin_csrf'); } catch {}
+            await fetchCsrfIfNeeded();
+            if (CSRF) {
+                headers['x-csrf-token'] = CSRF;
+                res = await fetch(path, { ...opts, headers, credentials: 'same-origin' });
+            }
+        }
+    }
     let data = null;
     try { data = await res.json(); } catch { data = null; }
     if (!res.ok) {
@@ -114,7 +152,15 @@ const Auth = {
         return api('/api/admin/auth/verify-otp', { method: 'POST', body: JSON.stringify({ tgId, code }) });
     },
     setToken(t) { TOKEN = t; localStorage.setItem('admin_token', t); },
-    clear() { TOKEN = null; localStorage.removeItem('admin_token'); }
+    setCsrf(c) {
+        CSRF = c || null;
+        try { c ? sessionStorage.setItem('admin_csrf', c) : sessionStorage.removeItem('admin_csrf'); } catch {}
+    },
+    clear() {
+        TOKEN = null; CSRF = null;
+        localStorage.removeItem('admin_token');
+        try { sessionStorage.removeItem('admin_csrf'); } catch {}
+    }
 };
 
 function showLoginMessage(msg, type = 'info') {
@@ -176,6 +222,7 @@ async function handleVerifyOTP() {
         const r = await Auth.verifyOTP(tgId, code);
         if (!r || !r.success) throw new Error(r?.error || 'Invalid code');
         Auth.setToken(tgId);
+        if (r.csrfToken) Auth.setCsrf(r.csrfToken);
         showLoginMessage('Signed in. Loading…', 'success');
         clearInterval(otpTimerId);
         setTimeout(enterApp, 400);
@@ -358,7 +405,7 @@ async function loadOrders() {
                 <td class="cell-mono">${escapeHtml(o.id)}</td>
                 <td><span class="badge ${o.type === 'buy' ? 'text-bg-primary' : 'text-bg-info'}">${escapeHtml(o.type)}</span></td>
                 <td>${escapeHtml(o.username || o.telegramId || '—')}</td>
-                <td class="fw-semibold">${fmtNum(o.amount)}</td>
+                <td class="fw-semibold">${o.type === 'sell' ? `★ ${fmtNum(o.stars || o.amount || 0)}` : `${fmtNum(o.amount || 0)} USDT`}</td>
                 <td>${statusBadge(o.status)}</td>
                 <td class="cell-mono">${fmtDate(o.dateCreated)}</td>
                 <td class="text-end">
