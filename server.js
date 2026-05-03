@@ -1,6 +1,5 @@
 
 
-
 require('dotenv').config();
 
 // Process resilience: prevent crash from unhandled background errors (e.g., Mongoose buffer timeouts when DB unavailable in dev)
@@ -33,6 +32,11 @@ const fs = require('fs').promises;
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
+
+// Security middleware
+let helmet, rateLimit;
+try { helmet = require('helmet'); } catch (_) { helmet = null; }
+try { rateLimit = require('express-rate-limit'); } catch (_) { rateLimit = null; }
 
 // Scheduled tasks
 const schedule = (() => {
@@ -245,32 +249,73 @@ app.use(cors({
     exposedHeaders: ['Content-Disposition']
 }));
 
+// Helmet — sane HTTP security headers (CSP disabled to avoid breaking inline scripts in static pages)
+if (helmet) {
+    app.use(helmet({
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false,
+        crossOriginResourcePolicy: { policy: 'cross-origin' }
+    }));
+    app.disable('x-powered-by');
+}
+
+// Global lightweight rate limiter on /api/* to mitigate abuse and brute force
+if (rateLimit) {
+    const apiLimiter = rateLimit({
+        windowMs: 60 * 1000,
+        max: 240, // 4 req/sec average per IP across all /api endpoints
+        standardHeaders: true,
+        legacyHeaders: false,
+        skip: (req) => req.method === 'OPTIONS' || req.path.startsWith('/api/health')
+    });
+    app.use('/api', apiLimiter);
+
+    // Stricter limiter for sensitive write endpoints
+    const sensitiveLimiter = rateLimit({
+        windowMs: 60 * 1000,
+        max: 20,
+        standardHeaders: true,
+        legacyHeaders: false
+    });
+    app.use([
+        '/api/orders/create',
+        '/api/referral-withdrawals',
+        '/api/admin/auth/send-otp',
+        '/api/admin/auth/verify-otp',
+        '/api/newsletter/subscribe',
+        '/api/feedback/submit',
+        '/api/survey'
+    ], sensitiveLimiter);
+}
+
 // Ambassador App Authentication Middleware
-const AMBASSADOR_API_KEY = process.env.AMBASSADOR_API_KEY || 'amb_starstore_secure_key_2024';
+const AMBASSADOR_API_KEY = process.env.AMBASSADOR_API_KEY;
+const DEFAULT_AMB_KEY = 'amb_starstore_secure_key_2024';
+if (process.env.NODE_ENV === 'production' && (!AMBASSADOR_API_KEY || AMBASSADOR_API_KEY === DEFAULT_AMB_KEY)) {
+    console.error('🚨 SECURITY: AMBASSADOR_API_KEY missing or set to default value in production. Refusing to enable ambassador-app authenticated routes.');
+}
+const EFFECTIVE_AMB_KEY = (process.env.NODE_ENV === 'production' && (!AMBASSADOR_API_KEY || AMBASSADOR_API_KEY === DEFAULT_AMB_KEY))
+    ? null
+    : (AMBASSADOR_API_KEY || DEFAULT_AMB_KEY);
 
 const authenticateAmbassadorApp = (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
     const userAgent = req.headers['user-agent'];
-    
-    // Check if request is from Ambassador app
+
     if (userAgent && userAgent.includes('Ambassador-Dashboard')) {
-        if (apiKey === AMBASSADOR_API_KEY) {
-            // Allow ambassador app requests
+        if (EFFECTIVE_AMB_KEY && apiKey && apiKey === EFFECTIVE_AMB_KEY) {
             req.isAmbassadorApp = true;
-            console.log('✅ Ambassador app authenticated successfully');
             return next();
-        } else {
-            console.log('❌ Invalid API key for ambassador app:', apiKey);
-            return res.status(401).json({ error: 'Invalid API key for ambassador app' });
         }
+        console.log('❌ Invalid or unconfigured API key for ambassador app');
+        return res.status(401).json({ error: 'Invalid API key for ambassador app' });
     }
-    
-    // For non-ambassador requests, continue with normal flow
     next();
 };
 
 // Apply ambassador authentication middleware
 app.use(authenticateAmbassadorApp);
+
 
 // Ensure directories with index.html return 200 (no 302/redirects)
 // This MUST come before express.static so it takes priority
@@ -9368,12 +9413,15 @@ app.get('/api/withdrawal-history/:userId', validateTelegramUser, async (req, res
  * Called when a referral is added/confirmed
  * Recalculates tier earnings based on current total referrals
  */
-app.post('/api/ambassador/update-earnings', async (req, res) => {
+app.post('/api/ambassador/update-earnings', requireTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.body;
         
         if (!userId) {
             return res.status(400).json({ success: false, error: 'userId required' });
+        }
+        if (String(userId) !== String(req.user?.id) && !req.user?.isAdmin) {
+            return res.status(403).json({ success: false, error: 'Forbidden' });
         }
         
         const user = await User.findOne({ id: userId });
@@ -10313,7 +10361,7 @@ app.post('/api/ambassador-wallet', requireTelegramAuth, async (req, res) => {
 });
 
 // Withdrawal endpoint
-app.post('/api/referral-withdrawals', async (req, res) => {
+app.post('/api/referral-withdrawals', requireTelegramAuth, async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -10325,6 +10373,13 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             await session.abortTransaction();
             session.endSession();
             throw new Error('Missing required fields');
+        }
+
+        // SECURITY: caller must own the userId
+        if (String(userId) !== String(req.user?.id) && !req.user?.isAdmin) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({ success: false, error: 'Cannot withdraw on behalf of another user' });
         }
 
         // Check if user is banned - prevent referral withdrawals
@@ -16129,12 +16184,20 @@ app.get('/api/admin/analytics', async (req, res) => {
 });
 
 // Sync ambassador data (called from Ambassador app)
-app.post('/api/ambassador/sync', async (req, res) => {
+app.post('/api/ambassador/sync', (req, res, next) => {
+    // Allow either authenticated ambassador app OR Telegram-auth'd user syncing themselves
+    if (req.isAmbassadorApp) return next();
+    return requireTelegramAuth(req, res, next);
+}, async (req, res) => {
     try {
         const { telegramId, email, fullName, tier, referralCode } = req.body;
-        
+
         if (!telegramId) {
             return res.status(400).json({ error: 'Telegram ID is required' });
+        }
+        // If not from ambassador app, caller must be syncing themselves
+        if (!req.isAmbassadorApp && String(telegramId) !== String(req.user?.id)) {
+            return res.status(403).json({ error: 'Forbidden' });
         }
 
         // Store ambassador info in the User collection with additional fields
@@ -16217,7 +16280,12 @@ app.get('/api/admin/ambassador-waitlist', async (req, res) => {
 });
 
 // Register webhook endpoint (for Ambassador app to register for updates)
-app.post('/api/webhook/register', async (req, res) => {
+app.post('/api/webhook/register', (req, res, next) => {
+    if (!req.isAmbassadorApp) {
+        return res.status(401).json({ error: 'Unauthorized webhook registration' });
+    }
+    next();
+}, async (req, res) => {
     try {
         const { url, events, source } = req.body;
         
@@ -17469,7 +17537,7 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
     }
 });
 
-app.post('/api/survey', async (req, res) => {
+app.post('/api/survey', requireTelegramAuth, async (req, res) => {
     try {
         const surveyData = req.body;
         
@@ -20230,3 +20298,4 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
 });
 // Webhook fix - 1776877634
 //some harmless comment
+
