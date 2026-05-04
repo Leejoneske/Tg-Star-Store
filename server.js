@@ -435,8 +435,14 @@ app.get('/blog', async (req, res) => {
   try {
     const htmlContent = await fs.readFile(path.join(__dirname, 'public', 'blog', 'index.html'), 'utf8');
     res.type('text/html').send(htmlContent);
-  } catch {
-    res.status(404).type('text/html').send('Not found');
+  } catch (err) {
+    console.error('Error serving /blog:', err.message);
+    try {
+      const notFound = await fs.readFile(path.join(__dirname, 'public', 'errors', '404.html'), 'utf8');
+      res.status(404).type('text/html').send(notFound);
+    } catch {
+      res.status(404).send('Not found');
+    }
   }
 });
 
@@ -444,8 +450,14 @@ app.get('/knowledge-base', async (req, res) => {
   try {
     const htmlContent = await fs.readFile(path.join(__dirname, 'public', 'knowledge-base', 'index.html'), 'utf8');
     res.type('text/html').send(htmlContent);
-  } catch {
-    res.status(404).type('text/html').send('Not found');
+  } catch (err) {
+    console.error('Error serving /knowledge-base:', err.message);
+    try {
+      const notFound = await fs.readFile(path.join(__dirname, 'public', 'errors', '404.html'), 'utf8');
+      res.status(404).type('text/html').send(notFound);
+    } catch {
+      res.status(404).send('Not found');
+    }
   }
 });
 
@@ -453,8 +465,14 @@ app.get('/how-to-withdraw-telegram-stars', async (req, res) => {
   try {
     const htmlContent = await fs.readFile(path.join(__dirname, 'public', 'how-to-withdraw-telegram-stars', 'index.html'), 'utf8');
     res.type('text/html').send(htmlContent);
-  } catch {
-    res.status(404).type('text/html').send('Not found');
+  } catch (err) {
+    console.error('Error serving /how-to-withdraw-telegram-stars:', err.message);
+    try {
+      const notFound = await fs.readFile(path.join(__dirname, 'public', 'errors', '404.html'), 'utf8');
+      res.status(404).type('text/html').send(notFound);
+    } catch {
+      res.status(404).send('Not found');
+    }
   }
 });
 
