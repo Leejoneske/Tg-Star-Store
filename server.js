@@ -429,6 +429,35 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
   }
 });
 
+// ==================== STATIC DIRECTORY ROUTES ====================
+// Explicitly serve subdirectory index.html files to avoid static middleware issues
+app.get('/blog', async (req, res) => {
+  try {
+    const htmlContent = await fs.readFile(path.join(__dirname, 'public', 'blog', 'index.html'), 'utf8');
+    res.type('text/html').send(htmlContent);
+  } catch {
+    res.status(404).type('text/html').send('Not found');
+  }
+});
+
+app.get('/knowledge-base', async (req, res) => {
+  try {
+    const htmlContent = await fs.readFile(path.join(__dirname, 'public', 'knowledge-base', 'index.html'), 'utf8');
+    res.type('text/html').send(htmlContent);
+  } catch {
+    res.status(404).type('text/html').send('Not found');
+  }
+});
+
+app.get('/how-to-withdraw-telegram-stars', async (req, res) => {
+  try {
+    const htmlContent = await fs.readFile(path.join(__dirname, 'public', 'how-to-withdraw-telegram-stars', 'index.html'), 'utf8');
+    res.type('text/html').send(htmlContent);
+  } catch {
+    res.status(404).type('text/html').send('Not found');
+  }
+});
+
 // Serve static files from public directory
 
 // Serve static files from public directory
