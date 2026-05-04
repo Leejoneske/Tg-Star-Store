@@ -147,9 +147,9 @@ if (process.env.BOT_TOKEN) {
   };
 }
 // Webhook domain configuration
-// Priority: explicit WEBHOOK_DOMAIN env var > starstore.site (current production)
-// This ensures webhook always uses starstore.site unless explicitly overridden
-const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN || 'starstore.site';
+// Priority: explicit WEBHOOK_DOMAIN env var > starstore.app (current production)
+// This ensures webhook always uses starstore.app unless explicitly overridden
+const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN || 'starstore.app';
 const SERVER_URL = WEBHOOK_DOMAIN;
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
@@ -175,17 +175,14 @@ try {
     isTelegramUser = mod.isTelegramUser || isTelegramUser;
 } catch (e) {
     console.warn('telegramAuth middleware not found, proceeding without strict auth');
-    // Lightweight local/dev fallback: derive user from x-telegram-id header
+    // Fallback used only when middleware/telegramAuth.js failed to load.
+    // SECURITY: Never trust x-telegram-id header in production — it is unsigned and trivially spoofed.
     requireTelegramAuth = (req, res, next) => {
         const telegramIdHeader = req.headers['x-telegram-id'];
         const telegramInitData = req.headers['x-telegram-init-data'];
-        
-        if (telegramIdHeader) {
-            req.user = { id: telegramIdHeader.toString(), isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramIdHeader.toString()) };
-            return next();
-        }
-        
-        // Try to extract user ID from init data if available
+        const isProd = process.env.NODE_ENV === 'production';
+
+        // initData (signed) - allowed in any env, but in prod we cannot verify here without bot token logic
         if (telegramInitData) {
             try {
                 const urlParams = new URLSearchParams(telegramInitData);
@@ -199,8 +196,14 @@ try {
                 console.error('Error parsing telegram init data:', e);
             }
         }
-        
-        if (process.env.NODE_ENV === 'production') {
+
+        // Header-only auth: dev/local only — NEVER trusted in production
+        if (telegramIdHeader && !isProd) {
+            req.user = { id: telegramIdHeader.toString(), isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramIdHeader.toString()) };
+            return next();
+        }
+
+        if (isProd) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         req.user = { id: 'dev-user', isAdmin: false };
@@ -286,6 +289,16 @@ if (rateLimit) {
         '/api/feedback/submit',
         '/api/survey'
     ], sensitiveLimiter);
+
+    // Rate limiter for the Telegram webhook to mitigate flooding/DoS
+    const webhookLimiter = rateLimit({
+        windowMs: 60 * 1000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many requests' }
+    });
+    app.use(WEBHOOK_PATH, webhookLimiter);
 }
 
 // Ambassador App Authentication Middleware
@@ -1031,7 +1044,11 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
 
 // Get user data for ambassador form autofill
 // Called by: Ambassador Dashboard Apply form
-app.get('/api/ambassador/user/:telegramId', async (req, res) => {
+app.get('/api/ambassador/user/:telegramId', requireTelegramAuth, async (req, res) => {
+  // Authorization: only allow users to fetch their own profile (admins may fetch any)
+  if (String(req.params.telegramId) !== String(req.user?.id) && !req.user?.isAdmin) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
   try {
     const { telegramId } = req.params;
     
@@ -1086,7 +1103,7 @@ app.get('/api/ambassador/auth/callback', async (req, res) => {
     }
 
     // Build redirect URL with user data
-    const redirectUrl = redirect || 'https://amb.starstore.site/apply';
+    const redirectUrl = redirect || 'https://amb.starstore.app/apply';
     const separator = redirectUrl.includes('?') ? '&' : '?';
     const params = new URLSearchParams({
       tg_id: String(tg_id),
@@ -1109,7 +1126,7 @@ const handleAmbassadorConnect = async (msg, match) => {
   
   try {
     // Extract redirect URL from deep link parameter
-    let redirectUrl = 'https://amb.starstore.site/apply';
+    let redirectUrl = 'https://amb.starstore.app/apply';
     const deepLinkParam = match && match[1] ? match[1].trim() : '';
     
     if (deepLinkParam.startsWith('amb_connect_')) {
@@ -1234,8 +1251,8 @@ app.get('/api/check-ambassador', async (req, res) => {
 
 app.get('/sitemap-duplicate-removed', async (req, res) => {
   try {
-    // Derive base from configured server domain; fallback to starstore.site
-    const base = `https://${WEBHOOK_DOMAIN || 'starstore.site'}`;
+    // Derive base from configured server domain; fallback to starstore.app
+    const base = `https://${WEBHOOK_DOMAIN || 'starstore.app'}`;
     const root = path.join(__dirname, 'public');
 
     // Collect HTML files recursively (bounded)
@@ -1473,29 +1490,26 @@ async function connectDatabase() {
 
 // Kick off database connection immediately
 connectDatabase();
-// Webhook handler
-app.post(WEBHOOK_PATH, (req, res) => {
-  // Webhook secret verification 
-  // - If header is present: MUST match (from Telegram)
-  // - If header is missing: allow it (from bot simulator or test requests)
+// Webhook handler — strict body size + secret token enforcement
+app.post(WEBHOOK_PATH, express.json({ limit: '100kb' }), (req, res) => {
   const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
   const expectedSecret = process.env.WEBHOOK_SECRET;
-  
-  if (incomingSecret) {
-    // Header is present, verify it matches
-    if (incomingSecret !== expectedSecret) {
-      console.warn('⚠️ Webhook secret mismatch:', {
-        expected: expectedSecret ? '***set***' : 'not set',
-        received: incomingSecret ? '***mismatch***' : 'not received'
-      });
-      return res.sendStatus(403);
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (isProd) {
+    // In production: secret MUST be configured and MUST match
+    if (!expectedSecret) {
+      console.error('🚨 WEBHOOK_SECRET not configured in production — rejecting all webhook requests');
+      return res.sendStatus(500);
     }
-    console.log('✅ Webhook secret verified from Telegram');
-  } else if (expectedSecret) {
-    // Secret is configured but header missing - allow it (probably bot simulator)
-    console.debug('ℹ️ Webhook request received without secret header (bot simulator or internal test)');
+    if (!incomingSecret || incomingSecret !== expectedSecret) {
+      console.warn('⚠️ Rejected webhook request: missing or invalid secret token');
+      return res.sendStatus(401);
+    }
+  } else if (expectedSecret && incomingSecret && incomingSecret !== expectedSecret) {
+    return res.sendStatus(403);
   }
-  
+
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
@@ -3717,7 +3731,7 @@ app.get('/api/quote', (req, res) => {
 
 // Smart amount validation with automatic retry on rate changes
 // Called automatically by app before opening wallet - user never sees the refresh
-app.post('/api/validate-amount', (req, res) => {
+app.post('/api/validate-amount', requireTelegramAuth, (req, res) => {
     try {
         const { usdtAmount, expectedTonAmount } = req.body;
         const timestamp = new Date().toISOString();
@@ -3818,7 +3832,7 @@ app.post('/api/validate-amount', (req, res) => {
 
 // Username validation endpoint (format validation only)
 // Note: Telegram Bot API cannot validate usernames without user interaction due to privacy restrictions
-app.post('/api/validate-usernames', (req, res) => {
+app.post('/api/validate-usernames', requireTelegramAuth, (req, res) => {
     try {
         const usernames = Array.isArray(req.body?.usernames) ? req.body.usernames : [];
         console.log('Username validation request:', { usernames });
@@ -3850,8 +3864,8 @@ app.post('/api/validate-usernames', (req, res) => {
             
             seen.add(name);
             // Generate stable pseudo userId from hash (since we can't get real Telegram IDs)
-            const hash = crypto.createHash('md5').update(name).digest('hex').slice(0, 10);
-            const userId = parseInt(hash, 16).toString().slice(0, 10);
+            const hash = crypto.createHash('sha256').update(name).digest('hex').slice(0, 12);
+            const userId = 'u_' + hash;
             recipients.push({ username: name, userId });
             console.log('Added valid recipient:', { username: name, userId });
         }
@@ -11290,7 +11304,7 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
         const userMsg = `Congratulations! You have been approved as a StarStore Ambassador.\n\nEmail: ${email}\nAmbassador ID: ${user.ambassadorReferralCode}\n\nAs an ambassador, you now have access to exclusive benefits including higher earning potential, early product access, and dedicated support.\n\nYou will notice a blue verification badge next to your username, marking you as an official ambassador. Your referral page has also been upgraded with enhanced tools to help you share effectively.`;
         const ambassadorKeyboard = {
             inline_keyboard: [[
-                { text: '📖 Learn About Ambassador Program', url: 'https://amb.starstore.site/' }
+                { text: '📖 Learn About Ambassador Program', url: 'https://amb.starstore.app/' }
             ]]
         };
         try {
@@ -11545,7 +11559,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         await bot.sendMessage(chatId, `👋 Welcome to StarStore, @${username}! ✨\n\nUse the app to purchase stars and enjoy exclusive benefits!`, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '🚀 Launch StarStore', web_app: { url: `https://starstore.site?startapp=home_${chatId}` } }],
+                    [{ text: '🚀 Launch StarStore', web_app: { url: `https://starstore.app?startapp=home_${chatId}` } }],
                     [{ text: '👥 Join Community', url: 'https://t.me/StarStore_Chat' }]
                 ]
             }
@@ -11788,6 +11802,7 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
 // Handle text input for sell flow (amount, wallet, memo)
 bot.on('message', async (msg) => {
     try {
+        if (!msg || !msg.from || !msg.from.id || !msg.chat || !msg.chat.id) return;
         const userId = msg.from.id.toString();
         const chatId = msg.chat.id;
         const text = msg.text?.trim();
@@ -12319,7 +12334,7 @@ async function handleReferralsCommand(msg) {
             const keyboard = {
                 inline_keyboard: [
                     [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
-                    [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
+                    [{ text: 'Open Web App', web_app: { url: 'https://starstore.app/referral' } }]
                 ]
             };
             
@@ -12330,7 +12345,7 @@ async function handleReferralsCommand(msg) {
             const keyboard = {
                 inline_keyboard: [
                     [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
-                    [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
+                    [{ text: 'Open Web App', web_app: { url: 'https://starstore.app/referral' } }]
                 ]
             };
             
@@ -12551,7 +12566,7 @@ bot.onText(/\/contact/, (msg) => {
                 
                 const keyboard = {
                     inline_keyboard: [[
-                        { text: '💰 Open Sell Page', web_app: { url: 'https://starstore.site/sell' } }
+                        { text: '💰 Open Sell Page', web_app: { url: 'https://starstore.app/sell' } }
                     ]]
                 };
                 
@@ -13737,8 +13752,8 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
             const defaultKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.site/sell.html' } }],
-                        [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.site/referral.html' } }]
+                        [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.app/sell.html' } }],
+                        [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.app/referral.html' } }]
                     ]
                 }
             };
@@ -14033,7 +14048,7 @@ bot.on('message', async (msg) => {
         const approvalKeyboard = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '💰 Sell at a Higher Price', web_app: { url: 'https://starstore.site/sell.html' } }],
+                    [{ text: '💰 Sell at a Higher Price', web_app: { url: 'https://starstore.app/sell.html' } }],
                     [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
                     [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
                 ]
@@ -15082,7 +15097,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             csv += `FOOTER\n`;
             csv += `═══════════════════════════════════════════════════════════════\n`;
             csv += `This is an official StarStore transaction record.\n`;
-            csv += `For disputes or questions, contact support at https://starstore.site\n`;
+            csv += `For disputes or questions, contact support at https://starstore.app\n`;
             csv += `Generated by StarStore - Your Trusted Telegram Stars Marketplace\n`;
             csv += `Statement generated on: ${new Date().toISOString()}\n`;
             
@@ -15194,7 +15209,7 @@ app.get('/api/export-transactions-download', async (req, res) => {
         csv += `# User ID: ${userId}\n`;
         csv += `# Total Transactions: ${totalTransactions}\n`;
         csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
-        csv += `# Website: https://starstore.site\n`;
+        csv += `# Website: https://starstore.app\n`;
         csv += `# Export Type: Transaction History\n`;
         csv += `#\n`;
         csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
@@ -15498,7 +15513,7 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         csv += `FOOTER\n`;
         csv += `═══════════════════════════════════════════════════════════════\n`;
         csv += `This is an official StarStore referral earnings record.\n`;
-        csv += `For disputes or questions, contact support at https://starstore.site\n`;
+        csv += `For disputes or questions, contact support at https://starstore.app\n`;
         csv += `Generated by StarStore - Your Trusted Telegram Stars Marketplace\n`;
         csv += `Statement generated on: ${new Date().toISOString()}\n`;
 
@@ -15567,7 +15582,7 @@ app.get('/api/export-referrals-download', async (req, res) => {
         csv += `# User ID: ${userId}\n`;
         csv += `# Total Referrals: ${totalReferrals}\n`;
         csv += `# Active: ${activeCount} | Processing: ${processingCount}\n`;
-        csv += `# Website: https://starstore.site\n`;
+        csv += `# Website: https://starstore.app\n`;
         csv += `# Export Type: Referral History\n`;
         csv += `#\n`;
         csv += `ID,Referred User,Amount,Status,Date,Details\n`;
@@ -20155,21 +20170,18 @@ app.get('/api/admin/auth/verify', (req, res) => {
 	});
 });
 
-// Debug endpoint to check admin configuration
-app.get('/api/admin/debug/config', (req, res) => {
-	const telegramId = req.headers['x-telegram-id'];
-	
+// Debug endpoint — admin-only and disabled in production. Returns no admin IDs.
+app.get('/api/admin/debug/config', requireAdmin, (req, res) => {
+	if (process.env.NODE_ENV === 'production') {
+		return res.status(404).json({ error: 'Not found' });
+	}
 	res.json({
-		requestedId: telegramId,
-		adminIds: adminIds,
-		adminIdsType: typeof adminIds,
-		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
-		isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramId),
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 0,
 		envVars: {
 			hasAdminTelegramIds: !!process.env.ADMIN_TELEGRAM_IDS,
 			hasAdminIds: !!process.env.ADMIN_IDS,
-			adminTelegramIdsValue: process.env.ADMIN_TELEGRAM_IDS ? '***set***' : 'not set',
-			adminIdsValue: process.env.ADMIN_IDS ? '***set***' : 'not set'
+			hasWebhookSecret: !!process.env.WEBHOOK_SECRET,
+			hasBotToken: !!process.env.BOT_TOKEN
 		}
 	});
 });
