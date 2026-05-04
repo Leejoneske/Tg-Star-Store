@@ -32,10 +32,6 @@ LICENSE
 yarn.lock
 pnpm-lock.yaml
 .pnpm-store
-public/blog
-public/errors
-public/how-to-withdraw-telegram-stars
-public/knowledge-base
 .git
 .github
 .gitlab-ci.yml
