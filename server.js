@@ -1331,13 +1331,11 @@ app.get('/admin', async (req, res) => {
 	}
 });
 
-// Catch-all 404 for unmatched API routes only
+// Catch-all 404 for non-API GET requests - allows all other traffic through
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-  // Non-API requests: let express.static handle or return 404 HTML
-  res.status(404).type('text/html').send(`
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+    // Serve 404 for non-API GET requests
+    res.status(404).type('text/html').send(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -1361,6 +1359,10 @@ app.use((req, res, next) => {
         </body>
         </html>
       `);
+  } else {
+    // All other requests (POST, PUT, DELETE, API, etc.) continue to next middleware
+    next();
+  }
 });
 
 // Global error handler - JSON for APIs, HTML for pages
