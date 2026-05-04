@@ -30,6 +30,7 @@ const axios = require('axios');
 const fetch = require('node-fetch');
 const fs = require('fs').promises;
 const app = express();
+app.set('trust proxy', 1);
 const path = require('path');  
 const zlib = require('zlib');
 
