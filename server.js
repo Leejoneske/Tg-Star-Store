@@ -224,13 +224,11 @@ app.use(cors({
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
             /^https:\/\/.*\.vercel\.app$/,
             /^https:\/\/(www\.)?starstore\.app$/,
-            /^https:\/\/(www\.)?starstore\.site$/,
             /^https:\/\/(www\.)?walletbot\.me$/,
             /^https:\/\/.*\.railway\.app$/,
             // Ambassador app domains
             /^https:\/\/amb-starstore\.vercel\.app$/,
             /^https:\/\/amb\.starstore\.app$/,
-            /^https:\/\/amb\.starstore\.site$/,
             /^https:\/\/.*ambassador.*\.vercel\.app$/,
             // Lovable preview/sandbox environments
             /^https:\/\/.*\.lovableproject\.com$/,
@@ -438,6 +436,7 @@ app.use(express.static('public', {
     maxAge: '1h',
     etag: false,
     lastModified: false,
+    index: ['index.html'],
     setHeaders: (res, requestPath) => {
         if (requestPath.endsWith('.html')) {
             res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -509,7 +508,7 @@ try { app.use(verifyTelegramAuth); } catch (_) {}
 // ==================== DYNAMIC ROUTES (BEFORE STATIC MIDDLEWARE) ====================
 
 // Diagnostic endpoint to check file availability
-app.get('/api/debug/file-status', (req, res) => {
+app.get('/api/debug/file-status', requireAdmin, (req, res) => {
   try {
     const fsSyncModule = require('fs');
     const publicDir = path.join(__dirname, 'public');
@@ -1332,17 +1331,13 @@ app.get('/admin', async (req, res) => {
 	}
 });
 
-// Catch-all 404 for non-API GET requests
-app.use(async (req, res, next) => {
-  if (req.method === 'GET' && !req.path.startsWith('/api/')) {
-    const abs = path.join(__dirname, 'public', 'errors', '404.html');
-    try {
-      const content = await fs.readFile(abs, 'utf8');
-      res.status(404).type('text/html').send(content);
-    } catch (err) {
-      console.error('Error serving 404 page from file:', err.message);
-      // Fallback inline HTML if file not found
-      res.status(404).type('text/html').send(`
+// Catch-all 404 for unmatched API routes only
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  // Non-API requests: let express.static handle or return 404 HTML
+  res.status(404).type('text/html').send(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -1366,10 +1361,6 @@ app.use(async (req, res, next) => {
         </body>
         </html>
       `);
-    }
-    return;
-  }
-  return next();
 });
 
 // Global error handler - JSON for APIs, HTML for pages
@@ -20142,30 +20133,11 @@ app.post('/api/admin/logout', (req, res) => {
 });
 
 // Modern admin auth verification endpoint
-app.get('/api/admin/auth/verify', (req, res) => {
-	const telegramId = req.headers['x-telegram-id'];
-	console.log('🔐 Admin auth verify attempt:', {
-		telegramId,
-		adminIds: adminIds,
-		adminIdsType: typeof adminIds,
-		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array'
-	});
-	
-	if (!telegramId) {
-		return res.status(401).json({ error: 'No telegram ID provided' });
-	}
-	
-	const isAdmin = Array.isArray(adminIds) && adminIds.includes(telegramId);
-        console.debug('🔐 Admin check:', isAdmin ? 'YES' : 'NO');
-	
-	if (!isAdmin) {
-		return res.status(403).json({ error: 'Access denied - ID not in admin list' });
-	}
-	
+app.get('/api/admin/auth/verify', requireAdmin, (req, res) => {
 	res.json({
 		success: true,
 		user: {
-			telegramId,
+			telegramId: req.user?.id,
 			isAdmin: true
 		}
 	});
