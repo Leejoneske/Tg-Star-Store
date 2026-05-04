@@ -96,21 +96,16 @@ function requireTelegramAuth(req, res, next) {
         userId = parsed.user.id.toString();
         authMethod = 'initData';
         
-        // Validate initData signature if in production
-        if (process.env.NODE_ENV === 'production' && botToken) {
+        // Validate initData signature in production — REJECT if invalid
+        if (process.env.NODE_ENV === 'production') {
+          if (!botToken) {
+            console.error('❌ BOT_TOKEN not configured in production — cannot verify initData');
+            return res.status(500).json({ error: 'Server auth misconfigured' });
+          }
           const valid = validateTelegramInitData(initDataHeader, botToken);
           if (!valid) {
-            console.log('❌ Telegram auth validation failed:', { 
-              hasInitData: !!initDataHeader, 
-              hasBotToken: !!botToken,
-              initDataLength: initDataHeader.length,
-              extractedUserId: parsed.user?.id || 'undefined',
-              authMethod
-            });
-            
-            // For now, allow the request to proceed with a warning in production
-            // This is a temporary fix until we resolve the signature validation issue
-            console.log('⚠️ WARNING: Proceeding with unvalidated initData for user:', parsed.user?.id);
+            console.warn('❌ Telegram initData signature invalid', { extractedUserId: parsed.user?.id });
+            return res.status(401).json({ error: 'Unauthorized - Invalid Telegram signature' });
           }
         }
       }
@@ -172,4 +167,5 @@ function isTelegramUser(req) {
 }
 
 module.exports = { verifyTelegramAuth, requireTelegramAuth, isTelegramUser };
+
 
