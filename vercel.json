@@ -14,9 +14,12 @@
     { "source": "/ambassador", "destination": "/public/apply_ambassador.html" },
     { "source": "/amb-referral", "destination": "/public/amb_ref.html" },
 
-    { "source": "/blog/:path*", "destination": "/public/blog/:path*" },
-    { "source": "/knowledge-base/:path*", "destination": "/public/knowledge-base/:path*" },
-    { "source": "/how-to-withdraw-telegram-stars/:path*", "destination": "/public/how-to-withdraw-telegram-stars/:path*" },
+    { "source": "/blog", "destination": "/public/blog/index.html" },
+    { "source": "/blog/", "destination": "/public/blog/index.html" },
+    { "source": "/knowledge-base", "destination": "/public/blog/index.html" },
+    { "source": "/knowledge-base/:path*", "destination": "/public/blog/index.html" },
+    { "source": "/how-to-withdraw-telegram-stars", "destination": "/public/blog/index.html" },
+    { "source": "/how-to-withdraw-telegram-stars/:path*", "destination": "/public/blog/index.html" },
     { "source": "/admin/:path*", "destination": "/public/admin/:path*" },
     { "source": "/api/:path*", "destination": "/api/:path*" }
   ],
@@ -42,3 +45,4 @@
     }
   ]
 }
+
