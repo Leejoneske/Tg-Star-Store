@@ -1,45 +1,60 @@
-# StarStore robots.txt - Optimized for search engine discoverability
+# StarStore robots.txt — bots are welcome on public content.
 
-# Default rules for all search engines
 User-agent: *
 Allow: /
-Allow: /public/
 Allow: /blog/
-Allow: /knowledge-base/
-Allow: /how-to-withdraw-telegram-stars/
+Allow: /about
+Allow: /sell
+Allow: /referral
+Allow: /support
+Allow: /policy
 
-# Disallow sensitive API endpoints and admin areas
+# Sensitive areas only
 Disallow: /api/
 Disallow: /admin/
+Disallow: /errors/
 Disallow: /private/
-Disallow: /temp/
-Disallow: /data/
-Disallow: /node_modules/
-Disallow: /tests/
 Disallow: /tools/
 Disallow: /services/
 Disallow: /middleware/
+Disallow: /node_modules/
+Disallow: /tests/
 
-# Primary sitemap
 Sitemap: https://starstore.app/sitemap.xml
 
-# Crawl-delay for general crawlers (be respectful - 0.5 seconds between requests)
-Crawl-delay: 0.5
-
-# Request-rate limiting per second
-Request-rate: 2
-
-# Specific optimization for Google
+# Major search engines — crawl freely
 User-agent: Googlebot
 Allow: /
-Crawl-delay: 0.1
 
-# Specific optimization for Bing
+User-agent: Googlebot-Image
+Allow: /
+
 User-agent: Bingbot
 Allow: /
-Crawl-delay: 0.2
 
-# Block bad bots and scrapers
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# AI / answer engines (allowed for indexing public content)
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+# Block aggressive SEO scrapers
 User-agent: MJ12bot
 Disallow: /
 
@@ -51,3 +66,4 @@ Disallow: /
 
 User-agent: DotBot
 Disallow: /
+
