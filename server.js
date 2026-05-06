@@ -11805,7 +11805,7 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
             ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:` 
             : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`;
         
-        await bot.sendMessage(chatId, amountPrompt);
+        await bot.sendMessage(chatId, amountPrompt, { parse_mode: 'HTML' });
     } catch (err) {
         console.error('SELL Stars command error:', err);
         await bot.sendMessage(msg.chat.id, '❌ An error occurred. Please try again.');
@@ -11873,7 +11873,7 @@ bot.on('message', async (msg) => {
             const bulkRate = (100 * conversionRate).toFixed(2);
             const rateInfo = `\n\n💲 <b>Sell Rate Preview:</b>\n<code>You will get: ${usdtAmount} USDT</code>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${bulkRate} USDT</code>`;
             
-            return bot.sendMessage(chatId, `✅ ${stars} stars${rateInfo}\n\nNow enter your USDT TON wallet address:`);
+            return bot.sendMessage(chatId, `✅ <b>${stars} stars</b>${rateInfo}\n\nNow enter your USDT TON wallet address:`, { parse_mode: 'HTML' });
         }
 
         // STAGE 2: Wallet address
@@ -11899,7 +11899,8 @@ bot.on('message', async (msg) => {
             const confirmRateDisplay = `\n\n💲 <b>You will receive:</b> <u><b>${confirmUsdtAmount} USDT</b></u>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${confirmBulkRate} USDT</code>`;
             
             // Store the message ID so we can delete the button after clicking skip
-            const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}${confirmRateDisplay}\n\nEnter memo/tag if required:`, {
+            const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: <code>${walletAddress}</code>${confirmRateDisplay}\n\nEnter memo/tag if required (or skip):`, {
+                parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: [[
                         { text: '⏭️ Skip Memo', callback_data: `sell_skip_memo_${userId}_${Date.now()}` }
@@ -12008,10 +12009,10 @@ bot.on('callback_query', async (query) => {
             } catch (e) { /* ignore */ }
             
             // Send confirmation and proceed to amount input
-            await bot.sendMessage(chatId, '✅ Agreement accepted.\n\n💱 How many Telegram Stars do you want to sell?\n\n' + 
-                (flowState.isAdmin 
-                    ? 'Minimum: 1 star\nNo maximum limit\n\nEnter the amount:'
-                    : 'Minimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:'));
+            const postAgreementPrompt = flowState.isAdmin
+                ? `✅ Agreement accepted.\n\n💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`
+                : `✅ Agreement accepted.\n\n💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`;
+            await bot.sendMessage(chatId, postAgreementPrompt, { parse_mode: 'HTML' });
             
             // Move to amount stage
             flowState.stage = 'amount';
@@ -12114,9 +12115,14 @@ async function createSellOrderFromKeyboard(flowData, msg, isUserAdmin = false) {
         });
 
         // Send user message with payment link
-        const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
+        const userMessage = `🚀 <b>Sell order initialized!</b>\n\n` +
+            `<b>Order ID:</b> <code>${order.id}</code>\n` +
+            `<b>Stars:</b> ${order.stars}\n` +
+            `<b>Status:</b> <i>Pending — waiting for payment</i>\n\n` +
+            `<blockquote>⏰ Payment link expires in 15 minutes</blockquote>\n\n` +
+            `Pay here: ${paymentLink}`;
         try {
-            const sent = await bot.sendMessage(chatId, userMessage);
+            const sent = await bot.sendMessage(chatId, userMessage, { parse_mode: 'HTML' });
             if (sent?.message_id) {
                 order.userMessageId = sent.message_id;
                 await order.save();
@@ -12154,7 +12160,7 @@ async function createSellOrderFromKeyboard(flowData, msg, isUserAdmin = false) {
         // DON'T notify admins yet - wait for payment to be verified
         // The successful_payment handler will notify admins when payment is confirmed
         await order.save();
-        await bot.sendMessage(chatId, `✅ Order created! Waiting for your payment...`);
+        await bot.sendMessage(chatId, `✅ <b>Order created!</b> Waiting for your payment…`, { parse_mode: 'HTML' });
 
     } catch (err) {
         console.error('Error creating sell order from keyboard:', err);
@@ -12557,7 +12563,7 @@ bot.on('message', async (msg) => {
                 ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:` 
                 : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`;
             
-            await bot.sendMessage(chatId, amountPrompt);
+            await bot.sendMessage(chatId, amountPrompt, { parse_mode: 'HTML' });
         } catch (err) {
             console.error('SELL Stars command error:', err);
             await bot.sendMessage(msg.chat.id, '❌ An error occurred. Please try again.');
