@@ -282,15 +282,27 @@ ${articlesHtml}
     const menuBtn = document.querySelector('.menu-btn');
     const mobileNav = document.getElementById('mobile-nav');
     if (menuBtn && mobileNav) {
+      const closeNav = () => {
+        mobileNav.setAttribute('hidden', '');
+        menuBtn.setAttribute('aria-expanded', 'false');
+      };
       menuBtn.addEventListener('click', () => {
         const open = mobileNav.hasAttribute('hidden');
-        if (open) { mobileNav.removeAttribute('hidden'); menuBtn.setAttribute('aria-expanded', 'true'); }
-        else { mobileNav.setAttribute('hidden', ''); menuBtn.setAttribute('aria-expanded', 'false'); }
+        if (open) {
+          mobileNav.removeAttribute('hidden');
+          menuBtn.setAttribute('aria-expanded', 'true');
+        } else {
+          closeNav();
+        }
+      });
+      // Close on link click
+      mobileNav.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', closeNav);
       });
       // Close on outside click
       document.addEventListener('click', (e) => {
         if (!menuBtn.contains(e.target) && !mobileNav.contains(e.target)) {
-          mobileNav.setAttribute('hidden', ''); menuBtn.setAttribute('aria-expanded', 'false');
+          closeNav();
         }
       });
     }

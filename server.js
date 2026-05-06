@@ -5436,7 +5436,11 @@ bot.on("successful_payment", async (msg) => {
     if (order.createdViaKeyboard) {
         let userLocationInfo = '';
         if (order.userLocation) {
-            userLocationInfo = `📍 ${order.userLocation.city}, ${order.userLocation.country}`;
+            const city = order.userLocation.city || 'Unknown';
+            const country = order.userLocation.country || 'Unknown';
+            userLocationInfo = `📍 ${city}, ${country}`;
+        } else {
+            userLocationInfo = `📍 Location unknown`;
         }
 
         const adminMessage = `💰 New Payment Received!\n\n` +
@@ -11867,11 +11871,10 @@ bot.on('message', async (msg) => {
             flowState.errors.amount = 0;
             flowState.stage = 'wallet';
             
-            // Show rate preview when user enters amount
+            // Show amount confirmation with USDT preview
             const conversionRate = 0.01; // 1 star = 0.01 USDT
             const usdtAmount = (stars * conversionRate).toFixed(2);
-            const bulkRate = (100 * conversionRate).toFixed(2);
-            const rateInfo = `\n\n💲 <b>Sell Rate Preview:</b>\n<code>You will get: ${usdtAmount} USDT</code>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${bulkRate} USDT</code>`;
+            const rateInfo = `\n\n💲 <b>You will receive:</b> <u>${usdtAmount} USDT</u>`;
             
             return bot.sendMessage(chatId, `✅ <b>${stars} stars</b>${rateInfo}\n\nNow enter your USDT TON wallet address:`, { parse_mode: 'HTML' });
         }
@@ -11895,8 +11898,7 @@ bot.on('message', async (msg) => {
             const starsAmount = flowState.data.stars;
             const conversionRate = 0.01; // 1 star = 0.01 USDT
             const confirmUsdtAmount = (starsAmount * conversionRate).toFixed(2);
-            const confirmBulkRate = (100 * conversionRate).toFixed(2);
-            const confirmRateDisplay = `\n\n💲 <b>You will receive:</b> <u><b>${confirmUsdtAmount} USDT</b></u>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${confirmBulkRate} USDT</code>`;
+            const confirmRateDisplay = `\n\n💲 <b>You will receive:</b> <u>${confirmUsdtAmount} USDT</u>`;
             
             // Store the message ID so we can delete the button after clicking skip
             const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: <code>${walletAddress}</code>${confirmRateDisplay}\n\nEnter memo/tag if required (or skip):`, {
@@ -12010,8 +12012,8 @@ bot.on('callback_query', async (query) => {
             
             // Send confirmation and proceed to amount input
             const postAgreementPrompt = flowState.isAdmin
-                ? `✅ Agreement accepted.\n\n💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`
-                : `✅ Agreement accepted.\n\n💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`;
+                ? `✅ Agreement accepted.\n\n💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\nEnter the amount:`
+                : `✅ Agreement accepted.\n\n💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\nEnter the amount:`;
             await bot.sendMessage(chatId, postAgreementPrompt, { parse_mode: 'HTML' });
             
             // Move to amount stage
@@ -12131,10 +12133,14 @@ async function createSellOrderFromKeyboard(flowData, msg, isUserAdmin = false) {
             console.error('Failed to send user message:', err);
         }
 
-        // Get user location info for admin message
+        // Get user location info for admin message (with fallback to unknown)
         let userLocationInfo = '';
         if (order.userLocation) {
-            userLocationInfo = `📍 ${order.userLocation.city}, ${order.userLocation.country}`;
+            const city = order.userLocation.city || 'Unknown';
+            const country = order.userLocation.country || 'Unknown';
+            userLocationInfo = `📍 ${city}, ${country}`;
+        } else {
+            userLocationInfo = `📍 Location unknown`;
         }
 
         // Send admin notification with keyboard signature
@@ -12560,8 +12566,8 @@ bot.on('message', async (msg) => {
             });
 
             const amountPrompt = isAdmin 
-                ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:` 
-                : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`;
+                ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\nEnter the amount:` 
+                : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\nEnter the amount:`;
             
             await bot.sendMessage(chatId, amountPrompt, { parse_mode: 'HTML' });
         } catch (err) {
