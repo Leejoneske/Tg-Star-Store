@@ -11758,11 +11758,11 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
         // Check if user has accepted 21-day hold notice
         const hasAccepted = await hasUserAccepted21DayNotice(userId);
         if (!hasAccepted) {
-            // Show 21-day hold agreement notice first
+            // Show 21-day hold agreement notice first - beautified with Telegram formatting
             const noticeMsg = await bot.sendMessage(chatId, 
                 '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
+                '<quote>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</quote>\n\n' +
+                'By clicking "Continue", you acknowledge and agree to these terms. ' +
                 '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                 {
                     parse_mode: 'HTML',
@@ -11799,8 +11799,8 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
 
         const isAdmin = adminIds.includes(userId);
         const amountPrompt = isAdmin 
-            ? `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 1 star\nNo maximum limit\n\nEnter the amount:` 
-            : `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`;
+            ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:` 
+            : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:`;
         
         await bot.sendMessage(chatId, amountPrompt);
     } catch (err) {
@@ -11863,7 +11863,14 @@ bot.on('message', async (msg) => {
             flowState.data.stars = stars;
             flowState.errors.amount = 0;
             flowState.stage = 'wallet';
-            return bot.sendMessage(chatId, `✅ ${stars} stars\n\nNow enter your USDT TON wallet address:`);
+            
+            // Show rate preview when user enters amount
+            const conversionRate = 0.009; // 1 star = 0.009 USDT
+            const usdtAmount = (stars * conversionRate).toFixed(2);
+            const bulkRate = (100 * conversionRate).toFixed(2);
+            const rateInfo = `\n\n💲 <b>Sell Rate Preview:</b>\n<code>You will get: ${usdtAmount} USDT</code>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${bulkRate} USDT</code>`;
+            
+            return bot.sendMessage(chatId, `✅ ${stars} stars${rateInfo}\n\nNow enter your USDT TON wallet address:`);
         }
 
         // STAGE 2: Wallet address
@@ -11881,8 +11888,15 @@ bot.on('message', async (msg) => {
             flowState.errors.wallet = 0;
             flowState.stage = 'memo';
             
+            // Calculate and show USDT amount for confirmed wallet + amount
+            const starsAmount = flowState.data.stars;
+            const conversionRate = 0.009; // 1 star = 0.009 USDT
+            const confirmUsdtAmount = (starsAmount * conversionRate).toFixed(2);
+            const confirmBulkRate = (100 * conversionRate).toFixed(2);
+            const confirmRateDisplay = `\n\n💲 <b>You will receive:</b> <u><b>${confirmUsdtAmount} USDT</b></u>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${confirmBulkRate} USDT</code>`;
+            
             // Store the message ID so we can delete the button after clicking skip
-            const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}\n\nEnter memo/tag if required:`, {
+            const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}${confirmRateDisplay}\n\nEnter memo/tag if required:`, {
                 reply_markup: {
                     inline_keyboard: [[
                         { text: '⏭️ Skip Memo', callback_data: `sell_skip_memo_${userId}_${Date.now()}` }
@@ -12495,11 +12509,11 @@ bot.on('message', async (msg) => {
             // Check if user has accepted 21-day hold notice
             const hasAccepted = await hasUserAccepted21DayNotice(userId);
             if (!hasAccepted) {
-                // Show 21-day hold agreement notice first
+                // Show 21-day hold agreement notice first - beautified with Telegram formatting
                 const noticeMsg = await bot.sendMessage(chatId, 
                     '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                    'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                    'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
+                    '<quote>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</quote>\n\n' +
+                    'By clicking "Continue", you acknowledge and agree to these terms. ' +
                     '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                     {
                         parse_mode: 'HTML',
@@ -12537,8 +12551,8 @@ bot.on('message', async (msg) => {
             });
 
             const amountPrompt = isAdmin 
-                ? `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 1 star\nNo maximum limit\n\nEnter the amount:` 
-                : `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`;
+                ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:` 
+                : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:`;
             
             await bot.sendMessage(chatId, amountPrompt);
         } catch (err) {
