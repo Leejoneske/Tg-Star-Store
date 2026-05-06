@@ -27,18 +27,17 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Force light scheme globally — prevents browser/WebView dark-mode overrides
-   from painting the page black. The blog is a light-only design. */
 html {
   color-scheme: light only;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
-  /* Explicit background on html prevents the browser from painting a dark
-     canvas behind the body gradient on dark-mode WebViews (Telegram, Safari). */
   background: #ffffff;
+  overflow-x: hidden;
 }
+
 body {
   margin: 0;
+  padding: 0;
   background:
     radial-gradient(1200px 600px at 50% -100px, var(--bg-grad-1), transparent 60%),
     radial-gradient(1000px 500px at 80% 10%, var(--bg-grad-2), transparent 55%),
@@ -50,6 +49,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  width: 100%;
 }
 
 /* Explicitly opt out of any OS/browser dark-mode recolouring.
@@ -342,27 +342,39 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .back-to-top:hover { background: var(--bg-soft); }
 
-/* ---------------- Mobile nav drawer ---------------- */
+/* Mobile nav drawer — positioned below header, doesn't push content */
 .mobile-nav {
-  display: flex;
+  display: none;
   flex-direction: column;
   background: #fff;
   border-top: 1px solid var(--border);
   padding: 8px 0 12px;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  z-index: 29;
+  width: 100%;
 }
+
+.mobile-nav:not([hidden]) {
+  display: flex;
+}
+
 .mobile-nav-link {
   padding: 12px 20px;
   font-size: 15px;
   font-weight: 500;
   color: var(--text);
   border-radius: 0;
+  display: block;
+  width: 100%;
+  text-align: left;
 }
+
 .mobile-nav-link:hover { background: var(--bg-soft); }
-/* Hide drawer on desktop */
-@media (min-width: 721px) {
-  .mobile-nav { display: none !important; }
-  .menu-btn { display: none; }
-}
 
 /* ---------------- Responsive ---------------- */
 @media (max-width: 720px) {
