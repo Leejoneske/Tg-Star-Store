@@ -1,6 +1,9 @@
 /**
- * Static blog renderer. Generates public/blog/index.html from posts.ts.
- * Run: npx tsx src/blog/build.ts
+ * Static blog renderer. Generates:
+ *   - public/blog/index.html
+ *   - public/blog/rss.xml   (RSS 2.0)
+ *   - public/blog/atom.xml  (Atom 1.0)
+ * Run: npm run build:blog
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -9,54 +12,64 @@ import { posts, type BlogPost } from './posts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SITE = 'https://starstore.app';
-const OUT = join(__dirname, '..', '..', 'public', 'blog', 'index.html');
+const OUT_DIR = join(__dirname, '..', '..', 'public', 'blog');
+const OUT_HTML = join(OUT_DIR, 'index.html');
+const OUT_RSS = join(OUT_DIR, 'rss.xml');
+const OUT_ATOM = join(OUT_DIR, 'atom.xml');
 
 const escape = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 const sorted = [...posts].sort((a, b) => (a.date < b.date ? 1 : -1));
+const latestDate = sorted[0]?.date ?? new Date().toISOString();
+
+/* ------------------------------ HTML ------------------------------ */
 
 const tocHtml = sorted
   .map(
-    (p) => `
-        <li>
-          <a href="#${escape(p.slug)}" class="block py-2 px-3 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition">
-            <span class="font-medium">${escape(p.title)}</span>
-            <span class="block text-xs text-gray-500 mt-0.5">${fmtDate(p.date)} · ${p.readMinutes} min read</span>
-          </a>
-        </li>`,
+    (p, i) => `
+        <a href="#${escape(p.slug)}" class="toc-item group">
+          <span class="toc-num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="toc-body">
+            <span class="toc-title">${escape(p.title)}</span>
+            <span class="toc-meta">${fmtDate(p.date)} · ${p.readMinutes} min</span>
+          </span>
+          <svg class="toc-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>`,
   )
   .join('');
 
 const articlesHtml = sorted
   .map(
-    (p: BlogPost) => `
-      <article id="${escape(p.slug)}" class="insights-card rounded-xl p-6 sm:p-10 mb-10 scroll-mt-24" itemscope itemtype="https://schema.org/BlogPosting">
+    (p: BlogPost, i: number) => `
+      <article id="${escape(p.slug)}" class="post-card scroll-mt-28" itemscope itemtype="https://schema.org/BlogPosting">
         <meta itemprop="datePublished" content="${escape(p.date)}" />
         <meta itemprop="author" content="StarStore" />
-        <header class="mb-6">
-          <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 tracking-tight" itemprop="headline">${escape(p.title)}</h2>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-gray-500 mb-4">
-            <time datetime="${escape(p.date)}" itemprop="datePublished">${fmtDate(p.date)}</time>
-            <span aria-hidden="true">•</span>
+        <div class="post-index">Article ${String(i + 1).padStart(2, '0')} / ${String(sorted.length).padStart(2, '0')}</div>
+        <header class="post-header">
+          <div class="post-tags">
+            ${p.tags.map((t) => `<span class="tag">${escape(t)}</span>`).join('')}
+          </div>
+          <h2 class="post-title" itemprop="headline">${escape(p.title)}</h2>
+          <p class="post-desc" itemprop="description">${escape(p.description)}</p>
+          <div class="post-meta">
+            <span class="avatar" aria-hidden="true">★</span>
+            <span><strong>StarStore Team</strong></span>
+            <span class="dot">·</span>
+            <time datetime="${escape(p.date)}">${fmtDate(p.date)}</time>
+            <span class="dot">·</span>
             <span>${p.readMinutes} min read</span>
-            <span aria-hidden="true">•</span>
-            <span>By <span itemprop="author">StarStore Team</span></span>
           </div>
-          <div class="flex flex-wrap gap-2">
-            ${p.tags.map((t) => `<span class="badge text-xs px-2 py-1 rounded">${escape(t)}</span>`).join('')}
-          </div>
-          <p class="sr-only" itemprop="description">${escape(p.description)}</p>
         </header>
-        <div class="prose prose-lg max-w-none" itemprop="articleBody">
+        <div class="post-body prose-custom" itemprop="articleBody">
           ${p.bodyHtml}
         </div>
-        <footer class="mt-8 pt-6 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3 text-sm">
-          <a href="#top" class="text-indigo-600 hover:text-indigo-800">↑ Back to top</a>
-          <a href="https://t.me/TgStarStore_bot" class="text-indigo-600 hover:text-indigo-800">Open StarStore in Telegram →</a>
+        <footer class="post-footer">
+          <a href="#top" class="link-soft">↑ Back to top</a>
+          <a href="https://t.me/TgStarStore_bot" class="link-cta">Open StarStore in Telegram →</a>
         </footer>
       </article>`,
   )
@@ -99,10 +112,13 @@ const html = `<!DOCTYPE html>
   <meta name="description" content="In-depth guides, platform updates, and expert insights on Telegram Stars, Premium subscriptions, and the StarStore Mini App. All posts on one page." />
   <meta name="keywords" content="Telegram Stars, Telegram Premium, sell Telegram stars, buy Telegram stars, USDT, TON blockchain, StarStore blog" />
   <meta name="author" content="StarStore" />
+  <meta name="theme-color" content="#0b0b14" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="googlebot" content="index, follow" />
 
   <link rel="canonical" href="${SITE}/blog/" />
+  <link rel="alternate" type="application/rss+xml" title="StarStore Insights (RSS)" href="${SITE}/blog/rss.xml" />
+  <link rel="alternate" type="application/atom+xml" title="StarStore Insights (Atom)" href="${SITE}/blog/atom.xml" />
 
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${SITE}/blog/" />
@@ -125,104 +141,204 @@ const html = `<!DOCTYPE html>
     gtag('config', 'G-SX6TDXG0N8');
   </script>
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="../css/blog.css" />
-  <link rel="stylesheet" href="/css/theme.css" />
-  <link rel="icon" type="image/png" href="../favicon.png" />
-  <script src="/js/theme.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/blog.css" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
 
   <script type="application/ld+json">${JSON.stringify(breadcrumbsLd)}</script>
   <script type="application/ld+json">${JSON.stringify(blogJsonLd)}</script>
 </head>
-<body class="bg-gray-50" id="top">
-  <div class="min-h-screen">
-    <header class="bg-white shadow-sm border-b sticky top-0 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center py-5">
-          <div class="flex items-center">
-            <a href="/" class="text-2xl font-bold text-indigo-600">StarStore</a>
-            <span class="ml-3 text-gray-500 hidden sm:inline">Insights</span>
-          </div>
-          <nav class="flex items-center space-x-6 text-sm sm:text-base">
-            <a href="/" class="text-gray-700 hover:text-indigo-600">Home</a>
-            <a href="/about" class="text-gray-700 hover:text-indigo-600">About</a>
-            <a href="/blog/" class="text-indigo-600 font-medium">Insights</a>
-          </nav>
-        </div>
-      </div>
-    </header>
-
-    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <section class="text-center mb-12 insights-hero">
-        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">StarStore Insights</h1>
-        <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-          One page, every guide. Practical know-how for buying and selling Telegram Stars, growing referrals, and staying secure on the StarStore platform.
-        </p>
-        <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <a href="/" class="inline-flex items-center px-5 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">Open the App</a>
-          <a href="/referral" class="inline-flex items-center px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:border-gray-400 transition">Referral Program</a>
-        </div>
-      </section>
-
-      <nav aria-label="Table of contents" class="insights-card rounded-xl p-5 sm:p-6 mb-12">
-        <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-3">In this issue</h2>
-        <ul class="grid sm:grid-cols-2 gap-1">${tocHtml}
-        </ul>
-      </nav>
-
-      <div>
-${articlesHtml}
-      </div>
-
-      <section class="mt-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-8 text-center text-white">
-        <h2 class="text-2xl font-bold mb-3">Stay in the loop</h2>
-        <p class="text-indigo-100 mb-6 max-w-xl mx-auto">New guides, security updates, and product announcements — straight from the StarStore team.</p>
-        <a href="https://t.me/TgStarStore_bot" class="inline-block bg-white text-indigo-700 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition">Join us on Telegram</a>
-      </section>
-    </main>
-
-    <footer class="bg-gray-900 text-white py-12 mt-16">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid md:grid-cols-4 gap-8">
-          <div>
-            <h3 class="text-xl font-bold mb-4">StarStore</h3>
-            <p class="text-gray-400">Your trusted platform for Telegram Stars and Premium subscriptions.</p>
-          </div>
-          <div>
-            <h4 class="font-semibold mb-4">Quick Links</h4>
-            <ul class="space-y-2 text-gray-400">
-              <li><a href="/" class="hover:text-white">Home</a></li>
-              <li><a href="/about" class="hover:text-white">About</a></li>
-              <li><a href="/blog/" class="hover:text-white">Insights</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 class="font-semibold mb-4">Services</h4>
-            <ul class="space-y-2 text-gray-400">
-              <li><a href="/" class="hover:text-white">Buy Stars</a></li>
-              <li><a href="/sell" class="hover:text-white">Sell Stars</a></li>
-              <li><a href="/referral" class="hover:text-white">Referral Program</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 class="font-semibold mb-4">Contact</h4>
-            <ul class="space-y-2 text-gray-400">
-              <li>Telegram: <a href="https://t.me/TgStarStore_bot" class="hover:text-white">@TgStarStore_bot</a></li>
-              <li>Web: <a href="https://starstore.app" class="hover:text-white">starstore.app</a></li>
-            </ul>
-          </div>
-        </div>
-        <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-          <p>&copy; ${new Date().getFullYear()} StarStore. All rights reserved.</p>
-        </div>
-      </div>
-    </footer>
+<body id="top">
+  <div class="aurora" aria-hidden="true">
+    <span class="blob blob-a"></span>
+    <span class="blob blob-b"></span>
+    <span class="blob blob-c"></span>
   </div>
+
+  <header class="site-header">
+    <div class="container header-row">
+      <a href="/" class="brand">
+        <span class="brand-mark">★</span>
+        <span class="brand-name">StarStore</span>
+        <span class="brand-sep">/</span>
+        <span class="brand-section">Insights</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/blog/" aria-current="page" class="active">Insights</a>
+        <a href="/blog/rss.xml" class="feed-link" title="RSS feed" aria-label="RSS feed">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+          <span>RSS</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main">
+    <section class="hero">
+      <div class="hero-eyebrow">
+        <span class="pulse"></span>
+        Updated ${fmtDate(latestDate)}
+      </div>
+      <h1 class="hero-title">
+        Field notes from the
+        <span class="serif">StarStore</span> team.
+      </h1>
+      <p class="hero-sub">
+        Practical know-how for buying and selling Telegram Stars, growing referrals, and staying secure — written by the people who build the platform.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="https://t.me/TgStarStore_bot">Open the App</a>
+        <a class="btn btn-ghost" href="/blog/rss.xml">Subscribe via RSS</a>
+      </div>
+      <dl class="hero-stats">
+        <div><dt>${sorted.length}</dt><dd>Articles</dd></div>
+        <div><dt>${new Set(sorted.flatMap((p) => p.tags)).size}</dt><dd>Topics</dd></div>
+        <div><dt>${sorted.reduce((a, b) => a + b.readMinutes, 0)}<span>m</span></dt><dd>Total read</dd></div>
+      </dl>
+    </section>
+
+    <section class="toc-card" aria-labelledby="toc-heading">
+      <div class="toc-head">
+        <h2 id="toc-heading">In this issue</h2>
+        <span class="toc-count">${sorted.length} posts</span>
+      </div>
+      <div class="toc-list">${tocHtml}
+      </div>
+    </section>
+
+    <div class="posts">
+${articlesHtml}
+    </div>
+
+    <section class="cta-card">
+      <h2>Stay in the loop</h2>
+      <p>New guides, security updates, and product announcements — straight from the StarStore team.</p>
+      <div class="cta-actions">
+        <a class="btn btn-primary" href="https://t.me/TgStarStore_bot">Join us on Telegram</a>
+        <a class="btn btn-ghost" href="/blog/atom.xml">Atom feed</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <div class="brand"><span class="brand-mark">★</span><span class="brand-name">StarStore</span></div>
+        <p class="muted">Your trusted platform for Telegram Stars and Premium subscriptions.</p>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <ul><li><a href="/">Home</a></li><li><a href="/about">About</a></li><li><a href="/blog/">Insights</a></li></ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul><li><a href="/">Buy Stars</a></li><li><a href="/sell">Sell Stars</a></li><li><a href="/referral">Referrals</a></li></ul>
+      </div>
+      <div>
+        <h4>Feeds</h4>
+        <ul><li><a href="/blog/rss.xml">RSS</a></li><li><a href="/blog/atom.xml">Atom</a></li><li><a href="/sitemap.xml">Sitemap</a></li></ul>
+      </div>
+    </div>
+    <div class="container footer-bottom muted">© ${new Date().getFullYear()} StarStore. All rights reserved.</div>
+  </footer>
+
+  <a href="#top" class="back-to-top" aria-label="Back to top">↑</a>
+
+  <script>
+    // Smooth scroll + scrollspy for TOC
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        const id = a.getAttribute('href').slice(1);
+        const t = document.getElementById(id);
+        if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); history.replaceState(null, '', '#' + id); }
+      });
+    });
+    const tocLinks = new Map();
+    document.querySelectorAll('.toc-item').forEach(a => tocLinks.set(a.getAttribute('href').slice(1), a));
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(en => {
+        const link = tocLinks.get(en.target.id);
+        if (!link) return;
+        if (en.isIntersecting) { tocLinks.forEach(l => l.classList.remove('active')); link.classList.add('active'); }
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+    document.querySelectorAll('.post-card').forEach(el => io.observe(el));
+
+    // Reveal on scroll
+    const ro = new IntersectionObserver((entries) => {
+      entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); ro.unobserve(en.target); } });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.post-card, .toc-card, .hero, .cta-card').forEach(el => ro.observe(el));
+  </script>
 </body>
 </html>
 `;
 
-mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(OUT, html, 'utf8');
-console.log(`✔ Generated ${OUT} (${sorted.length} posts)`);
-             
+/* ------------------------------ FEEDS ------------------------------ */
+
+const rss =
+  `<?xml version="1.0" encoding="UTF-8"?>\n` +
+  `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">\n` +
+  `  <channel>\n` +
+  `    <title>StarStore Insights</title>\n` +
+  `    <link>${SITE}/blog/</link>\n` +
+  `    <atom:link href="${SITE}/blog/rss.xml" rel="self" type="application/rss+xml" />\n` +
+  `    <description>Guides, updates, and expert insights on Telegram Stars and the StarStore platform.</description>\n` +
+  `    <language>en-us</language>\n` +
+  `    <lastBuildDate>${new Date(latestDate).toUTCString()}</lastBuildDate>\n` +
+  `    <generator>StarStore blog builder</generator>\n` +
+  sorted
+    .map(
+      (p) =>
+        `    <item>\n` +
+        `      <title>${escape(p.title)}</title>\n` +
+        `      <link>${SITE}/blog/#${escape(p.slug)}</link>\n` +
+        `      <guid isPermaLink="false">${SITE}/blog/${escape(p.slug)}</guid>\n` +
+        `      <pubDate>${new Date(p.date).toUTCString()}</pubDate>\n` +
+        `      <description>${escape(p.description)}</description>\n` +
+        p.tags.map((t) => `      <category>${escape(t)}</category>\n`).join('') +
+        `      <content:encoded><![CDATA[${p.bodyHtml}]]></content:encoded>\n` +
+        `    </item>\n`,
+    )
+    .join('') +
+  `  </channel>\n</rss>\n`;
+
+const atom =
+  `<?xml version="1.0" encoding="UTF-8"?>\n` +
+  `<feed xmlns="http://www.w3.org/2005/Atom">\n` +
+  `  <title>StarStore Insights</title>\n` +
+  `  <subtitle>Guides, updates, and expert insights on Telegram Stars and the StarStore platform.</subtitle>\n` +
+  `  <link href="${SITE}/blog/" />\n` +
+  `  <link rel="self" type="application/atom+xml" href="${SITE}/blog/atom.xml" />\n` +
+  `  <id>${SITE}/blog/</id>\n` +
+  `  <updated>${new Date(latestDate).toISOString()}</updated>\n` +
+  `  <author><name>StarStore Team</name><uri>${SITE}</uri></author>\n` +
+  sorted
+    .map(
+      (p) =>
+        `  <entry>\n` +
+        `    <title>${escape(p.title)}</title>\n` +
+        `    <link href="${SITE}/blog/#${escape(p.slug)}" />\n` +
+        `    <id>${SITE}/blog/${escape(p.slug)}</id>\n` +
+        `    <updated>${new Date(p.date).toISOString()}</updated>\n` +
+        `    <published>${new Date(p.date).toISOString()}</published>\n` +
+        `    <summary>${escape(p.description)}</summary>\n` +
+        p.tags.map((t) => `    <category term="${escape(t)}" />\n`).join('') +
+        `    <content type="html"><![CDATA[${p.bodyHtml}]]></content>\n` +
+        `  </entry>\n`,
+    )
+    .join('') +
+  `</feed>\n`;
+
+mkdirSync(OUT_DIR, { recursive: true });
+writeFileSync(OUT_HTML, html, 'utf8');
+writeFileSync(OUT_RSS, rss, 'utf8');
+writeFileSync(OUT_ATOM, atom, 'utf8');
+console.log(`✔ Generated ${OUT_HTML} (${sorted.length} posts)`);
+console.log(`✔ Generated ${OUT_RSS}`);
+console.log(`✔ Generated ${OUT_ATOM}`);
+
