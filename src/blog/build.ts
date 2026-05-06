@@ -161,11 +161,16 @@ const html = `<!DOCTYPE html>
         <a class="nav-link" href="/">Home</a>
         <a class="nav-link" href="/about">About</a>
         <a class="btn-login" href="https://t.me/TgStarStore_bot">Open app</a>
-        <button class="menu-btn" aria-label="Menu">
+        <button class="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="mobile-nav">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
       </nav>
     </div>
+    <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile" hidden>
+      <a class="mobile-nav-link" href="/">Home</a>
+      <a class="mobile-nav-link" href="/about">About</a>
+      <a class="mobile-nav-link" href="https://t.me/TgStarStore_bot">Open app</a>
+    </nav>
   </header>
 
   <main class="main">
@@ -273,6 +278,22 @@ ${articlesHtml}
         try { await navigator.clipboard.writeText(text); const o = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = o, 1400); } catch(e) {}
       });
     });
+    // Mobile nav toggle
+    const menuBtn = document.querySelector('.menu-btn');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (menuBtn && mobileNav) {
+      menuBtn.addEventListener('click', () => {
+        const open = mobileNav.hasAttribute('hidden');
+        if (open) { mobileNav.removeAttribute('hidden'); menuBtn.setAttribute('aria-expanded', 'true'); }
+        else { mobileNav.setAttribute('hidden', ''); menuBtn.setAttribute('aria-expanded', 'false'); }
+      });
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (!menuBtn.contains(e.target) && !mobileNav.contains(e.target)) {
+          mobileNav.setAttribute('hidden', ''); menuBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
   </script>
 </body>
 </html>
