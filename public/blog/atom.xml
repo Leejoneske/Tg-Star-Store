@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StarStore Insights</title>
+  <subtitle>Guides, updates, and expert insights on Telegram Stars and the StarStore platform.</subtitle>
+  <link href="https://starstore.app/blog/" />
+  <link rel="self" type="application/atom+xml" href="https://starstore.app/blog/atom.xml" />
+  <id>https://starstore.app/blog/</id>
+  <updated>2026-05-05T00:00:00.000Z</updated>
+  <author><name>StarStore Team</name><uri>https://starstore.app</uri></author>
+  <entry>
+    <title>StarStore is Now Officially on starstore.app</title>
+    <link href="https://starstore.app/blog/#starstore-now-on-starstore-app" />
+    <id>https://starstore.app/blog/starstore-now-on-starstore-app</id>
+    <updated>2026-05-05T00:00:00.000Z</updated>
+    <published>2026-05-05T00:00:00.000Z</published>
+    <summary>We have moved our home from starstore.site to starstore.app. Here is what changes for users, sellers, ambassadors, and integrators — and what stays exactly the same.</summary>
+    <category term="Announcement" />
+    <category term="Rebrand" />
+    <category term="Domain" />
+    <content type="html"><![CDATA[
+      <p class="text-xl text-gray-600 mb-6">Today marks a milestone for our community: <strong>starstore.app</strong> is now the official home of StarStore. The old <code>starstore.site</code> address is being retired in favor of a domain that better reflects what we are — a Telegram Mini App and a real product, not just a website.</p>
+
+      <h2>Why .app?</h2>
+      <p>The <code>.app</code> top-level domain is HTTPS-only at the registry level, which means every visit is encrypted by default. For a platform that handles Telegram Stars, USDT withdrawals, and ambassador payouts, that baseline of trust matters. It also makes our identity unambiguous: StarStore is an application you use, not a directory you read.</p>
+
+      <h2>What changes for you</h2>
+      <ul>
+        <li><strong>New URL:</strong> bookmark <a href="https://starstore.app">https://starstore.app</a>. Old <code>starstore.site</code> links will be redirected during the transition window.</li>
+        <li><strong>Same Telegram bot:</strong> <code>@TgStarStore_bot</code> is unchanged. Open the Mini App from the bot exactly as before.</li>
+        <li><strong>Same accounts &amp; balances:</strong> your history, referrals, ambassador status, and pending payouts carry over. Nothing to re-register.</li>
+        <li><strong>Updated webhooks:</strong> if you integrate against our APIs, point your callbacks to the <code>starstore.app</code> host.</li>
+      </ul>
+
+      <h2>What we improved alongside the move</h2>
+      <ul>
+        <li><strong>Hardened security:</strong> stricter Telegram <code>initData</code> verification, per-route rate limits, Helmet headers, and a locked-down Telegram webhook with a secret token.</li>
+        <li><strong>Faster ambassador navigation:</strong> the referral tab now routes ambassadors directly to the ambassador dashboard with a prefetched cache — no more double clicks.</li>
+        <li><strong>Cleaner admin flows:</strong> CSRF handling fixed for confirm/decline actions and sell-order amounts now display correctly.</li>
+      </ul>
+
+      <h2>What stays the same</h2>
+      <p>Our pricing, the 21-day holding window for Stars sales, the 0.5 USDT minimum referral payout, and the ambassador monthly auto-withdraw on day 1 are all unchanged. The only thing different is the address bar.</p>
+
+      <div class="bg-blue-50 border-l-4 border-blue-400 p-6 my-8">
+        <h3 class="text-blue-900 font-semibold mb-2">Action recommended</h3>
+        <p class="text-blue-800">Update any saved bookmarks to <strong>starstore.app</strong>. If you operate a channel or community that links to us, please update those links — it helps with SEO and ensures your audience lands on the canonical domain.</p>
+      </div>
+
+      <p>Thank you for being part of StarStore. The product, the team, and the mission are the same — only the address has grown up.</p>
+    ]]></content>
+  </entry>
+  <entry>
+    <title>How to Cash Out Telegram Stars for Real Money</title>
+    <link href="https://starstore.app/blog/#how-to-cash-out-telegram-stars" />
+    <id>https://starstore.app/blog/how-to-cash-out-telegram-stars</id>
+    <updated>2024-01-15T00:00:00.000Z</updated>
+    <published>2024-01-15T00:00:00.000Z</published>
+    <summary>A step-by-step guide to converting your Telegram Stars to USDT through StarStore — rates, wallets, timing, and answers to the most common questions.</summary>
+    <category term="Withdraw" />
+    <category term="Cash Out" />
+    <category term="Sell Stars" />
+    <content type="html"><![CDATA[
+      <p class="text-xl text-gray-600 mb-6">Telegram does not provide a direct way to convert Stars into cash. StarStore is the bridge: we buy your Stars and pay you in USDT on the TON network, usually within hours of admin approval.</p>
+
+      <h2>Step-by-step: selling your Stars</h2>
+      <ol>
+        <li>Open <a href="https://t.me/TgStarStore_bot">@TgStarStore_bot</a> in Telegram and launch the Mini App.</li>
+        <li>Go to the <strong>Sell</strong> page.</li>
+        <li>Enter the number of Stars you want to sell (50 minimum, 80,000 maximum per transaction).</li>
+        <li>Paste your <strong>USDT TON-network</strong> wallet address. No memo or tag is needed.</li>
+        <li>Confirm the order. You will receive an order ID immediately.</li>
+        <li>Stars are held for 21 days for fraud protection. After the holding window, USDT is sent to your wallet.</li>
+        <li>Send your order ID to the bot at any time to check the current status.</li>
+      </ol>
+
+      <h2>Why the 21-day hold?</h2>
+      <p>The hold protects buyers, sellers, and the platform from chargebacks and recovered transactions on Telegram's side. It mirrors the policy Telegram applies to its own Stars revenue, and lets us keep fees low while paying out reliably.</p>
+
+      <h2>Common questions</h2>
+      <h3>What rate do I get?</h3>
+      <p>Live rates are shown in the Mini App before you confirm. They float with market USDT/Stars demand.</p>
+      <h3>Can I use TRC-20 USDT?</h3>
+      <p>Withdrawals are sent on the TON network. Make sure your address is a TON USDT (jetton) address — sending TRC-20 addresses will fail.</p>
+      <h3>What if I send the wrong wallet?</h3>
+      <p>Crypto transactions cannot be reversed. Always paste-and-verify your address before confirming.</p>
+    ]]></content>
+  </entry>
+  <entry>
+    <title>StarStore Knowledge Base: Buying, Selling, and Referrals</title>
+    <link href="https://starstore.app/blog/#starstore-knowledge-base" />
+    <id>https://starstore.app/blog/starstore-knowledge-base</id>
+    <updated>2024-01-10T00:00:00.000Z</updated>
+    <published>2024-01-10T00:00:00.000Z</published>
+    <summary>Everything you need to know about packages, the selling flow, the 21-day holding period, the referral program, and our refund policy.</summary>
+    <category term="Guide" />
+    <category term="Knowledge Base" />
+    <content type="html"><![CDATA[
+      <h2>About StarStore</h2>
+      <p>StarStore is a Telegram Mini App launched on December 4, 2024 that lets users buy and sell Telegram Stars and Premium subscriptions, with instant USDT settlement on supported flows. Access is via <code>@TgStarStore_bot</code>.</p>
+
+      <h2>Star packages</h2>
+      <ul>
+        <li>15 Stars — $0.30</li>
+        <li>25 Stars — $0.60</li>
+        <li>50 Stars — $1.00</li>
+        <li>100 Stars — $2.00</li>
+        <li>500 Stars — $10.00</li>
+        <li>1,000 Stars — $20.00</li>
+      </ul>
+      <p>Telegram Premium is available in 3, 6, and 12-month plans. See the Mini App for live pricing.</p>
+
+      <h2>Selling Stars</h2>
+      <ul>
+        <li>Minimum: 50 Stars per transaction.</li>
+        <li>Maximum: 80,000 Stars per transaction.</li>
+        <li>Wallet: USDT on the TON network (no memo/tag).</li>
+        <li>Holding period: 21 days before USDT settlement.</li>
+      </ul>
+
+      <h2>Referral program</h2>
+      <p>Earn 0.5 USDT for every referred user who becomes <em>active</em>. A referral becomes active when they:</p>
+      <ul>
+        <li>Buy at least 100 Stars (cumulative across orders), <strong>or</strong></li>
+        <li>Sell at least 100 Stars (counted after the 21-day hold), <strong>or</strong></li>
+        <li>Buy any Telegram Premium plan (counted immediately).</li>
+      </ul>
+      <p>Referrals must come through <code>@TgStarStore_bot</code> with your link — off-bot transactions are not tracked. Minimum withdrawal is 0.5 USDT to TON or TRC-20 USDT.</p>
+
+      <h2>Refund policy</h2>
+      <p>Refunds are issued when a service charges more than expected, when an internal server error affects a transaction, or for technical issues on our side. Refunds are not available for issues with Telegram's native API, unrelated external problems, or change of mind. Type <code>/paysupport</code> in the bot to request one. Limit: one refund request per user per month.</p>
+    ]]></content>
+  </entry>
+  <entry>
+    <title>Complete Guide to Telegram Stars: Everything You Need to Know</title>
+    <link href="https://starstore.app/blog/#telegram-stars-complete-guide" />
+    <id>https://starstore.app/blog/telegram-stars-complete-guide</id>
+    <updated>2024-01-05T00:00:00.000Z</updated>
+    <published>2024-01-05T00:00:00.000Z</published>
+    <summary>What Telegram Stars are, how they work, how to buy and use them, and what they mean for creators and users.</summary>
+    <category term="Telegram" />
+    <category term="Stars" />
+    <category term="Guide" />
+    <content type="html"><![CDATA[
+      <p class="text-xl text-gray-600 mb-6">Telegram Stars are Telegram's in-platform digital currency. They can be sent to creators, used to unlock paid content, gifted to friends, and — through services like StarStore — converted to USDT.</p>
+
+      <h2>What are Telegram Stars?</h2>
+      <p>Stars are a unit of value inside the Telegram ecosystem, used to pay for digital goods and services across bots, channels, and Mini Apps.</p>
+
+      <h2>How to buy Stars</h2>
+      <ol>
+        <li>Open StarStore and go to the Buy section.</li>
+        <li>Pick a package (15, 25, 50, 100, 500, or 1,000 Stars).</li>
+        <li>Pay in TON or USDT.</li>
+        <li>Stars arrive instantly in your Telegram account.</li>
+      </ol>
+
+      <h2>How to use them</h2>
+      <ul>
+        <li><strong>Support creators</strong> by tipping in channels and bots that accept Stars.</li>
+        <li><strong>Unlock premium content</strong> in Mini Apps and paid posts.</li>
+        <li><strong>Gift</strong> Stars to other users.</li>
+        <li><strong>Sell</strong> earned Stars on StarStore for USDT.</li>
+      </ul>
+
+      <h2>Why people choose StarStore</h2>
+      <ul>
+        <li>Competitive, transparent pricing.</li>
+        <li>Instant delivery on buys.</li>
+        <li>Secure TON-network settlement on sells.</li>
+        <li>A referral program that pays in real USDT.</li>
+      </ul>
+    ]]></content>
+  </entry>
+</feed>
+
