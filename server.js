@@ -126,11 +126,14 @@ const tonTransactionService = require('./services/ton-transaction-service');
 // Admin commands module
 const registerAdminEmailCommands = require('./telegram-commands-admin');
 
-// Create Telegram bot or a stub in local/dev if no token is provided
+// Create Telegram bot or a stub in local/dev if no token is provided.
+// When loaded by tests (require.main !== module) skip the webHook listener so
+// node-telegram-bot-api does not bind port 8443 during test runs.
 let bot;
 let isBotStub = false;
 if (process.env.BOT_TOKEN) {
-  bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
+  const botOptions = require.main === module ? { webHook: true } : {};
+  bot = new TelegramBot(process.env.BOT_TOKEN, botOptions);
   console.log('[BOT INIT] Telegram Bot initialized');
 } else {
   console.warn('[BOT INIT] BOT_TOKEN not set. Using stub for local/dev.');
@@ -1402,8 +1405,8 @@ app.use(async (err, req, res, next) => {
     res.status(statusCode).send(`Error ${statusCode}`);
   }
 });
-// Webhook setup (only when real bot is configured)
-if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dev_stub') {
+// Webhook setup (only when real bot is configured, and not during tests)
+if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dev_stub' && require.main === module) {
   bot.setWebHook(WEBHOOK_URL)
     .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
     .catch(err => {
@@ -11758,11 +11761,11 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
         // Check if user has accepted 21-day hold notice
         const hasAccepted = await hasUserAccepted21DayNotice(userId);
         if (!hasAccepted) {
-            // Show 21-day hold agreement notice first
+            // Show 21-day hold agreement notice first - beautified with Telegram formatting
             const noticeMsg = await bot.sendMessage(chatId, 
                 '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
+                '<quote>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</quote>\n\n' +
+                'By clicking "Continue", you acknowledge and agree to these terms. ' +
                 '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                 {
                     parse_mode: 'HTML',
@@ -11799,8 +11802,8 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
 
         const isAdmin = adminIds.includes(userId);
         const amountPrompt = isAdmin 
-            ? `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 1 star\nNo maximum limit\n\nEnter the amount:` 
-            : `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`;
+            ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:` 
+            : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:`;
         
         await bot.sendMessage(chatId, amountPrompt);
     } catch (err) {
@@ -11863,7 +11866,14 @@ bot.on('message', async (msg) => {
             flowState.data.stars = stars;
             flowState.errors.amount = 0;
             flowState.stage = 'wallet';
-            return bot.sendMessage(chatId, `✅ ${stars} stars\n\nNow enter your USDT TON wallet address:`);
+            
+            // Show rate preview when user enters amount
+            const conversionRate = 0.009; // 1 star = 0.009 USDT
+            const usdtAmount = (stars * conversionRate).toFixed(2);
+            const bulkRate = (100 * conversionRate).toFixed(2);
+            const rateInfo = `\n\n💲 <b>Sell Rate Preview:</b>\n<code>You will get: ${usdtAmount} USDT</code>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${bulkRate} USDT</code>`;
+            
+            return bot.sendMessage(chatId, `✅ ${stars} stars${rateInfo}\n\nNow enter your USDT TON wallet address:`);
         }
 
         // STAGE 2: Wallet address
@@ -11881,8 +11891,15 @@ bot.on('message', async (msg) => {
             flowState.errors.wallet = 0;
             flowState.stage = 'memo';
             
+            // Calculate and show USDT amount for confirmed wallet + amount
+            const starsAmount = flowState.data.stars;
+            const conversionRate = 0.009; // 1 star = 0.009 USDT
+            const confirmUsdtAmount = (starsAmount * conversionRate).toFixed(2);
+            const confirmBulkRate = (100 * conversionRate).toFixed(2);
+            const confirmRateDisplay = `\n\n💲 <b>You will receive:</b> <u><b>${confirmUsdtAmount} USDT</b></u>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${confirmBulkRate} USDT</code>`;
+            
             // Store the message ID so we can delete the button after clicking skip
-            const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}\n\nEnter memo/tag if required:`, {
+            const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}${confirmRateDisplay}\n\nEnter memo/tag if required:`, {
                 reply_markup: {
                     inline_keyboard: [[
                         { text: '⏭️ Skip Memo', callback_data: `sell_skip_memo_${userId}_${Date.now()}` }
@@ -12495,11 +12512,11 @@ bot.on('message', async (msg) => {
             // Check if user has accepted 21-day hold notice
             const hasAccepted = await hasUserAccepted21DayNotice(userId);
             if (!hasAccepted) {
-                // Show 21-day hold agreement notice first
+                // Show 21-day hold agreement notice first - beautified with Telegram formatting
                 const noticeMsg = await bot.sendMessage(chatId, 
                     '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                    'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                    'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
+                    '<quote>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</quote>\n\n' +
+                    'By clicking "Continue", you acknowledge and agree to these terms. ' +
                     '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                     {
                         parse_mode: 'HTML',
@@ -12537,8 +12554,8 @@ bot.on('message', async (msg) => {
             });
 
             const amountPrompt = isAdmin 
-                ? `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 1 star\nNo maximum limit\n\nEnter the amount:` 
-                : `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`;
+                ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:` 
+                : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:`;
             
             await bot.sendMessage(chatId, amountPrompt);
         } catch (err) {
@@ -14855,9 +14872,15 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     }
 });
 // Get transaction history and should NOT TOUCH THIS CODE
-app.get('/api/transactions/:userId', async (req, res) => {
+app.get('/api/transactions/:userId', requireTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.params;
+
+        // Callers may only fetch their own transactions unless they are admin
+        if (!req.user.isAdmin && String(req.user.id) !== String(userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         console.log(`[Transactions API] Fetching transactions for userId: ${userId}`);
         
         // Get both buy and sell orders for the user
@@ -15825,10 +15848,15 @@ app.get('/api/referrals/:userId', async (req, res) => {
 // ============================================================================
 
 // Get user information by Telegram ID (for Ambassador app)
-app.get('/api/users/:telegramId', async (req, res) => {
+app.get('/api/users/:telegramId', requireTelegramAuth, async (req, res) => {
     try {
         const { telegramId } = req.params;
-        
+
+        // Callers may only fetch their own profile unless they are admin or the ambassador app
+        if (!req.user.isAdmin && !req.isAmbassadorApp && String(req.user.id) !== String(telegramId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         // Track location on profile read
         const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
             .toString().split(',')[0].trim();
@@ -15921,7 +15949,7 @@ app.get('/api/users/:telegramId', async (req, res) => {
 });
 
 // Get all users data for Ambassador admin dashboard
-app.get('/api/admin/users-data', async (req, res) => {
+app.get('/api/admin/users-data', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const page = parseInt(req.query.page) || 1;
@@ -16002,7 +16030,7 @@ app.get('/api/admin/users-data', async (req, res) => {
 });
 
 // Get comprehensive referrals data for admin
-app.get('/api/admin/referrals-data', async (req, res) => {
+app.get('/api/admin/referrals-data', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const page = parseInt(req.query.page) || 1;
@@ -16053,7 +16081,7 @@ app.get('/api/admin/referrals-data', async (req, res) => {
 });
 
 // Get comprehensive transactions data for admin
-app.get('/api/admin/transactions-data', async (req, res) => {
+app.get('/api/admin/transactions-data', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const page = parseInt(req.query.page) || 1;
@@ -16127,7 +16155,7 @@ app.get('/api/admin/transactions-data', async (req, res) => {
 });
 
 // Get dashboard analytics for admin
-app.get('/api/admin/analytics', async (req, res) => {
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -18398,7 +18426,11 @@ async function runMigrations() {
   }
 }
 
+// Export app for testing before conditionally starting the server
+module.exports = app;
+
 const PORT = process.env.PORT || 8080;
+if (require.main === module) {
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   
@@ -18768,6 +18800,7 @@ app.listen(PORT, async () => {
     console.log('🔧 Periodic referral repair scheduler initialized (runs every 2 hours)');
   }
 });
+} // end: if (require.main === module)
 
 app.get('/api/me', async (req, res) => {
 	const sess = getAdminSession(req);
