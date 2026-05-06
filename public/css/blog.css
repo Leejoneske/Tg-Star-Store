@@ -27,7 +27,16 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-html { color-scheme: light; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+/* Force light scheme globally — prevents browser/WebView dark-mode overrides
+   from painting the page black. The blog is a light-only design. */
+html {
+  color-scheme: light only;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  /* Explicit background on html prevents the browser from painting a dark
+     canvas behind the body gradient on dark-mode WebViews (Telegram, Safari). */
+  background: #ffffff;
+}
 body {
   margin: 0;
   background:
@@ -41,6 +50,22 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+}
+
+/* Explicitly opt out of any OS/browser dark-mode recolouring.
+   Without this block some browsers (Chrome Android "force dark",
+   Samsung Internet, some Telegram WebViews) invert or darken
+   backgrounds and text even when color-scheme: light is set. */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background: #ffffff;
+    color: #0b0b0f;
+  }
+  .site-header { background: rgba(255,255,255,0.92); }
+  .toc, .post-card { background: #ffffff; }
+  .site-footer { background: #ffffff; }
+  .back-to-top { background: #ffffff; }
+  .btn-login { background: #ffffff; }
 }
 
 a { color: inherit; text-decoration: none; }
@@ -317,6 +342,28 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .back-to-top:hover { background: var(--bg-soft); }
 
+/* ---------------- Mobile nav drawer ---------------- */
+.mobile-nav {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-top: 1px solid var(--border);
+  padding: 8px 0 12px;
+}
+.mobile-nav-link {
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  border-radius: 0;
+}
+.mobile-nav-link:hover { background: var(--bg-soft); }
+/* Hide drawer on desktop */
+@media (min-width: 721px) {
+  .mobile-nav { display: none !important; }
+  .menu-btn { display: none; }
+}
+
 /* ---------------- Responsive ---------------- */
 @media (max-width: 720px) {
   .container, .container-narrow { padding: 0 16px; }
@@ -325,15 +372,28 @@ img { max-width: 100%; height: auto; display: block; }
   .toc { padding: 18px; margin: 36px 16px 40px; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .compat-grid { grid-template-columns: 1fr; gap: 14px; font-size: 22px; }
+  /* Hide text nav links on mobile — hamburger takes over */
   .nav-link { display: none; }
+  /* Keep "Open app" button visible on mobile next to hamburger */
+  .btn-login { font-size: 13px; padding: 7px 13px; }
   .feed-strip { max-width: 100%; }
+  /* Prevent RSS URL from overflowing on narrow screens */
+  .feed-strip code { font-size: 11px; min-width: 0; }
   .cta-card { margin: 48px 16px 0; padding: 32px 22px; }
   .posts { gap: 32px; }
+  /* Prevent hero title from overflowing on very narrow screens */
+  .hero-title { word-break: break-word; }
+  /* Tighten post title on mobile */
+  .post-title { font-size: clamp(22px, 6vw, 30px); }
 }
 @media (max-width: 480px) {
   .footer-grid { grid-template-columns: 1fr; }
-  .hero-actions .btn { flex: 1; }
+  .hero-actions .btn { flex: 1; min-width: 0; }
   .post-meta { font-size: 12px; }
+  /* Stack feed strip vertically on very small screens */
+  .feed-strip { flex-direction: column; align-items: stretch; gap: 8px; }
+  .feed-strip code { text-align: center; }
+  .feed-strip .btn-copy { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
