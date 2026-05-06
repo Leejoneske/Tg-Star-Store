@@ -112,7 +112,7 @@ const html = `<!DOCTYPE html>
   <meta name="description" content="In-depth guides, platform updates, and expert insights on Telegram Stars, Premium subscriptions, and the StarStore Mini App. All posts on one page." />
   <meta name="keywords" content="Telegram Stars, Telegram Premium, sell Telegram stars, buy Telegram stars, USDT, TON blockchain, StarStore blog" />
   <meta name="author" content="StarStore" />
-  <meta name="theme-color" content="#0b0b14" />
+  <meta name="theme-color" content="#ffffff" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="googlebot" content="index, follow" />
 
@@ -151,83 +151,79 @@ const html = `<!DOCTYPE html>
   <script type="application/ld+json">${JSON.stringify(blogJsonLd)}</script>
 </head>
 <body id="top">
-  <div class="aurora" aria-hidden="true">
-    <span class="blob blob-a"></span>
-    <span class="blob blob-b"></span>
-    <span class="blob blob-c"></span>
-  </div>
 
   <header class="site-header">
     <div class="container header-row">
-      <a href="/" class="brand">
-        <span class="brand-mark">★</span>
-        <span class="brand-name">StarStore</span>
-        <span class="brand-sep">/</span>
-        <span class="brand-section">Insights</span>
+      <a href="/blog/" class="brand">
+        StarStore <span class="brand-section">Insights</span>
       </a>
       <nav class="site-nav" aria-label="Primary">
-        <a href="/">Home</a>
-        <a href="/about">About</a>
-        <a href="/blog/" aria-current="page" class="active">Insights</a>
-        <a href="/blog/rss.xml" class="feed-link" title="RSS feed" aria-label="RSS feed">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
-          <span>RSS</span>
-        </a>
+        <a class="nav-link" href="/">Home</a>
+        <a class="nav-link" href="/about">About</a>
+        <a class="btn-login" href="https://t.me/TgStarStore_bot">Open app</a>
+        <button class="menu-btn" aria-label="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
       </nav>
     </div>
   </header>
 
-  <main class="container main">
-    <section class="hero">
-      <div class="hero-eyebrow">
-        <span class="pulse"></span>
-        Updated ${fmtDate(latestDate)}
-      </div>
-      <h1 class="hero-title">
-        Field notes from the
-        <span class="serif">StarStore</span> team.
-      </h1>
-      <p class="hero-sub">
-        Practical know-how for buying and selling Telegram Stars, growing referrals, and staying secure — written by the people who build the platform.
-      </p>
+  <main class="main">
+    <section class="container-narrow hero">
+      <div class="hero-eyebrow">Introducing StarStore Insights</div>
+      <h1 class="hero-title">Guides &amp; updates from the StarStore team</h1>
+      <p class="hero-sub">Practical know-how for buying and selling Telegram Stars, growing referrals, and staying secure — written by the people who build the platform.</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="https://t.me/TgStarStore_bot">Open the App</a>
-        <a class="btn btn-ghost" href="/blog/rss.xml">Subscribe via RSS</a>
+        <a class="btn btn-primary" href="https://t.me/TgStarStore_bot">Open the app</a>
+        <a class="btn btn-ghost" href="#articles">Read articles</a>
       </div>
-      <dl class="hero-stats">
-        <div><dt>${sorted.length}</dt><dd>Articles</dd></div>
-        <div><dt>${new Set(sorted.flatMap((p) => p.tags)).size}</dt><dd>Topics</dd></div>
-        <div><dt>${sorted.reduce((a, b) => a + b.readMinutes, 0)}<span>m</span></dt><dd>Total read</dd></div>
-      </dl>
+
+      <div class="feed-strip" role="group" aria-label="Subscribe to the feed">
+        <code id="feed-url">${SITE}/blog/rss.xml</code>
+        <button class="btn-copy" type="button" data-copy="${SITE}/blog/rss.xml">Copy</button>
+      </div>
+      <p class="feed-caption">Paste into your feed reader to subscribe</p>
+
+      <div class="compat">
+        <div class="compat-label">In this edition</div>
+        <div class="compat-grid">
+          <span><i class="dotmark"></i>Announcements</span>
+          <span><i class="dotmark"></i>Selling Stars</span>
+          <span><i class="dotmark"></i>Knowledge base</span>
+          <span><i class="dotmark"></i>Telegram guides</span>
+        </div>
+      </div>
     </section>
 
-    <section class="toc-card" aria-labelledby="toc-heading">
+    <section class="container-narrow toc" id="articles" aria-labelledby="toc-heading">
       <div class="toc-head">
         <h2 id="toc-heading">In this issue</h2>
-        <span class="toc-count">${sorted.length} posts</span>
+        <span class="toc-count">${sorted.length} posts · Updated ${fmtDate(latestDate)}</span>
       </div>
       <div class="toc-list">${tocHtml}
       </div>
     </section>
 
-    <div class="posts">
+    <div class="container-narrow">
+      <div class="posts">
 ${articlesHtml}
-    </div>
-
-    <section class="cta-card">
-      <h2>Stay in the loop</h2>
-      <p>New guides, security updates, and product announcements — straight from the StarStore team.</p>
-      <div class="cta-actions">
-        <a class="btn btn-primary" href="https://t.me/TgStarStore_bot">Join us on Telegram</a>
-        <a class="btn btn-ghost" href="/blog/atom.xml">Atom feed</a>
       </div>
-    </section>
+
+      <section class="cta-card">
+        <h2>Stay in the loop</h2>
+        <p>New guides, security updates, and product announcements — straight from the StarStore team.</p>
+        <div class="cta-actions">
+          <a class="btn btn-primary" href="https://t.me/TgStarStore_bot">Join us on Telegram</a>
+          <a class="btn btn-ghost" href="/blog/atom.xml">Atom feed</a>
+        </div>
+      </section>
+    </div>
   </main>
 
   <footer class="site-footer">
     <div class="container footer-grid">
       <div>
-        <div class="brand"><span class="brand-mark">★</span><span class="brand-name">StarStore</span></div>
+        <div class="brand">StarStore <span class="brand-section">Insights</span></div>
         <p class="muted">Your trusted platform for Telegram Stars and Premium subscriptions.</p>
       </div>
       <div>
@@ -249,14 +245,17 @@ ${articlesHtml}
   <a href="#top" class="back-to-top" aria-label="Back to top">↑</a>
 
   <script>
-    // Smooth scroll + scrollspy for TOC
+    // Smooth scroll
     document.querySelectorAll('a[href^="#"]').forEach(a => {
       a.addEventListener('click', e => {
-        const id = a.getAttribute('href').slice(1);
+        const href = a.getAttribute('href');
+        if (!href || href === '#') return;
+        const id = href.slice(1);
         const t = document.getElementById(id);
         if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); history.replaceState(null, '', '#' + id); }
       });
     });
+    // Scrollspy
     const tocLinks = new Map();
     document.querySelectorAll('.toc-item').forEach(a => tocLinks.set(a.getAttribute('href').slice(1), a));
     const io = new IntersectionObserver((entries) => {
@@ -267,12 +266,13 @@ ${articlesHtml}
       });
     }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
     document.querySelectorAll('.post-card').forEach(el => io.observe(el));
-
-    // Reveal on scroll
-    const ro = new IntersectionObserver((entries) => {
-      entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); ro.unobserve(en.target); } });
-    }, { threshold: 0.08 });
-    document.querySelectorAll('.post-card, .toc-card, .hero, .cta-card').forEach(el => ro.observe(el));
+    // Copy feed URL
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = btn.getAttribute('data-copy');
+        try { await navigator.clipboard.writeText(text); const o = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = o, 1400); } catch(e) {}
+      });
+    });
   </script>
 </body>
 </html>
