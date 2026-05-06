@@ -126,11 +126,14 @@ const tonTransactionService = require('./services/ton-transaction-service');
 // Admin commands module
 const registerAdminEmailCommands = require('./telegram-commands-admin');
 
-// Create Telegram bot or a stub in local/dev if no token is provided
+// Create Telegram bot or a stub in local/dev if no token is provided.
+// When loaded by tests (require.main !== module) skip the webHook listener so
+// node-telegram-bot-api does not bind port 8443 during test runs.
 let bot;
 let isBotStub = false;
 if (process.env.BOT_TOKEN) {
-  bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
+  const botOptions = require.main === module ? { webHook: true } : {};
+  bot = new TelegramBot(process.env.BOT_TOKEN, botOptions);
   console.log('[BOT INIT] Telegram Bot initialized');
 } else {
   console.warn('[BOT INIT] BOT_TOKEN not set. Using stub for local/dev.');
@@ -1402,8 +1405,8 @@ app.use(async (err, req, res, next) => {
     res.status(statusCode).send(`Error ${statusCode}`);
   }
 });
-// Webhook setup (only when real bot is configured)
-if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dev_stub') {
+// Webhook setup (only when real bot is configured, and not during tests)
+if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dev_stub' && require.main === module) {
   bot.setWebHook(WEBHOOK_URL)
     .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
     .catch(err => {
@@ -14869,9 +14872,15 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     }
 });
 // Get transaction history and should NOT TOUCH THIS CODE
-app.get('/api/transactions/:userId', async (req, res) => {
+app.get('/api/transactions/:userId', requireTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.params;
+
+        // Callers may only fetch their own transactions unless they are admin
+        if (!req.user.isAdmin && String(req.user.id) !== String(userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         console.log(`[Transactions API] Fetching transactions for userId: ${userId}`);
         
         // Get both buy and sell orders for the user
@@ -15839,10 +15848,15 @@ app.get('/api/referrals/:userId', async (req, res) => {
 // ============================================================================
 
 // Get user information by Telegram ID (for Ambassador app)
-app.get('/api/users/:telegramId', async (req, res) => {
+app.get('/api/users/:telegramId', requireTelegramAuth, async (req, res) => {
     try {
         const { telegramId } = req.params;
-        
+
+        // Callers may only fetch their own profile unless they are admin or the ambassador app
+        if (!req.user.isAdmin && !req.isAmbassadorApp && String(req.user.id) !== String(telegramId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         // Track location on profile read
         const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
             .toString().split(',')[0].trim();
@@ -15935,7 +15949,7 @@ app.get('/api/users/:telegramId', async (req, res) => {
 });
 
 // Get all users data for Ambassador admin dashboard
-app.get('/api/admin/users-data', async (req, res) => {
+app.get('/api/admin/users-data', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const page = parseInt(req.query.page) || 1;
@@ -16016,7 +16030,7 @@ app.get('/api/admin/users-data', async (req, res) => {
 });
 
 // Get comprehensive referrals data for admin
-app.get('/api/admin/referrals-data', async (req, res) => {
+app.get('/api/admin/referrals-data', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const page = parseInt(req.query.page) || 1;
@@ -16067,7 +16081,7 @@ app.get('/api/admin/referrals-data', async (req, res) => {
 });
 
 // Get comprehensive transactions data for admin
-app.get('/api/admin/transactions-data', async (req, res) => {
+app.get('/api/admin/transactions-data', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const page = parseInt(req.query.page) || 1;
@@ -16141,7 +16155,7 @@ app.get('/api/admin/transactions-data', async (req, res) => {
 });
 
 // Get dashboard analytics for admin
-app.get('/api/admin/analytics', async (req, res) => {
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -18412,7 +18426,11 @@ async function runMigrations() {
   }
 }
 
+// Export app for testing before conditionally starting the server
+module.exports = app;
+
 const PORT = process.env.PORT || 8080;
+if (require.main === module) {
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   
@@ -18782,6 +18800,7 @@ app.listen(PORT, async () => {
     console.log('🔧 Periodic referral repair scheduler initialized (runs every 2 hours)');
   }
 });
+} // end: if (require.main === module)
 
 app.get('/api/me', async (req, res) => {
 	const sess = getAdminSession(req);
