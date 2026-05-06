@@ -11802,8 +11802,8 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
 
         const isAdmin = adminIds.includes(userId);
         const amountPrompt = isAdmin 
-            ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:` 
-            : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:`;
+            ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:` 
+            : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`;
         
         await bot.sendMessage(chatId, amountPrompt);
     } catch (err) {
@@ -11868,7 +11868,7 @@ bot.on('message', async (msg) => {
             flowState.stage = 'wallet';
             
             // Show rate preview when user enters amount
-            const conversionRate = 0.009; // 1 star = 0.009 USDT
+            const conversionRate = 0.01; // 1 star = 0.01 USDT
             const usdtAmount = (stars * conversionRate).toFixed(2);
             const bulkRate = (100 * conversionRate).toFixed(2);
             const rateInfo = `\n\n💲 <b>Sell Rate Preview:</b>\n<code>You will get: ${usdtAmount} USDT</code>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${bulkRate} USDT</code>`;
@@ -11893,7 +11893,7 @@ bot.on('message', async (msg) => {
             
             // Calculate and show USDT amount for confirmed wallet + amount
             const starsAmount = flowState.data.stars;
-            const conversionRate = 0.009; // 1 star = 0.009 USDT
+            const conversionRate = 0.01; // 1 star = 0.01 USDT
             const confirmUsdtAmount = (starsAmount * conversionRate).toFixed(2);
             const confirmBulkRate = (100 * conversionRate).toFixed(2);
             const confirmRateDisplay = `\n\n💲 <b>You will receive:</b> <u><b>${confirmUsdtAmount} USDT</b></u>\n<code>Rate: 1 star = ${conversionRate} USDT</code>\n<code>100 stars = ${confirmBulkRate} USDT</code>`;
@@ -12554,8 +12554,8 @@ bot.on('message', async (msg) => {
             });
 
             const amountPrompt = isAdmin 
-                ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:` 
-                : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.009 USDT | 100 stars = 0.9 USDT</code>\n\nEnter the amount:`;
+                ? `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 1 star | No maximum\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:` 
+                : `💱 <b>How many Telegram Stars do you want to sell?</b>\n\nMinimum: 50 stars | Maximum: 80,000 stars\n\n<code>Current Rate: 1 star = 0.01 USDT | 100 stars = 1.00 USDT</code>\n\nEnter the amount:`;
             
             await bot.sendMessage(chatId, amountPrompt);
         } catch (err) {
