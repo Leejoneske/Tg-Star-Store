@@ -11768,7 +11768,7 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
             // Show 21-day hold agreement notice first - beautified with Telegram formatting
             const noticeMsg = await bot.sendMessage(chatId, 
                 '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                '<quote>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</quote>\n\n' +
+                '<i>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</i>\n\n' +
                 'By clicking "Continue", you acknowledge and agree to these terms. ' +
                 '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                 {
@@ -12121,7 +12121,7 @@ async function createSellOrderFromKeyboard(flowData, msg, isUserAdmin = false) {
             `<b>Order ID:</b> <code>${order.id}</code>\n` +
             `<b>Stars:</b> ${order.stars}\n` +
             `<b>Status:</b> <i>Pending — waiting for payment</i>\n\n` +
-            `<blockquote>⏰ Payment link expires in 15 minutes</blockquote>\n\n` +
+            `<i>⏰ Payment link expires in 15 minutes</i>\n\n` +
             `Pay here: ${paymentLink}`;
         try {
             const sent = await bot.sendMessage(chatId, userMessage, { parse_mode: 'HTML' });
@@ -12527,7 +12527,7 @@ bot.on('message', async (msg) => {
                 // Show 21-day hold agreement notice first - beautified with Telegram formatting
                 const noticeMsg = await bot.sendMessage(chatId, 
                     '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                    '<quote>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</quote>\n\n' +
+                    '<i>Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.</i>\n\n' +
                     'By clicking "Continue", you acknowledge and agree to these terms. ' +
                     '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                     {
