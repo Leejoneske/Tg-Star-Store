@@ -15085,7 +15085,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             // Professional statement-style header with visual separation
             csv = `═══════════════════════════════════════════════════════════════\n`;
             csv += `STARSTORE TRANSACTION STATEMENT\n`;
-            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `═══════════════════════════════════════���═══════════════════════\n`;
             csv += `\n`;
             csv += `ACCOUNT INFORMATION\n`;
             csv += `───────────────────────────────────────────────────────────────\n`;
