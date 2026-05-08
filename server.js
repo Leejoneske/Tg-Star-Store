@@ -2702,6 +2702,27 @@ function escapeRegex(str) {
     return str.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// 🧠 SMART SESSION MANAGEMENT: End all active flows for a user when they click a new command
+// This allows seamless command switching like Telegram's @BotFather
+function endActiveFlowForUser(userId) {
+    const userIdStr = String(userId);
+    
+    // Clear sell flow if active
+    if (sellFlowStates.has(userIdStr)) {
+        sellFlowStates.delete(userIdStr);
+    }
+    
+    // Clear reversal/refund flow if active
+    if (reversalRequests.has(userIdStr)) {
+        reversalRequests.delete(userIdStr);
+    }
+    
+    // Clear wallet selections if active
+    if (walletSelections.has(userIdStr)) {
+        walletSelections.delete(userIdStr);
+    }
+}
+
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Initialize rate limit functions (now adminIds is available)
@@ -7211,6 +7232,9 @@ setInterval(cleanupExpiredOrders, 5 * 60 * 1000);
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     const chatId = msg.chat.id;
     const userId = chatId.toString();
+    
+    // 🧠 SMART: End any active flows when user starts a new command
+    endActiveFlowForUser(userId);
     
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -11768,6 +11792,9 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
         const chatId = msg.chat.id;
         const username = msg.from.username || '';
 
+        // 🧠 SMART: End any active flows when user starts a new command
+        endActiveFlowForUser(userId);
+
         // Check ban status
         const isBanned = await checkUserBanStatus(userId);
         if (isBanned) {
@@ -12505,6 +12532,7 @@ async function handleWalletCommand(msg) {
 // ==================== COMMAND HANDLERS ====================
 
 bot.onText(/\/help/, (msg) => {
+    endActiveFlowForUser(msg.from.id.toString());
     handleHelpCommand(msg);
 });
 
@@ -12512,14 +12540,26 @@ bot.onText(/\/help/, (msg) => {
 bot.on('message', async (msg) => {
     const text = msg.text?.trim();
     const chatId = msg.chat.id;
+    const userId = msg.from.id.toString();
     
-    // 🔐 SMART SKIP: Ignore if user sends a command (e.g., /help, /wallet, /start, etc.)
-    // This prevents command handlers from processing other commands as text input
-    if (text?.startsWith('/')) {
-        return; // Let other command handlers process this
+    // 🧠 SMART: End any active flows if user clicks a NEW command/button
+    // This allows users to switch commands seamlessly without finishing their current flow
+    const isCommandOrButton = text?.startsWith('/') || 
+                              text === '💬 Help' || 
+                              text === '👥 Referral' || 
+                              text === '💰 Wallet' || 
+                              text === '💱 SELL Stars';
+    
+    if (isCommandOrButton) {
+        endActiveFlowForUser(userId);
     }
     
-    // Map keyboard button presses directly to handlers (don't re-process to avoid double execution)
+    // Skip bare commands - let dedicated handlers process them
+    if (text?.startsWith('/')) {
+        return;
+    }
+    
+    // Map keyboard button presses directly to handlers
     if (text === '💬 Help') {
         handleHelpCommand(msg);
     } else if (text === '👥 Referral') {
@@ -12600,6 +12640,10 @@ bot.on('message', async (msg) => {
 bot.onText(/\/contact/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
+    const userId = msg.from.id.toString();
+
+    // 🧠 SMART: End any active flows when user starts a new command
+    endActiveFlowForUser(userId);
 
     const contactText = `📞 **Contact Support**
 
@@ -16468,6 +16512,8 @@ app.post('/api/webhook/register', (req, res, next) => {
 
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
+    // 🧠 SMART: End any active flows when user starts a new command
+    endActiveFlowForUser(msg.from.id.toString());
     handleReferralsCommand(msg);
 });
 
