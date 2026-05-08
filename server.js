@@ -2697,6 +2697,11 @@ function checkAdminRateLimit(adminId) {
     return { allowed: true, remaining: MAX_ADMIN_ACTIONS_PER_MINUTE - timestamps.length };
 }
 
+// 🔐 SECURITY: Helper function to escape regex special characters and prevent injection
+function escapeRegex(str) {
+    return str.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Initialize rate limit functions (now adminIds is available)
@@ -5763,6 +5768,13 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             order.dateDeclined = new Date();
             await order.save();
         } else if (actionType === 'refund') {
+            // 🔐 SECURITY: Only allow refunds for processing or completed orders, prevent double-refunds
+            if (order.status === 'refunded') {
+                throw new Error('Order has already been refunded');
+            }
+            if (order.status !== 'processing' && order.status !== 'completed') {
+                throw new Error(`Cannot refund order with status: ${order.status}`);
+            }
             order.status = 'refunded';
             order.dateRefunded = new Date();
             await order.save();
@@ -12033,7 +12045,7 @@ async function createSellOrderFromKeyboard(flowData, msg, isUserAdmin = false) {
         const { userId, chatId, username, stars, walletAddress, memoTag } = flowData;
 
         // Sync user data
-        await syncUserData(userId, username, 'sell_order_keyboard', msg);
+        await syncUserData(userId, username, 'button_click', msg);
 
         // Check ban status again
         const isBanned = await checkUserBanStatus(userId);
@@ -18973,10 +18985,12 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 		const type = (req.query.type || 'all').toString().trim();
 		const q = (req.query.q || '').toString().trim();
 
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQ = escapeRegex(q);
 		const textFilter = q ? { $or: [
-			{ id: { $regex: q, $options: 'i' } },
-			{ username: { $regex: q, $options: 'i' } },
-			{ telegramId: { $regex: q, $options: 'i' } }
+			{ id: { $regex: escapedQ, $options: 'i' } },
+			{ username: { $regex: escapedQ, $options: 'i' } },
+			{ telegramId: { $regex: escapedQ, $options: 'i' } }
 		] } : {};
 		const statusFilter = status ? { status } : {};
 
@@ -19013,10 +19027,12 @@ app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
 	try {
 		const status = (req.query.status || '').toString().trim();
 		const q = (req.query.q || '').toString().trim();
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQ = escapeRegex(q);
 		const textFilter = q ? { $or: [
-			{ id: { $regex: q, $options: 'i' } },
-			{ username: { $regex: q, $options: 'i' } },
-			{ telegramId: { $regex: q, $options: 'i' } }
+			{ id: { $regex: escapedQ, $options: 'i' } },
+			{ username: { $regex: escapedQ, $options: 'i' } },
+			{ telegramId: { $regex: escapedQ, $options: 'i' } }
 		] } : {};
 		const statusFilter = status ? { status } : {};
 		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
@@ -19183,6 +19199,14 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
         const order = await SellOrder.findOne({ id });
         if (!order) return res.status(404).json({ error: 'Sell order not found' });
 
+        // 🔐 SECURITY: Only allow refunds for completed or processing orders, prevent double-refunds
+        if (order.status === 'refunded') {
+            return res.status(409).json({ error: 'Order has already been refunded' });
+        }
+        if (order.status !== 'processing' && order.status !== 'completed') {
+            return res.status(409).json({ error: `Cannot refund order with status: ${order.status}` });
+        }
+
         order.status = 'refunded';
         order.dateRefunded = new Date();
         await order.save();
@@ -19205,6 +19229,21 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
 
         const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
         try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        
+        // 🔐 AUDIT: Log the refund action
+        await logAdminAction(
+            req.user?.id || 'admin',
+            `refund_order_${id}`,
+            'order_refund',
+            order.telegramId,
+            {
+                adminUsername: req.user?.id || 'admin',
+                targetOrderId: id,
+                orderType: 'sell',
+                orderStatus: 'refunded'
+            }
+        );
+        
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: 'Failed to refund order' });
@@ -19219,10 +19258,12 @@ app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
 		const status = (req.query.status || '').toString().trim();
 		const qq = (req.query.q || '').toString().trim();
 		const statusFilter = status ? { status } : {};
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQq = escapeRegex(qq);
 		const textFilter = qq ? { $or: [
-			{ userId: { $regex: qq, $options: 'i' } },
-			{ username: { $regex: qq, $options: 'i' } },
-			{ walletAddress: { $regex: qq, $options: 'i' } },
+			{ userId: { $regex: escapedQq, $options: 'i' } },
+			{ username: { $regex: escapedQq, $options: 'i' } },
+			{ walletAddress: { $regex: escapedQq, $options: 'i' } },
 		] } : {};
 		const total = await ReferralWithdrawal.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0);
 		const withdrawals = await ReferralWithdrawal.find({ ...statusFilter, ...textFilter })
@@ -19241,10 +19282,12 @@ app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
 		const status = (req.query.status || '').toString().trim();
 		const q = (req.query.q || '').toString().trim();
 		const statusFilter = status ? { status } : {};
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQ = escapeRegex(q);
 		const textFilter = q ? { $or: [
-			{ userId: { $regex: q, $options: 'i' } },
-			{ username: { $regex: q, $options: 'i' } },
-			{ walletAddress: { $regex: q, $options: 'i' } }
+			{ userId: { $regex: escapedQ, $options: 'i' } },
+			{ username: { $regex: escapedQ, $options: 'i' } },
+			{ walletAddress: { $regex: escapedQ, $options: 'i' } }
 		] } : {};
 		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
 		const withdrawals = await ReferralWithdrawal
