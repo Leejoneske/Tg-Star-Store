@@ -2704,20 +2704,21 @@ function escapeRegex(str) {
 
 // 🧠 SMART SESSION MANAGEMENT: End all active flows for a user when they click a new command
 // This allows seamless command switching like Telegram's @BotFather
-function endActiveFlowForUser(userId) {
+function endActiveFlowForUser(userId, chatId) {
     const userIdStr = String(userId);
+    const chatIdNum = parseInt(chatId, 10);
     
-    // Clear sell flow if active
+    // Clear sell flow if active (uses userId as string)
     if (sellFlowStates.has(userIdStr)) {
         sellFlowStates.delete(userIdStr);
     }
     
-    // Clear reversal/refund flow if active
-    if (reversalRequests.has(userIdStr)) {
-        reversalRequests.delete(userIdStr);
+    // Clear reversal/refund flow if active (uses chatId as integer)
+    if (reversalRequests.has(chatIdNum)) {
+        reversalRequests.delete(chatIdNum);
     }
     
-    // Clear wallet selections if active
+    // Clear wallet selections if active (uses userId as string)
     if (walletSelections.has(userIdStr)) {
         walletSelections.delete(userIdStr);
     }
@@ -7234,7 +7235,7 @@ bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     const userId = chatId.toString();
     
     // 🧠 SMART: End any active flows when user starts a new command
-    endActiveFlowForUser(userId);
+    endActiveFlowForUser(userId, chatId);
     
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -11793,7 +11794,7 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
         const username = msg.from.username || '';
 
         // 🧠 SMART: End any active flows when user starts a new command
-        endActiveFlowForUser(userId);
+        endActiveFlowForUser(userId, chatId);
 
         // Check ban status
         const isBanned = await checkUserBanStatus(userId);
@@ -12532,7 +12533,7 @@ async function handleWalletCommand(msg) {
 // ==================== COMMAND HANDLERS ====================
 
 bot.onText(/\/help/, (msg) => {
-    endActiveFlowForUser(msg.from.id.toString());
+    endActiveFlowForUser(msg.from.id.toString(), msg.chat.id);
     handleHelpCommand(msg);
 });
 
@@ -12551,7 +12552,7 @@ bot.on('message', async (msg) => {
                               text === '💱 SELL Stars';
     
     if (isCommandOrButton) {
-        endActiveFlowForUser(userId);
+        endActiveFlowForUser(userId, chatId);
     }
     
     // Skip bare commands - let dedicated handlers process them
@@ -12643,7 +12644,7 @@ bot.onText(/\/contact/, (msg) => {
     const userId = msg.from.id.toString();
 
     // 🧠 SMART: End any active flows when user starts a new command
-    endActiveFlowForUser(userId);
+    endActiveFlowForUser(userId, chatId);
 
     const contactText = `📞 **Contact Support**
 
@@ -16513,7 +16514,7 @@ app.post('/api/webhook/register', (req, res, next) => {
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
     // 🧠 SMART: End any active flows when user starts a new command
-    endActiveFlowForUser(msg.from.id.toString());
+    endActiveFlowForUser(msg.from.id.toString(), msg.chat.id);
     handleReferralsCommand(msg);
 });
 
