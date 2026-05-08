@@ -20065,8 +20065,34 @@ function base64url(input) {
 	return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
+// 🔐 SECURITY: JWT Secret Configuration Validator
+function getAdminJWTSecret() {
+	const secret = process.env.ADMIN_JWT_SECRET;
+	if (!secret || secret.toLowerCase() === 'secret' || secret.length < 32) {
+		console.error('🚨 CRITICAL SECURITY ERROR: ADMIN_JWT_SECRET not properly configured!');
+		console.error('   - ADMIN_JWT_SECRET must be set to a strong random string (min 32 chars)');
+		console.error('   - Current: ' + (secret ? `"${secret.substring(0, 10)}..."` : 'NOT SET'));
+		console.error('   - NEVER use TELEGRAM_BOT_TOKEN or hardcoded values');
+		console.error('   - Generate secure secret: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+		throw new Error('ADMIN_JWT_SECRET is not properly configured. Cannot start application.');
+	}
+	return secret;
+}
+
+// Cache the secret on startup to catch errors early
+let __ADMIN_JWT_SECRET = null;
+try {
+	__ADMIN_JWT_SECRET = getAdminJWTSecret();
+	console.log('✅ Admin JWT secret validated');
+} catch (err) {
+	console.error(err.message);
+	// Don't exit here to allow app to start in non-production, but log clearly
+}
+
 function signAdminToken(payload, ttlMs) {
-	const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+	const secret = __ADMIN_JWT_SECRET || getAdminJWTSecret();
+	if (!secret) throw new Error('Admin JWT secret not available');
+	
 	const header = { alg: 'HS256', typ: 'JWT' };
 	const exp = Date.now() + (ttlMs || 12 * 60 * 60 * 1000);
 	const body = { ...payload, exp };
@@ -20078,10 +20104,13 @@ function signAdminToken(payload, ttlMs) {
 
 function verifyAdminToken(token) {
 	try {
-		const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+		const secret = __ADMIN_JWT_SECRET || getAdminJWTSecret();
+		if (!secret) return null;
+		
 		const [h, b, sig] = token.split('.');
 		const expected = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 		if (expected !== sig) return null;
+		
 		const body = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
 		if (!body || !body.exp || Date.now() > body.exp) return null;
 		return body;
