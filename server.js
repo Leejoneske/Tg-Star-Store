@@ -12513,6 +12513,12 @@ bot.on('message', async (msg) => {
     const text = msg.text?.trim();
     const chatId = msg.chat.id;
     
+    // 🔐 SMART SKIP: Ignore if user sends a command (e.g., /help, /wallet, /start, etc.)
+    // This prevents command handlers from processing other commands as text input
+    if (text?.startsWith('/')) {
+        return; // Let other command handlers process this
+    }
+    
     // Map keyboard button presses directly to handlers (don't re-process to avoid double execution)
     if (text === '💬 Help') {
         handleHelpCommand(msg);
