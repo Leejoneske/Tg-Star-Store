@@ -5768,12 +5768,13 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             order.dateDeclined = new Date();
             await order.save();
         } else if (actionType === 'refund') {
-            // 🔐 SECURITY: Only allow refunds for processing or completed orders, prevent double-refunds
+            // 🔐 SECURITY: Only allow refunds for PROCESSING orders, prevent double-refunds
+            // Note: Completed orders have already paid the seller - they require reversal/chargeback process
             if (order.status === 'refunded') {
                 throw new Error('Order has already been refunded');
             }
-            if (order.status !== 'processing' && order.status !== 'completed') {
-                throw new Error(`Cannot refund order with status: ${order.status}`);
+            if (order.status !== 'processing') {
+                throw new Error(`Cannot refund order with status: ${order.status}. Only 'processing' orders can be refunded.`);
             }
             order.status = 'refunded';
             order.dateRefunded = new Date();
@@ -19199,12 +19200,13 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
         const order = await SellOrder.findOne({ id });
         if (!order) return res.status(404).json({ error: 'Sell order not found' });
 
-        // 🔐 SECURITY: Only allow refunds for completed or processing orders, prevent double-refunds
+        // 🔐 SECURITY: Only allow refunds for PROCESSING orders, prevent double-refunds & late refunds
+        // Note: Completed orders have already paid the seller - they require reversal/chargeback process
         if (order.status === 'refunded') {
             return res.status(409).json({ error: 'Order has already been refunded' });
         }
-        if (order.status !== 'processing' && order.status !== 'completed') {
-            return res.status(409).json({ error: `Cannot refund order with status: ${order.status}` });
+        if (order.status !== 'processing') {
+            return res.status(409).json({ error: `Cannot refund order with status: ${order.status}. Only 'processing' orders can be refunded.` });
         }
 
         order.status = 'refunded';
