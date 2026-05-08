@@ -2697,6 +2697,32 @@ function checkAdminRateLimit(adminId) {
     return { allowed: true, remaining: MAX_ADMIN_ACTIONS_PER_MINUTE - timestamps.length };
 }
 
+// 🔐 SECURITY: Helper function to escape regex special characters and prevent injection
+function escapeRegex(str) {
+    return str.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 🧠 SMART SESSION MANAGEMENT: End all active flows for a user when they click a new command
+// This allows seamless command switching like Telegram's @BotFather
+function endActiveFlowForUser(userId) {
+    const userIdStr = String(userId);
+    
+    // Clear sell flow if active
+    if (sellFlowStates.has(userIdStr)) {
+        sellFlowStates.delete(userIdStr);
+    }
+    
+    // Clear reversal/refund flow if active
+    if (reversalRequests.has(userIdStr)) {
+        reversalRequests.delete(userIdStr);
+    }
+    
+    // Clear wallet selections if active
+    if (walletSelections.has(userIdStr)) {
+        walletSelections.delete(userIdStr);
+    }
+}
+
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Initialize rate limit functions (now adminIds is available)
@@ -5763,6 +5789,14 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             order.dateDeclined = new Date();
             await order.save();
         } else if (actionType === 'refund') {
+            // 🔐 SECURITY: Only allow refunds for PROCESSING orders, prevent double-refunds
+            // Note: Completed orders have already paid the seller - they require reversal/chargeback process
+            if (order.status === 'refunded') {
+                throw new Error('Order has already been refunded');
+            }
+            if (order.status !== 'processing') {
+                throw new Error(`Cannot refund order with status: ${order.status}. Only 'processing' orders can be refunded.`);
+            }
             order.status = 'refunded';
             order.dateRefunded = new Date();
             await order.save();
@@ -7198,6 +7232,9 @@ setInterval(cleanupExpiredOrders, 5 * 60 * 1000);
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     const chatId = msg.chat.id;
     const userId = chatId.toString();
+    
+    // 🧠 SMART: End any active flows when user starts a new command
+    endActiveFlowForUser(userId);
     
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -11755,6 +11792,9 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
         const chatId = msg.chat.id;
         const username = msg.from.username || '';
 
+        // 🧠 SMART: End any active flows when user starts a new command
+        endActiveFlowForUser(userId);
+
         // Check ban status
         const isBanned = await checkUserBanStatus(userId);
         if (isBanned) {
@@ -12033,7 +12073,7 @@ async function createSellOrderFromKeyboard(flowData, msg, isUserAdmin = false) {
         const { userId, chatId, username, stars, walletAddress, memoTag } = flowData;
 
         // Sync user data
-        await syncUserData(userId, username, 'sell_order_keyboard', msg);
+        await syncUserData(userId, username, 'button_click', msg);
 
         // Check ban status again
         const isBanned = await checkUserBanStatus(userId);
@@ -12492,6 +12532,7 @@ async function handleWalletCommand(msg) {
 // ==================== COMMAND HANDLERS ====================
 
 bot.onText(/\/help/, (msg) => {
+    endActiveFlowForUser(msg.from.id.toString());
     handleHelpCommand(msg);
 });
 
@@ -12499,8 +12540,26 @@ bot.onText(/\/help/, (msg) => {
 bot.on('message', async (msg) => {
     const text = msg.text?.trim();
     const chatId = msg.chat.id;
+    const userId = msg.from.id.toString();
     
-    // Map keyboard button presses directly to handlers (don't re-process to avoid double execution)
+    // 🧠 SMART: End any active flows if user clicks a NEW command/button
+    // This allows users to switch commands seamlessly without finishing their current flow
+    const isCommandOrButton = text?.startsWith('/') || 
+                              text === '💬 Help' || 
+                              text === '👥 Referral' || 
+                              text === '💰 Wallet' || 
+                              text === '💱 SELL Stars';
+    
+    if (isCommandOrButton) {
+        endActiveFlowForUser(userId);
+    }
+    
+    // Skip bare commands - let dedicated handlers process them
+    if (text?.startsWith('/')) {
+        return;
+    }
+    
+    // Map keyboard button presses directly to handlers
     if (text === '💬 Help') {
         handleHelpCommand(msg);
     } else if (text === '👥 Referral') {
@@ -12581,6 +12640,10 @@ bot.on('message', async (msg) => {
 bot.onText(/\/contact/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
+    const userId = msg.from.id.toString();
+
+    // 🧠 SMART: End any active flows when user starts a new command
+    endActiveFlowForUser(userId);
 
     const contactText = `📞 **Contact Support**
 
@@ -16449,6 +16512,8 @@ app.post('/api/webhook/register', (req, res, next) => {
 
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
+    // 🧠 SMART: End any active flows when user starts a new command
+    endActiveFlowForUser(msg.from.id.toString());
     handleReferralsCommand(msg);
 });
 
@@ -18973,10 +19038,12 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 		const type = (req.query.type || 'all').toString().trim();
 		const q = (req.query.q || '').toString().trim();
 
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQ = escapeRegex(q);
 		const textFilter = q ? { $or: [
-			{ id: { $regex: q, $options: 'i' } },
-			{ username: { $regex: q, $options: 'i' } },
-			{ telegramId: { $regex: q, $options: 'i' } }
+			{ id: { $regex: escapedQ, $options: 'i' } },
+			{ username: { $regex: escapedQ, $options: 'i' } },
+			{ telegramId: { $regex: escapedQ, $options: 'i' } }
 		] } : {};
 		const statusFilter = status ? { status } : {};
 
@@ -19013,10 +19080,12 @@ app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
 	try {
 		const status = (req.query.status || '').toString().trim();
 		const q = (req.query.q || '').toString().trim();
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQ = escapeRegex(q);
 		const textFilter = q ? { $or: [
-			{ id: { $regex: q, $options: 'i' } },
-			{ username: { $regex: q, $options: 'i' } },
-			{ telegramId: { $regex: q, $options: 'i' } }
+			{ id: { $regex: escapedQ, $options: 'i' } },
+			{ username: { $regex: escapedQ, $options: 'i' } },
+			{ telegramId: { $regex: escapedQ, $options: 'i' } }
 		] } : {};
 		const statusFilter = status ? { status } : {};
 		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
@@ -19183,6 +19252,15 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
         const order = await SellOrder.findOne({ id });
         if (!order) return res.status(404).json({ error: 'Sell order not found' });
 
+        // 🔐 SECURITY: Only allow refunds for PROCESSING orders, prevent double-refunds & late refunds
+        // Note: Completed orders have already paid the seller - they require reversal/chargeback process
+        if (order.status === 'refunded') {
+            return res.status(409).json({ error: 'Order has already been refunded' });
+        }
+        if (order.status !== 'processing') {
+            return res.status(409).json({ error: `Cannot refund order with status: ${order.status}. Only 'processing' orders can be refunded.` });
+        }
+
         order.status = 'refunded';
         order.dateRefunded = new Date();
         await order.save();
@@ -19205,6 +19283,21 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
 
         const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
         try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        
+        // 🔐 AUDIT: Log the refund action
+        await logAdminAction(
+            req.user?.id || 'admin',
+            `refund_order_${id}`,
+            'order_refund',
+            order.telegramId,
+            {
+                adminUsername: req.user?.id || 'admin',
+                targetOrderId: id,
+                orderType: 'sell',
+                orderStatus: 'refunded'
+            }
+        );
+        
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: 'Failed to refund order' });
@@ -19219,10 +19312,12 @@ app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
 		const status = (req.query.status || '').toString().trim();
 		const qq = (req.query.q || '').toString().trim();
 		const statusFilter = status ? { status } : {};
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQq = escapeRegex(qq);
 		const textFilter = qq ? { $or: [
-			{ userId: { $regex: qq, $options: 'i' } },
-			{ username: { $regex: qq, $options: 'i' } },
-			{ walletAddress: { $regex: qq, $options: 'i' } },
+			{ userId: { $regex: escapedQq, $options: 'i' } },
+			{ username: { $regex: escapedQq, $options: 'i' } },
+			{ walletAddress: { $regex: escapedQq, $options: 'i' } },
 		] } : {};
 		const total = await ReferralWithdrawal.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0);
 		const withdrawals = await ReferralWithdrawal.find({ ...statusFilter, ...textFilter })
@@ -19241,10 +19336,12 @@ app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
 		const status = (req.query.status || '').toString().trim();
 		const q = (req.query.q || '').toString().trim();
 		const statusFilter = status ? { status } : {};
+		// 🔐 SECURITY: Escape regex to prevent injection/ReDoS attacks
+		const escapedQ = escapeRegex(q);
 		const textFilter = q ? { $or: [
-			{ userId: { $regex: q, $options: 'i' } },
-			{ username: { $regex: q, $options: 'i' } },
-			{ walletAddress: { $regex: q, $options: 'i' } }
+			{ userId: { $regex: escapedQ, $options: 'i' } },
+			{ username: { $regex: escapedQ, $options: 'i' } },
+			{ walletAddress: { $regex: escapedQ, $options: 'i' } }
 		] } : {};
 		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
 		const withdrawals = await ReferralWithdrawal
@@ -20020,8 +20117,34 @@ function base64url(input) {
 	return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
+// 🔐 SECURITY: JWT Secret Configuration Validator
+function getAdminJWTSecret() {
+	const secret = process.env.ADMIN_JWT_SECRET;
+	if (!secret || secret.toLowerCase() === 'secret' || secret.length < 32) {
+		console.error('🚨 CRITICAL SECURITY ERROR: ADMIN_JWT_SECRET not properly configured!');
+		console.error('   - ADMIN_JWT_SECRET must be set to a strong random string (min 32 chars)');
+		console.error('   - Current: ' + (secret ? `"${secret.substring(0, 10)}..."` : 'NOT SET'));
+		console.error('   - NEVER use TELEGRAM_BOT_TOKEN or hardcoded values');
+		console.error('   - Generate secure secret: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+		throw new Error('ADMIN_JWT_SECRET is not properly configured. Cannot start application.');
+	}
+	return secret;
+}
+
+// Cache the secret on startup to catch errors early
+let __ADMIN_JWT_SECRET = null;
+try {
+	__ADMIN_JWT_SECRET = getAdminJWTSecret();
+	console.log('✅ Admin JWT secret validated');
+} catch (err) {
+	console.error(err.message);
+	// Don't exit here to allow app to start in non-production, but log clearly
+}
+
 function signAdminToken(payload, ttlMs) {
-	const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+	const secret = __ADMIN_JWT_SECRET || getAdminJWTSecret();
+	if (!secret) throw new Error('Admin JWT secret not available');
+	
 	const header = { alg: 'HS256', typ: 'JWT' };
 	const exp = Date.now() + (ttlMs || 12 * 60 * 60 * 1000);
 	const body = { ...payload, exp };
@@ -20033,10 +20156,13 @@ function signAdminToken(payload, ttlMs) {
 
 function verifyAdminToken(token) {
 	try {
-		const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+		const secret = __ADMIN_JWT_SECRET || getAdminJWTSecret();
+		if (!secret) return null;
+		
 		const [h, b, sig] = token.split('.');
 		const expected = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 		if (expected !== sig) return null;
+		
 		const body = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
 		if (!body || !body.exp || Date.now() > body.exp) return null;
 		return body;
