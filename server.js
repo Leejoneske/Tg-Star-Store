@@ -7125,29 +7125,60 @@ bot.on('callback_query', async (query) => {
 });
 
 async function createTelegramInvoice(chatId, orderId, stars, description, sessionToken) {
-    try {
-        const amountInt = Number.isFinite(Number(stars)) ? Math.floor(Number(stars)) : 0;
-        const body = {
-            title: `Purchase of ${amountInt} Telegram Stars`,
-            description: description,
-            payload: orderId,
-            currency: 'XTR',
-            prices: [
-                {
-                    label: `${amountInt} Telegram Stars`,
-                    amount: amountInt
-                }
-            ],
-            start_parameter: sessionToken?.substring(0, 64)
-        };
-        // For Stars (XTR), provider_token must not be sent
-        // chat_id is not a parameter for createInvoiceLink
-        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, body);
-        return response.data.result;
-    } catch (error) {
-        console.error('Error creating invoice:', error);
-        throw error;
+    if (!process.env.BOT_TOKEN) {
+        const err = new Error('BOT_TOKEN is not configured');
+        console.error('Error creating invoice: missing BOT_TOKEN');
+        throw err;
     }
+
+    const amountInt = Number.isFinite(Number(stars)) ? Math.floor(Number(stars)) : 0;
+    const body = {
+        title: `Purchase of ${amountInt} Telegram Stars`,
+        description: description,
+        payload: String(orderId),
+        currency: 'XTR',
+        prices: [
+            {
+                label: `${amountInt} Telegram Stars`,
+                amount: amountInt
+            }
+        ],
+        start_parameter: sessionToken?.substring(0, 64)
+    };
+
+    // For Stars (XTR), provider_token must not be sent
+    // chat_id is not a parameter for createInvoiceLink
+    const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`;
+    const maxAttempts = 2;
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            const response = await axios.post(url, body, {
+                timeout: 10000,
+                maxRedirects: 0
+            });
+
+            if (!response?.data?.ok || !response.data.result) {
+                const msg = response?.data?.description || 'Unexpected Telegram response';
+                throw new Error(`Telegram createInvoiceLink failed: ${msg}`);
+            }
+
+            return response.data.result;
+        } catch (error) {
+            lastError = error;
+            const isRetryable = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN'].includes(error.code);
+            console.error('Error creating invoice attempt', attempt, { orderId, chatId, stars, error: error?.message, code: error?.code });
+
+            if (!isRetryable || attempt === maxAttempts) {
+                throw lastError;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        }
+    }
+
+    throw lastError;
 }
 
 // Background job to clean up expired orders - ENHANCED WITH USER NOTIFICATIONS
