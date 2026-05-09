@@ -30,6 +30,7 @@
 html {
   color-scheme: light only;
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
   -webkit-text-size-adjust: 100%;
   background: #ffffff;
   overflow-x: hidden;
@@ -410,5 +411,14 @@ img { max-width: 100%; height: auto; display: block; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* SweetAlert2 Modal Fix — Prevent layout shift when modal appears/disappears */
+body.swal2-shown {
+  scrollbar-gutter: stable;
+}
+.swal2-html-container {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 

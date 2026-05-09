@@ -920,14 +920,17 @@
             form.addEventListener('submit', submitForm);
         })();
 
-        // Exit button functionality
-        // Exit button handler
-        document.getElementById('exitButton').addEventListener('click', function() {
-            window.location.href = '/about.html';
-        });
-
-        // Initialize translations when page loads
+        // Exit button functionality - wrapped in DOMContentLoaded to ensure DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
+            const exitBtn = document.getElementById('exitButton');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.location.href = '/about.html';
+                });
+            }
+            
+            // Initialize translations
             if (window.TranslationUtils && window.TranslationUtils.applyTranslations) {
                 window.TranslationUtils.applyTranslations();
             }
