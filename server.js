@@ -12653,8 +12653,16 @@ bot.onText(/\/contact/, (msg) => {
     bot.sendMessage(chatId, contactText, { parse_mode: 'Markdown' });
     
     // Set up message listener for support request with timeout
+    let timeoutId;
     const supportHandler = (userMsg) => {
         if (userMsg.chat.id === chatId && userMsg.text) {
+            // If user sends a command, end this flow and let the command execute
+            if (userMsg.text.startsWith('/')) {
+                clearTimeout(timeoutId);
+                bot.removeListener('message', supportHandler);
+                return;
+            }
+            
             clearTimeout(timeoutId);
             bot.removeListener('message', supportHandler);
             const userMessageText = userMsg.text;
@@ -12717,7 +12725,7 @@ bot.onText(/\/contact/, (msg) => {
     bot.on('message', supportHandler);
 
     // Automatically cancel if user doesn't respond in 5 minutes
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
         bot.removeListener('message', supportHandler);
         bot.sendMessage(chatId, "⏳ Contact session timed out. Please send /contact again if you still need help.");
     }, 5 * 60 * 1000);
