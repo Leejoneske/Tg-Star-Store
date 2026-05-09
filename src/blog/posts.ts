@@ -60,7 +60,7 @@ export const posts: BlogPost[] = [
     title: 'How to Cash Out Telegram Stars for Real Money',
     description:
       'A step-by-step guide to converting your Telegram Stars to USDT through StarStore — rates, wallets, timing, and answers to the most common questions.',
-    date: '2024-01-15',
+    date: '2024-12-10',
     readMinutes: 5,
     tags: ['Withdraw', 'Cash Out', 'Sell Stars'],
     bodyHtml: `
@@ -95,7 +95,7 @@ export const posts: BlogPost[] = [
     title: 'StarStore Knowledge Base: Buying, Selling, and Referrals',
     description:
       'Everything you need to know about packages, the selling flow, the 21-day holding period, the referral program, and our refund policy.',
-    date: '2024-01-10',
+    date: '2024-12-06',
     readMinutes: 6,
     tags: ['Guide', 'Knowledge Base'],
     bodyHtml: `
@@ -140,7 +140,7 @@ export const posts: BlogPost[] = [
     title: 'Complete Guide to Telegram Stars: Everything You Need to Know',
     description:
       'What Telegram Stars are, how they work, how to buy and use them, and what they mean for creators and users.',
-    date: '2024-01-05',
+    date: '2024-12-04',
     readMinutes: 4,
     tags: ['Telegram', 'Stars', 'Guide'],
     bodyHtml: `
