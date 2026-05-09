@@ -47,7 +47,7 @@
 	--shadow-overlay: 0 8px 24px rgba(31, 35, 40, 0.12);
 }
 
-html { color-scheme: light dark; }
+html { color-scheme: light dark; scrollbar-gutter: stable; }
 
 /* ==========================================================================
    Dark Theme — GitHub Primer dark palette
@@ -1233,5 +1233,19 @@ nav a:hover, nav a.active { color: var(--brand); }
 
 .animate-slide-up {
 	animation: slideUp 0.3s ease-out;
+}
+
+/* SweetAlert2 Modal Fix — Prevent layout shift when modal appears/disappears */
+/* scrollbar-gutter: stable on html prevents the main issue, but we also need to ensure
+   the body maintains proper spacing when overflow: hidden is applied by SweetAlert2 */
+body.swal2-shown {
+	/* SweetAlert2 adds overflow: hidden; scrollbar-gutter: stable prevents shift */
+	scrollbar-gutter: stable;
+}
+
+/* Ensure swal2-html-container doesn't cause horizontal overflow */
+.swal2-html-container {
+	max-width: 100%;
+	overflow-x: hidden;
 }
 
