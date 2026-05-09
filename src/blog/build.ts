@@ -133,12 +133,13 @@ const html = `<!DOCTYPE html>
   <meta name="twitter:description" content="Guides, updates, and expert insights on Telegram Stars and the StarStore platform." />
   <meta name="twitter:image" content="${SITE}/favicon.png" />
 
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-SX6TDXG0N8"></script>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-HJ1ZPZ1R7C"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', 'G-SX6TDXG0N8');
+    gtag('config', 'G-HJ1ZPZ1R7C');
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
