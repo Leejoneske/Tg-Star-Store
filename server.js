@@ -1875,8 +1875,8 @@ app.get('/api/whoami', async (req, res) => {
 
 
 const buyOrderSchema = new mongoose.Schema({
-    id: String,
-    telegramId: String,
+    id: { type: String, index: true, unique: true },
+    telegramId: { type: String, index: true },
     username: String,
     amount: Number,
     stars: Number,
@@ -1930,7 +1930,8 @@ const sellOrderSchema = new mongoose.Schema({
     },
     telegramId: {
         type: String,
-        required: true
+        required: true,
+        index: true
     },
     username: String,
     stars: {
@@ -2207,8 +2208,8 @@ const cacheSchema = new mongoose.Schema({
 
 
 const referralSchema = new mongoose.Schema({
-    referrerUserId: { type: String, required: true },
-    referredUserId: { type: String, required: true },
+    referrerUserId: { type: String, required: true, index: true },
+    referredUserId: { type: String, required: true, index: true },
     referrerUsername: String,
     status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
     withdrawn: { type: Boolean, default: false },
@@ -2225,7 +2226,7 @@ const referralWithdrawalSchema = new mongoose.Schema({
         unique: true,
         default: () => generateOrderId() 
     },
-    userId: String,
+    userId: { type: String, index: true },
     username: String,
     amount: Number,
     walletAddress: String,
@@ -4243,7 +4244,14 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             console.error(`[${timestamp}] ❌ CRITICAL - Admin notification failed for Order ${order.id}. Error: ${lastAdminError?.message}. Order still created in DB.`);
         }
 
-        await trackUserActivity(telegramId, username, 'order_created', { orderId: order.id, amount, stars, isPremium });
+        // Optimization: Pass existing geo object to trackUserActivity to avoid redundant lookup
+        const activityGeo = order.userLocation ? {
+            country: order.userLocation.country,
+            countryCode: order.userLocation.countryCode,
+            city: order.userLocation.city,
+            ip: order.userLocation.ip
+        } : null;
+        await trackUserActivity(telegramId, username, 'order_created', { orderId: order.id, amount, stars, isPremium }, null, null, activityGeo);
 
         // === SUCCESS RESPONSE ===
         // Update last purchase time for rate limiting
