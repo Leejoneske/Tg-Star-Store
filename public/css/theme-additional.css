@@ -1179,7 +1179,6 @@
 	right: 0 !important;
 	z-index: 1000 !important;
 	background: var(--surface) !important;
-	backdrop-filter: blur(10px) !important;
 }
 
 .telegram-immersive .main-content {
@@ -1221,7 +1220,6 @@
 	right: 0 !important;
 	z-index: 1000 !important;
 	background: var(--surface) !important;
-	backdrop-filter: blur(10px) !important;
 	border-top: 1px solid var(--border) !important;
 }
 
@@ -1293,13 +1291,11 @@
 }
 
 [data-theme="dark"] .telegram-immersive .header {
-	background: rgba(26, 26, 26, 0.9) !important;
-	backdrop-filter: blur(20px) !important;
+	background: #1a1a1a !important;
 }
 
 [data-theme="dark"] .telegram-fullscreen .bottom-nav {
-	background: rgba(26, 26, 26, 0.9) !important;
-	backdrop-filter: blur(20px) !important;
+	background: #1a1a1a !important;
 }
 
 /* Wallet Address Visibility Improvements */
@@ -1473,3 +1469,4 @@
 [data-theme="dark"] * {
 	transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease !important;
 }
+
