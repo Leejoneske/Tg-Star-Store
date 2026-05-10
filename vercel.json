@@ -1,48 +1,117 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/public/index.html" },
-    { "source": "/app", "destination": "/public/index.html" },
-
-    { "source": "/sell", "destination": "/public/sell.html" },
-    { "source": "/about", "destination": "/public/about.html" },
-    { "source": "/history", "destination": "/public/history.html" },
-    { "source": "/daily", "destination": "/public/daily.html" },
-    { "source": "/referral", "destination": "/public/referral.html" },
-    { "source": "/support", "destination": "/public/support.html" },
-    { "source": "/notification", "destination": "/public/notification.html" },
-    { "source": "/feedback", "destination": "/public/feedback.html" },
-    { "source": "/ambassador", "destination": "/public/apply_ambassador.html" },
-    { "source": "/amb-referral", "destination": "/public/amb_ref.html" },
-
-    { "source": "/blog", "destination": "/public/blog/index.html" },
-    { "source": "/blog/", "destination": "/public/blog/index.html" },
-    { "source": "/knowledge-base", "destination": "/public/blog/index.html" },
-    { "source": "/knowledge-base/:path*", "destination": "/public/blog/index.html" },
-    { "source": "/how-to-withdraw-telegram-stars", "destination": "/public/blog/index.html" },
-    { "source": "/how-to-withdraw-telegram-stars/:path*", "destination": "/public/blog/index.html" },
-    { "source": "/admin/:path*", "destination": "/public/admin/:path*" },
-    { "source": "/api/:path*", "destination": "/api/:path*" }
+    {
+      "source": "/",
+      "destination": "/public/index.html"
+    },
+    {
+      "source": "/app",
+      "destination": "/public/index.html"
+    },
+    {
+      "source": "/sell",
+      "destination": "/public/sell.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/public/about.html"
+    },
+    {
+      "source": "/history",
+      "destination": "/public/history.html"
+    },
+    {
+      "source": "/daily",
+      "destination": "/public/daily.html"
+    },
+    {
+      "source": "/referral",
+      "destination": "/public/referral.html"
+    },
+    {
+      "source": "/support",
+      "destination": "/public/support.html"
+    },
+    {
+      "source": "/notification",
+      "destination": "/public/notification.html"
+    },
+    {
+      "source": "/feedback",
+      "destination": "/public/feedback.html"
+    },
+    {
+      "source": "/ambassador",
+      "destination": "/public/apply_ambassador.html"
+    },
+    {
+      "source": "/amb-referral",
+      "destination": "/public/amb_ref.html"
+    },
+    {
+      "source": "/blog",
+      "destination": "/public/blog/index.html"
+    },
+    {
+      "source": "/blog/",
+      "destination": "/public/blog/index.html"
+    },
+    {
+      "source": "/knowledge-base",
+      "destination": "/public/blog/index.html"
+    },
+    {
+      "source": "/knowledge-base/:path*",
+      "destination": "/public/blog/index.html"
+    },
+    {
+      "source": "/how-to-withdraw-telegram-stars",
+      "destination": "/public/blog/index.html"
+    },
+    {
+      "source": "/how-to-withdraw-telegram-stars/:path*",
+      "destination": "/public/blog/index.html"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/public/admin/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)\\.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, must-revalidate" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, must-revalidate"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
       ]
     },
     {
       "source": "/(.*)\\.js",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/api/:path*",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     }
   ]
 }
-
