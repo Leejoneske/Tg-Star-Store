@@ -32,7 +32,7 @@ const postUrl = (slug: string) => `${SITE}/blog/${slug}`;
 const tocHtml = sorted
   .map(
     (p, i) => `
-        <a href="/blog/${escape(p.slug)}" class="toc-item group">
+        <a href="/blog/${escape(p.slug)}" class="toc-item group" data-post-slug="${escape(p.slug)}">
           <span class="toc-num">${String(i + 1).padStart(2, '0')}</span>
           <span class="toc-body">
             <span class="toc-title">${escape(p.title)}</span>
@@ -270,7 +270,7 @@ ${articlesHtml}
     });
     // Scrollspy
     const tocLinks = new Map();
-    document.querySelectorAll('.toc-item').forEach(a => tocLinks.set(a.getAttribute('href').slice(1), a));
+    document.querySelectorAll('.toc-item').forEach(a => tocLinks.set(a.getAttribute('data-post-slug'), a));
     const io = new IntersectionObserver((entries) => {
       entries.forEach(en => {
         const link = tocLinks.get(en.target.id);
