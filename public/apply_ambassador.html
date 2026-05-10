@@ -733,6 +733,7 @@
             socialsMap.forEach(([id, cbId]) => {
                 const inputEl = document.getElementById(id);
                 const checkboxEl = document.getElementById(cbId);
+                if (!inputEl || !checkboxEl) return;
 
                 // Validate on blur
                 inputEl.addEventListener('blur', function() {
@@ -920,8 +921,10 @@
             form.addEventListener('submit', submitForm);
         })();
 
-        // Exit button functionality - wrapped in DOMContentLoaded to ensure DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
+        // Exit button functionality. The script is at the end of <body>, so
+        // DOMContentLoaded may have already fired by the time we get here —
+        // run immediately if so, otherwise wait for it.
+        function __initExitButton() {
             const exitBtn = document.getElementById('exitButton');
             if (exitBtn) {
                 exitBtn.addEventListener('click', function(e) {
@@ -944,7 +947,13 @@
             if (window.TranslationUtils && window.TranslationUtils.applyTranslations) {
                 window.TranslationUtils.applyTranslations();
             }
-        });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', __initExitButton);
+        } else {
+            __initExitButton();
+        }
     </script>
 </body>
 </html>
+
