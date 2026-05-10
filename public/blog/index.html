@@ -103,7 +103,7 @@
         <span class="toc-count">4 posts · Updated May 5, 2026</span>
       </div>
       <div class="toc-list">
-        <a href="/blog/starstore-now-on-starstore-app" class="toc-item group">
+        <a href="/blog/starstore-now-on-starstore-app" class="toc-item group" data-post-slug="starstore-now-on-starstore-app">
           <span class="toc-num">01</span>
           <span class="toc-body">
             <span class="toc-title">StarStore is Now Officially on starstore.app</span>
@@ -111,7 +111,7 @@
           </span>
           <svg class="toc-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </a>
-        <a href="/blog/how-to-cash-out-telegram-stars" class="toc-item group">
+        <a href="/blog/how-to-cash-out-telegram-stars" class="toc-item group" data-post-slug="how-to-cash-out-telegram-stars">
           <span class="toc-num">02</span>
           <span class="toc-body">
             <span class="toc-title">How to Cash Out Telegram Stars for Real Money</span>
@@ -119,7 +119,7 @@
           </span>
           <svg class="toc-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </a>
-        <a href="/blog/starstore-knowledge-base" class="toc-item group">
+        <a href="/blog/starstore-knowledge-base" class="toc-item group" data-post-slug="starstore-knowledge-base">
           <span class="toc-num">03</span>
           <span class="toc-body">
             <span class="toc-title">StarStore Knowledge Base: Buying, Selling, and Referrals</span>
@@ -127,7 +127,7 @@
           </span>
           <svg class="toc-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </a>
-        <a href="/blog/telegram-stars-complete-guide" class="toc-item group">
+        <a href="/blog/telegram-stars-complete-guide" class="toc-item group" data-post-slug="telegram-stars-complete-guide">
           <span class="toc-num">04</span>
           <span class="toc-body">
             <span class="toc-title">Complete Guide to Telegram Stars: Everything You Need to Know</span>
@@ -286,6 +286,7 @@
       <p>Telegram Premium is available in 3, 6, and 12-month plans. See the <a href="https://t.me/TgStarStore_bot">Mini App</a> for live pricing.</p>
 
       <h2>Selling Stars</h2>
+      <p>To start a sell order, open <a href="https://t.me/TgStarStore_bot">@TgStarStore_bot</a> and launch the Mini App.</p>
       <ul>
         <li>Minimum: 50 Stars per transaction.</li>
         <li>Maximum: 80,000 Stars per transaction.</li>
@@ -294,6 +295,7 @@
       </ul>
 
       <h2>Referral program</h2>
+      <p>Open <a href="https://t.me/TgStarStore_bot">@TgStarStore_bot</a> to get your referral link and track invited users in real time.</p>
       <p>Earn 0.5 USDT for every referred user who becomes <em>active</em>. A referral becomes active when they:</p>
       <ul>
         <li>Buy at least 100 Stars (cumulative across orders), <strong>or</strong></li>
@@ -423,7 +425,7 @@
     });
     // Scrollspy
     const tocLinks = new Map();
-    document.querySelectorAll('.toc-item').forEach(a => tocLinks.set(a.getAttribute('href').slice(1), a));
+    document.querySelectorAll('.toc-item').forEach(a => tocLinks.set(a.getAttribute('data-post-slug'), a));
     const io = new IntersectionObserver((entries) => {
       entries.forEach(en => {
         const link = tocLinks.get(en.target.id);
