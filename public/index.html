@@ -2392,10 +2392,17 @@ function initTelegramApp() {
         // This sets the viewport to fullscreen mode, not just expand
         webApp.expand();
         
-        // Configure for fullscreen experience
-        if (webApp.HeaderColor) {
-            webApp.HeaderColor.setColor('transparent');
-        }
+        // Match the Telegram header to the WebApp's background so the
+        // top safe-area doesn't show a foggy white band over the phone's
+        // status bar (especially in light theme).
+        try {
+            if (typeof webApp.setHeaderColor === 'function') {
+                webApp.setHeaderColor('bg_color');
+            }
+            if (typeof webApp.setBackgroundColor === 'function') {
+                webApp.setBackgroundColor('bg_color');
+            }
+        } catch (e) { /* older Telegram clients */ }
         
         // Hide main button in fullscreen mode
         if (webApp.MainButton) {
@@ -4523,5 +4530,6 @@ async function fetchCurrentRate() {
     </script>
 </body>
 </html>
+
 
 
