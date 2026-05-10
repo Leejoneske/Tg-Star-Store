@@ -1,3 +1,5 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <div class="notification-container">
   <div class="notification-header">
@@ -321,7 +323,21 @@
   });
 
   document.getElementById('notificationCloseBtn')?.addEventListener('click', () => {
-    parent.postMessage({ type: 'CLOSE_NOTIFICATIONS' }, '*');
+    // The host (index.html) injects this HTML into a `.notification-content-container`
+    // in the same window AND attaches a `message` listener. postMessage to self
+    // still triggers that listener, so this works whether we're in an iframe,
+    // injected inline, or opened as a standalone page.
+    const injectedHost = document.querySelector('.notification-content-container');
+    try { parent.postMessage({ type: 'CLOSE_NOTIFICATIONS' }, '*'); } catch (_) {}
+    // If we are NOT injected into a host (true standalone page), fall back
+    // to closing the Telegram WebApp / history navigation so the X actually does something.
+    if (!injectedHost) {
+      try {
+        if (window.Telegram?.WebApp?.close) { window.Telegram.WebApp.close(); return; }
+      } catch (_) {}
+      if (window.history.length > 1) { window.history.back(); return; }
+      window.location.href = '/';
+    }
   });
 
   document.getElementById('loadMoreNotifications')?.addEventListener('click', () => {
@@ -361,14 +377,17 @@
 </script>
 
 <style>
+<style>
+/* Notification panel — matches StarStore "clean-card" design language */
 .notification-container {
-  max-width: 400px;
+  max-width: 460px;
   width: 100%;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+  background: #f5f5f5;
+  border-radius: 16px;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2937;
 }
 
 .notification-header {
@@ -376,70 +395,83 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
 }
 
 .notification-header h3 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
 }
 
 .notification-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
 }
 
 .action-btn {
-  background: rgba(255, 255, 255, 0.2);
+  background: #f5f5f5;
   border: none;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
+  color: #007AFF;
+  padding: 7px 12px;
+  border-radius: 10px;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
-  display: flex;
+  transition: background 0.2s, transform 0.2s;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  white-space: nowrap;
 }
 
-.action-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+.action-btn:hover { background: #ececec; }
+.action-btn:active { transform: scale(0.97); }
+
+@media (max-width: 420px) {
+  .notification-header { padding: 14px; }
+  .notification-header h3 { font-size: 16px; }
+  .action-btn { padding: 7px 10px; font-size: 11.5px; gap: 5px; }
 }
 
 .close-btn {
-  background: rgba(255, 255, 255, 0.2);
+  background: #f5f5f5;
   border: none;
-  color: white;
+  color: #666;
   width: 32px;
   height: 32px;
   border-radius: 50%;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 13px;
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
+.close-btn:hover { background: #ececec; }
+.close-btn:active { transform: scale(0.95); }
 
 .notification-loading {
   display: none;
   flex-direction: column;
   align-items: center;
-  padding: 40px 20px;
-  color: #6b7280;
+  padding: 48px 20px;
+  color: #666;
+  background: white;
 }
 
 .loading-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #f3f4f6;
-  border-top: 3px solid #667eea;
+  border: 3px solid #f0f0f0;
+  border-top: 3px solid #007AFF;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 12px;
@@ -451,130 +483,152 @@
 }
 
 .notification-list {
-  max-height: 400px;
+  max-height: 60vh;
   overflow-y: auto;
-  padding: 0;
+  padding: 12px;
+  background: #f5f5f5;
 }
 
 .notification-item {
   display: flex;
   align-items: flex-start;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f3f4f6;
+  gap: 12px;
+  padding: 14px;
+  background: white;
+  border-radius: 14px;
+  margin-bottom: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.15s;
   position: relative;
+  border: 1px solid transparent;
 }
 
-.notification-item:hover {
-  background: #f9fafb;
-}
+.notification-item:hover { background: #fafafa; }
+.notification-item:active { transform: scale(0.99); }
 
 .notification-item.unread {
-  background: #f0f9ff;
-  border-left: 4px solid #3b82f6;
+  background: white;
+  border-color: rgba(0, 122, 255, 0.18);
+  box-shadow: 0 1px 0 rgba(0, 122, 255, 0.04);
+}
+.notification-item.unread::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #007AFF;
 }
 
 .notification-priority {
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
 }
 
 .notification-item .icon {
-  color: #667eea;
-  font-size: 18px;
-  margin-right: 12px;
-  margin-top: 2px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f0f7ff;
+  color: #007AFF;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  margin: 0;
 }
 
 .notification-item .content {
   flex: 1;
   min-width: 0;
+  padding-right: 18px;
 }
 
 .notification-item .title {
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 4px;
+  color: #000;
+  margin-bottom: 3px;
   font-size: 14px;
+  line-height: 1.3;
 }
 
 .notification-item .message {
-  color: #6b7280;
+  color: #555;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.45;
   margin-bottom: 6px;
 }
 
 .notification-item .time {
-  color: #9ca3af;
+  color: #999;
   font-size: 11px;
-}
-
-.notification-item .action-link {
-  margin-top: 8px;
-}
-
-.notification-item .action-link a {
-  color: #667eea;
-  text-decoration: none;
-  font-size: 12px;
   font-weight: 500;
 }
 
-.notification-item .action-link a:hover {
-  text-decoration: underline;
+.notification-item .action-link { margin-top: 8px; }
+.notification-item .action-link a {
+  color: #007AFF;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
 }
+.notification-item .action-link a:hover { text-decoration: underline; }
 
 .mark-read-btn {
-  background: #10b981;
+  background: #007AFF;
   border: none;
   color: white;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  margin-left: 8px;
+  font-size: 11px;
+  margin-left: 4px;
   flex-shrink: 0;
 }
-
-.mark-read-btn:hover {
-  background: #059669;
-}
+.mark-read-btn:hover { background: #0066d6; }
+.mark-read-btn:active { transform: scale(0.92); }
 
 .empty-state {
   display: none;
   flex-direction: column;
   align-items: center;
-  padding: 40px 20px;
-  color: #9ca3af;
+  padding: 56px 24px;
+  color: #999;
   text-align: center;
+  background: white;
+  border-radius: 14px;
+  margin: 4px;
 }
 
 .empty-state i {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 44px;
+  margin-bottom: 14px;
   color: #d1d5db;
 }
 
 .empty-state p {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 500;
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
 }
 
 .empty-state small {
   font-size: 13px;
   line-height: 1.4;
+  color: #999;
 }
 
 .notification-footer {
@@ -582,54 +636,47 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
-  background: #f9fafb;
-  border-top: 1px solid #f3f4f6;
+  background: white;
+  border-top: 1px solid #f0f0f0;
 }
 
 .notification-stats {
   font-size: 12px;
-  color: #6b7280;
+  color: #666;
+  font-weight: 500;
 }
 
 .notification-stats span {
-  font-weight: 600;
-  color: #667eea;
+  font-weight: 700;
+  color: #007AFF;
 }
 
 .load-more-btn {
-  background: #667eea;
+  background: #007AFF;
   border: none;
   color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity 0.2s, transform 0.2s;
 }
 
-.load-more-btn:hover {
-  background: #5a67d8;
-}
+.load-more-btn:hover { opacity: 0.9; }
+.load-more-btn:active { transform: scale(0.97); }
 
 /* Scrollbar styling */
-.notification-list::-webkit-scrollbar {
-  width: 6px;
-}
+.notification-list::-webkit-scrollbar { width: 6px; }
+.notification-list::-webkit-scrollbar-track { background: transparent; }
+.notification-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.notification-list::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
-.notification-list::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
+/* Hide priority bar on small unread cards (the dot serves the same purpose) */
+.notification-item .notification-priority { display: none; }
 
-.notification-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-
-.notification-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-
+/* RTL: flip the unread dot to the left */
+html[dir="rtl"] .notification-item.unread::before { right: auto; left: 14px; }
 </style>
 
 <script src="/js/translations.js?v=4" data-cfasync="false"></script>
@@ -656,3 +703,4 @@ window.addEventListener('storage', (e) => {
 
 
 </script>
+
