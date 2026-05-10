@@ -21,7 +21,7 @@ class RailwayVersionGenerator {
             const serviceName = process.env.RAILWAY_SERVICE_NAME || 'starstore';
             const deployTime = new Date().toISOString();
             
-            // Try to get git info if available
+            // Try to get git info if available (with timeout to prevent hangs)
             let gitInfo = {
                 commitHash: 'unknown',
                 branch: 'main',
@@ -29,12 +29,25 @@ class RailwayVersionGenerator {
             };
 
             try {
-                gitInfo.commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-                gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-                const commitDate = execSync('git log -1 --format=%ci', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+                // Use timeout: 2 seconds max for git commands to prevent deployment hangs
+                gitInfo.commitHash = execSync('git rev-parse --short HEAD', { 
+                    encoding: 'utf8', 
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    timeout: 2000  // 2 second timeout
+                }).trim();
+                gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { 
+                    encoding: 'utf8', 
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    timeout: 2000
+                }).trim();
+                const commitDate = execSync('git log -1 --format=%ci', { 
+                    encoding: 'utf8', 
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    timeout: 2000
+                }).trim();
                 gitInfo.commitDate = new Date(commitDate).toISOString().split('T')[0];
             } catch (gitError) {
-                // Silently use defaults (git not available in Docker environments)
+                // Silently use defaults (git not available in Docker environments or timed out)
             }
 
             return {
@@ -157,35 +170,10 @@ class RailwayVersionGenerator {
     }
 
     updateHtmlFiles(versionInfo) {
-        // Update HTML files that might contain hardcoded versions
-        const htmlFiles = [
-            'public/index.html',
-            'public/daily.html',
-            'public/sell.html',
-            'public/history.html',
-            'public/referral.html'
-        ];
-
-        htmlFiles.forEach(filePath => {
-            const fullPath = path.join(__dirname, '..', filePath);
-            if (fs.existsSync(fullPath)) {
-                try {
-                    let content = fs.readFileSync(fullPath, 'utf8');
-                    const originalContent = content;
-                    
-                    // Replace version patterns
-                    content = content.replace(/StarStore v[\d\.]+/g, `StarStore v${versionInfo.version}`);
-                    content = content.replace(/v[\d\.]+\s*\([^)]*\)/g, `v${versionInfo.version} (${versionInfo.buildDate})`);
-                    
-                    if (content !== originalContent) {
-                        fs.writeFileSync(fullPath, content);
-                        console.log(`✅ Updated ${filePath} with version ${versionInfo.version}`);
-                    }
-                } catch (error) {
-                    console.warn(`Could not update ${filePath}:`, error.message);
-                }
-            }
-        });
+        // OPTIMIZATION: Skip HTML file updates to avoid slow regex on large files during deployment
+        // Version info is primarily displayed via version.js and version-display.js which are much smaller
+        // HTML version strings are rarely loaded from the git repository (usually served from dist)
+        console.log(`ℹ️  Skipping HTML file updates (version.js/version-display.js are sufficient)`);
     }
 
     generate() {
