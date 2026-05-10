@@ -926,6 +926,16 @@
             if (exitBtn) {
                 exitBtn.addEventListener('click', function(e) {
                     e.preventDefault();
+                    try {
+                        if (window.Telegram?.WebApp?.close) {
+                            window.Telegram.WebApp.close();
+                            return;
+                        }
+                    } catch (_) {}
+                    if (window.history.length > 1) {
+                        window.history.back();
+                        return;
+                    }
                     window.location.href = '/about.html';
                 });
             }
