@@ -87,6 +87,7 @@ export const posts: BlogPost[] = [
       <p>Withdrawals are sent on the TON network. Make sure your address is a TON USDT (jetton) address — sending TRC-20 addresses will fail.</p>
       <h3>What if I send the wrong wallet?</h3>
       <p>Crypto transactions cannot be reversed. Always paste-and-verify your address before confirming.</p>
+      <p>For limits, holding rules, and referral/refund policy details, see the <a href="/blog/starstore-knowledge-base">StarStore Knowledge Base</a>.</p>
     `,
   },
 
@@ -111,7 +112,7 @@ export const posts: BlogPost[] = [
         <li>500 Stars — $10.00</li>
         <li>1,000 Stars — $20.00</li>
       </ul>
-      <p>Telegram Premium is available in 3, 6, and 12-month plans. See the Mini App for live pricing.</p>
+      <p>Telegram Premium is available in 3, 6, and 12-month plans. See the <a href="https://t.me/TgStarStore_bot">Mini App</a> for live pricing.</p>
 
       <h2>Selling Stars</h2>
       <ul>
@@ -162,7 +163,7 @@ export const posts: BlogPost[] = [
         <li><strong>Support creators</strong> by tipping in channels and bots that accept Stars.</li>
         <li><strong>Unlock premium content</strong> in Mini Apps and paid posts.</li>
         <li><strong>Gift</strong> Stars to other users.</li>
-        <li><strong>Sell</strong> earned Stars on StarStore for USDT.</li>
+        <li><strong>Sell</strong> earned Stars on StarStore for USDT (see the <a href="/blog/how-to-cash-out-telegram-stars">cash-out walkthrough</a>).</li>
       </ul>
 
       <h2>Why people choose StarStore</h2>

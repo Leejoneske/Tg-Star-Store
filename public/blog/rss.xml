@@ -10,7 +10,7 @@
     <generator>StarStore blog builder</generator>
     <item>
       <title>StarStore is Now Officially on starstore.app</title>
-      <link>https://starstore.app/blog/#starstore-now-on-starstore-app</link>
+      <link>https://starstore.app/blog/starstore-now-on-starstore-app</link>
       <guid isPermaLink="false">https://starstore.app/blog/starstore-now-on-starstore-app</guid>
       <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
       <description>We have moved our home from starstore.site to starstore.app. Here is what changes for users, sellers, ambassadors, and integrators — and what stays exactly the same.</description>
@@ -51,7 +51,7 @@
     </item>
     <item>
       <title>How to Cash Out Telegram Stars for Real Money</title>
-      <link>https://starstore.app/blog/#how-to-cash-out-telegram-stars</link>
+      <link>https://starstore.app/blog/how-to-cash-out-telegram-stars</link>
       <guid isPermaLink="false">https://starstore.app/blog/how-to-cash-out-telegram-stars</guid>
       <pubDate>Tue, 10 Dec 2024 00:00:00 GMT</pubDate>
       <description>A step-by-step guide to converting your Telegram Stars to USDT through StarStore — rates, wallets, timing, and answers to the most common questions.</description>
@@ -82,11 +82,12 @@
       <p>Withdrawals are sent on the TON network. Make sure your address is a TON USDT (jetton) address — sending TRC-20 addresses will fail.</p>
       <h3>What if I send the wrong wallet?</h3>
       <p>Crypto transactions cannot be reversed. Always paste-and-verify your address before confirming.</p>
+      <p>For limits, holding rules, and referral/refund policy details, see the <a href="/blog/starstore-knowledge-base">StarStore Knowledge Base</a>.</p>
     ]]></content:encoded>
     </item>
     <item>
       <title>StarStore Knowledge Base: Buying, Selling, and Referrals</title>
-      <link>https://starstore.app/blog/#starstore-knowledge-base</link>
+      <link>https://starstore.app/blog/starstore-knowledge-base</link>
       <guid isPermaLink="false">https://starstore.app/blog/starstore-knowledge-base</guid>
       <pubDate>Fri, 06 Dec 2024 00:00:00 GMT</pubDate>
       <description>Everything you need to know about packages, the selling flow, the 21-day holding period, the referral program, and our refund policy.</description>
@@ -105,7 +106,7 @@
         <li>500 Stars — $10.00</li>
         <li>1,000 Stars — $20.00</li>
       </ul>
-      <p>Telegram Premium is available in 3, 6, and 12-month plans. See the Mini App for live pricing.</p>
+      <p>Telegram Premium is available in 3, 6, and 12-month plans. See the <a href="https://t.me/TgStarStore_bot">Mini App</a> for live pricing.</p>
 
       <h2>Selling Stars</h2>
       <ul>
@@ -130,7 +131,7 @@
     </item>
     <item>
       <title>Complete Guide to Telegram Stars: Everything You Need to Know</title>
-      <link>https://starstore.app/blog/#telegram-stars-complete-guide</link>
+      <link>https://starstore.app/blog/telegram-stars-complete-guide</link>
       <guid isPermaLink="false">https://starstore.app/blog/telegram-stars-complete-guide</guid>
       <pubDate>Wed, 04 Dec 2024 00:00:00 GMT</pubDate>
       <description>What Telegram Stars are, how they work, how to buy and use them, and what they mean for creators and users.</description>
@@ -156,7 +157,7 @@
         <li><strong>Support creators</strong> by tipping in channels and bots that accept Stars.</li>
         <li><strong>Unlock premium content</strong> in Mini Apps and paid posts.</li>
         <li><strong>Gift</strong> Stars to other users.</li>
-        <li><strong>Sell</strong> earned Stars on StarStore for USDT.</li>
+        <li><strong>Sell</strong> earned Stars on StarStore for USDT (see the <a href="/blog/how-to-cash-out-telegram-stars">cash-out walkthrough</a>).</li>
       </ul>
 
       <h2>Why people choose StarStore</h2>
