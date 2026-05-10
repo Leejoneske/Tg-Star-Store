@@ -2646,22 +2646,16 @@ const TranslationUtils = {
     // Apply translations to all elements with data-translate attribute
     applyTranslations() {
         const currentLang = this.getCurrentLanguage();
-        console.log('Applying translations for language:', currentLang);
         this.applyLanguageAttributes(currentLang);
         
         const elements = document.querySelectorAll('[data-translate]');
-        console.log('Found', elements.length, 'elements with data-translate');
         
         elements.forEach(element => {
             const key = element.getAttribute('data-translate');
             const translation = this.get(key, currentLang);
-            
-            console.log(`Translating ${key}: "${element.textContent}" -> "${translation}"`);
-            
+
             if (translation) {
                 element.textContent = translation;
-            } else {
-                console.warn(`No translation found for key: ${key}`);
             }
         });
 
@@ -2733,3 +2727,4 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { translations, TranslationUtils };
 }
+
