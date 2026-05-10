@@ -81,15 +81,17 @@ class TelegramFullscreenManager {
                 this.webApp.MainButton.hide();
             }
 
-            // Set up the header
-            if (this.webApp.HeaderColor) {
-                this.webApp.HeaderColor.setColor('#1a1a1a'); // Dark header
-            }
-
-            // Set background color
-            if (this.webApp.backgroundColor) {
-                this.webApp.backgroundColor = '#1a1a1a';
-            }
+            // Match Telegram's header & background to the WebApp's theme bg_color
+            // so the top safe-area doesn't show a foggy white band over the
+            // phone's status bar (especially in light theme).
+            try {
+                if (typeof this.webApp.setHeaderColor === 'function') {
+                    this.webApp.setHeaderColor('bg_color');
+                }
+                if (typeof this.webApp.setBackgroundColor === 'function') {
+                    this.webApp.setBackgroundColor('bg_color');
+                }
+            } catch (_) { /* older Telegram clients */ }
 
             this.isFullscreen = true;
             console.log('Fullscreen mode enabled');
@@ -126,10 +128,14 @@ class TelegramFullscreenManager {
             // Enable immersive mode features
             this.webApp.expand();
             
-            // Hide header if possible
-            if (this.webApp.HeaderColor) {
-                this.webApp.HeaderColor.setColor('transparent');
-            }
+            try {
+                if (typeof this.webApp.setHeaderColor === 'function') {
+                    this.webApp.setHeaderColor('bg_color');
+                }
+                if (typeof this.webApp.setBackgroundColor === 'function') {
+                    this.webApp.setBackgroundColor('bg_color');
+                }
+            } catch (_) { /* older Telegram clients */ }
 
             // Set viewport for immersive experience
             this.setImmersiveViewport();
@@ -149,10 +155,7 @@ class TelegramFullscreenManager {
         if (!this.webApp) return;
 
         try {
-            // Restore header
-            if (this.webApp.HeaderColor) {
-                this.webApp.HeaderColor.setColor('#1a1a1a');
-            }
+            // No header color to restore — we never set one.
 
             // Restore viewport
             this.restoreViewport();
