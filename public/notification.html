@@ -377,7 +377,6 @@
 </script>
 
 <style>
-<style>
 /* Notification panel — matches StarStore "clean-card" design language */
 .notification-container {
   max-width: 460px;
@@ -677,6 +676,59 @@
 
 /* RTL: flip the unread dot to the left */
 html[dir="rtl"] .notification-item.unread::before { right: auto; left: 14px; }
+
+/* ===== Dark theme ===== */
+html[data-theme="dark"] .notification-container,
+body[data-theme="dark"] .notification-container,
+[data-theme="dark"] .notification-container {
+  background: #0f0f10;
+  color: #e5e7eb;
+}
+[data-theme="dark"] .notification-header,
+[data-theme="dark"] .notification-footer {
+  background: #18181b;
+  border-color: #27272a;
+}
+[data-theme="dark"] .notification-header h3 { color: #fafafa; }
+[data-theme="dark"] .action-btn {
+  background: #27272a;
+  color: #60a5fa;
+}
+[data-theme="dark"] .action-btn:hover { background: #323237; }
+[data-theme="dark"] .close-btn {
+  background: #27272a;
+  color: #d4d4d8;
+}
+[data-theme="dark"] .close-btn:hover { background: #323237; }
+[data-theme="dark"] .notification-list { background: #0f0f10; }
+[data-theme="dark"] .notification-loading { background: #18181b; color: #a1a1aa; }
+[data-theme="dark"] .loading-spinner { border-color: #27272a; border-top-color: #60a5fa; }
+[data-theme="dark"] .notification-item {
+  background: #18181b;
+  border-color: transparent;
+}
+[data-theme="dark"] .notification-item:hover { background: #1f1f23; }
+[data-theme="dark"] .notification-item.unread {
+  background: #1a1f2e;
+  border-color: rgba(96, 165, 250, 0.25);
+}
+[data-theme="dark"] .notification-item .icon {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+}
+[data-theme="dark"] .notification-item .title { color: #fafafa; }
+[data-theme="dark"] .notification-item .message { color: #c4c4c8; }
+[data-theme="dark"] .notification-item .time { color: #71717a; }
+[data-theme="dark"] .empty-state {
+  background: #18181b;
+  color: #71717a;
+}
+[data-theme="dark"] .empty-state p { color: #e5e7eb; }
+[data-theme="dark"] .empty-state small { color: #71717a; }
+[data-theme="dark"] .empty-state i { color: #3f3f46; }
+[data-theme="dark"] .notification-stats { color: #a1a1aa; }
+[data-theme="dark"] .notification-list::-webkit-scrollbar-thumb { background: #3f3f46; }
+[data-theme="dark"] .notification-list::-webkit-scrollbar-thumb:hover { background: #52525b; }
 </style>
 
 <script src="/js/translations.js?v=4" data-cfasync="false"></script>
@@ -703,4 +755,5 @@ window.addEventListener('storage', (e) => {
 
 
 </script>
+
 
