@@ -1085,10 +1085,7 @@
                             </div>
                         </div>
                     </div>
-                    <button id="connectWallet" class="btn-primary" style="margin-top: 16px;" data-translate="connectWallet">
-                        <i class="fas fa-wallet"></i>
-                        <span>Connect Wallet</span>
-                    </button>
+                    <div id="ton-connect-button" style="margin-top: 16px; display: flex; justify-content: center;"></div>
                 </div>
             </section>
 
@@ -2671,16 +2668,16 @@ function initWalletConnection() {
             manifestUrl: 'https://starstore.app/tonconnect-manifest.json',
             language: currentLanguage === 'ru' ? 'ru' : 'en',
             restoreConnection: true, 
+            buttonRootId: 'ton-connect-button',
             uiOptions: {
                 twaReturnUrl: 'https://t.me/TgStarStore_bot?startApp'
             }
         });
     } catch (error) {
         console.error('❌ Failed to initialize TON Connect UI:', error);
-        const btn = document.getElementById('connectWallet');
-        if (btn) {
-            btn.textContent = TranslationUtils.get('walletError') || 'Wallet Error';
-            btn.disabled = true;
+        const root = document.getElementById('ton-connect-button');
+        if (root) {
+            root.textContent = TranslationUtils.get('walletError') || 'Wallet Error';
         }
         return;
     }
@@ -2742,28 +2739,8 @@ function initWalletConnection() {
         updateWalletButton();
     });
 
-    const btn = document.getElementById('connectWallet');
-    if (btn) {
-        btn.addEventListener('click', async () => {
-            btn.disabled = true;
-            try {
-                // Treat as connected if either our state OR the SDK reports a connection,
-                // so a stale SDK connection is always cleaned up first.
-                const sdkConnected = !!(tonConnectUI && tonConnectUI.connected);
-                if (walletConnected || sdkConnected) {
-                    await tonConnectUI.disconnect();
-                } else {
-                    console.log('🔗 Opening wallet connection modal...');
-                    await tonConnectUI.openModal();
-                }
-            } catch (e) {
-                console.error('❌ Wallet connection error:', e);
-                showErrorToUser(TranslationUtils.get('walletError') || 'Wallet connection failed');
-            } finally {
-                btn.disabled = false;
-            }
-        });
-    }
+    // Click handling (open modal / disconnect) is managed by the official
+    // TON Connect UI button rendered inside #ton-connect-button.
 }   
         
 // Check for existing wallet connection after initialization
@@ -2784,18 +2761,10 @@ setTimeout(() => {
 }, 2000);       
         
 function updateWalletButton() {
-    const btn = document.getElementById('connectWallet');
-    if (!btn) {
-        console.warn('Wallet button not found');
-        return;
-    }
-    
-    const walletText = (typeof TranslationUtils !== 'undefined') ? (TranslationUtils.get('connectWallet') || 'Connect Wallet') : 'Connect Wallet';
-    
+    // The TON Connect UI button manages its own label/state.
+    // We still validate the connected address here and reset our state
+    // (and ask the SDK to disconnect) if it turns out to be invalid.
     if (walletConnected && currentWalletAddress) {
-        btn.classList.add('wallet-connected');
-        
-        // Normalize the address before display
         let normalizedAddress = currentWalletAddress;
         if (typeof TonUtils !== 'undefined') {
             normalizedAddress = (typeof TonUtils.normalizeAddress === 'function')
@@ -2811,33 +2780,8 @@ function updateWalletButton() {
             walletConnected = false;
             localStorage.removeItem('walletConnected');
             localStorage.removeItem('walletAddress');
-            btn.classList.remove('wallet-connected');
-            btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${walletText}`;
-            btn.disabled = false;
-            return;
+            try { tonConnectUI?.disconnect?.(); } catch (_) {}
         }
-
-        // Format address properly using TON Utils - prefer UQ format
-        let displayAddress = normalizedAddress;
-        let fullAddress = normalizedAddress;
-        
-        if (typeof TonUtils !== 'undefined') {
-            const addressInfo = TonUtils.getDisplayAddress(normalizedAddress);
-            displayAddress = addressInfo.short;
-            fullAddress = addressInfo.full;
-            console.log('📍 Wallet formatted:', { original: currentWalletAddress, display: displayAddress, full: fullAddress });
-        } else {
-            // Fallback if TonUtils not available - format as UQDUY...XXXX or show first 8 chars + last 4
-            const addr = normalizedAddress;
-            displayAddress = addr.startsWith('UQ') ? `${addr.substring(0, 8)}...${addr.slice(-4)}` : `${addr.slice(0, 4)}...${addr.slice(-4)}`;
-        }
-        
-        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address" title="${fullAddress}">${displayAddress}</span>`;
-        btn.disabled = false;
-    } else {
-        btn.classList.remove('wallet-connected');
-        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${walletText}`;
-        btn.disabled = false;
     }
 }      
 //end of ton connect
@@ -4579,4 +4523,5 @@ async function fetchCurrentRate() {
     </script>
 </body>
 </html>
+
 
