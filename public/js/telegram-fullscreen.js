@@ -322,19 +322,12 @@ class TelegramFullscreenManager {
                 padding-left: var(--tg-safe-area-left) !important;
                 padding-right: var(--tg-safe-area-right) !important;
                 padding-top: var(--tg-safe-area-top) !important;
-                padding-bottom: var(--tg-safe-area-bottom) !important;
                 box-sizing: border-box;
             }
             body.telegram-true-fullscreen .app-container,
             body.telegram-fullscreen-requested .app-container {
-                min-height: calc(100vh - var(--tg-safe-area-top) - var(--tg-safe-area-bottom)) !important;
-                min-height: calc(100dvh - var(--tg-safe-area-top) - var(--tg-safe-area-bottom)) !important;
-            }
-            body.telegram-true-fullscreen .bottom-nav,
-            body.telegram-true-fullscreen [style*="bottom: 0"],
-            body.telegram-fullscreen-requested .bottom-nav,
-            body.telegram-fullscreen-requested [style*="bottom: 0"] {
-                bottom: var(--tg-safe-area-bottom) !important;
+                min-height: calc(100vh - var(--tg-safe-area-top)) !important;
+                min-height: calc(100dvh - var(--tg-safe-area-top)) !important;
             }
         `;
         document.head.appendChild(style);
