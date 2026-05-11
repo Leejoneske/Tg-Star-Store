@@ -1,91 +1,96 @@
 
-<script src="/js/global-loader.js?v=1"></script>
-<div class="fixed bottom-0 left-0 right-0 z-50" style="padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--border); position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;">
-	<div style="max-width:600px;margin:0 auto;">
-		<nav>
-			<ul class="nav-ul" style="color: var(--text-secondary);">
-				<li>
-					<a href="index.html" class="nav-link" data-page="home">
-						<i class="fas fa-home" style="font-size: 18px;"></i>
-						<span data-translate="home">Home</span>
-					</a>
-				</li>
-				<li>
-					<a href="sell.html" class="nav-link" data-page="sell">
-						<i class="fas fa-dollar-sign" style="font-size: 18px;"></i>
-						<span data-translate="sell">Sell</span>
-					</a>
-				</li>
-				<li>
-					<a href="history.html" class="nav-link" data-page="history">
-						<i class="fas fa-list" style="font-size: 18px;"></i>
-						<span data-translate="history">History</span>
-					</a>
-				</li>
-				<li>
-					<a href="/referral" class="nav-link" data-page="referral">
-						<i class="fas fa-user-friends" style="font-size: 18px;"></i>
-						<span data-translate="referral">Referral</span>
-					</a>
-				</li>
-				<li>
-					<a href="about.html" class="nav-link" data-page="about">
-						<i class="fas fa-info-circle" style="font-size: 18px;"></i>
-						<span data-translate="about">About</span>
-					</a>
-				</li>
-			</ul>
-		</nav>
-	</div>
-</div>
+// Shared bottom navigation utilities + auto-injection.
+// Any page that includes <div id="bottomnav-container"></div> in its markup
+// will automatically have /bottomnav.html fetched, injected, and initialized.
+window.BottomNavUtils = {
+    getCurrentPage() {
+        const path = window.location.pathname;
+        const filename = path.split('/').pop();
 
-<style>
-.nav-ul {
-	display: grid;
-	grid-template-columns: repeat(5, 1fr);
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	font-size: 12px;
-	width: 100%;
-}
+        if (filename === 'amb_ref.html' || path.includes('amb_ref')) {
+            return 'referral';
+        }
 
-.nav-ul li {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-}
+        switch (filename) {
+            case 'index.html':
+            case '':
+            case 'app':
+            case '/':
+                return 'home';
+            case 'sell.html':
+            case 'sell':
+                return 'sell';
+            case 'history.html':
+            case 'history':
+                return 'history';
+            case 'referral.html':
+            case 'referral':
+                return 'referral';
+            case 'about.html':
+            case 'about':
+                return 'about';
+            default:
+                return 'home';
+        }
+    },
 
-.nav-link {
-	color: var(--text-secondary);
-	text-decoration: none;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	padding: 8px 0;
-	transition: color 0.2s ease;
-	width: 100%;
-	text-align: center;
-}
+    setActiveNavigation() {
+        const currentPage = this.getCurrentPage();
+        const navLinks = document.querySelectorAll('.nav-link');
+        if (navLinks.length === 0) return;
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('data-page') === currentPage) {
+                link.classList.add('active');
+            }
+        });
+    },
 
-.nav-link:hover {
-	color: var(--brand);
-}
+    initBottomNav() {
+        this.setActiveNavigation();
+    },
 
-.nav-link.active {
-	color: var(--brand);
-}
+    /**
+     * Fetch /bottomnav.html and inject it into #bottomnav-container.
+     * Idempotent — safe to call multiple times.
+     * Returns a Promise that resolves when injection + init are complete.
+     */
+    async loadBottomNav() {
+        const container = document.getElementById('bottomnav-container');
+        if (!container) return;
+        if (container.dataset.loaded === 'true') return;
 
-.nav-link.active i {
-	color: var(--brand);
-}
+        try {
+            const r = await fetch('/bottomnav.html', { cache: 'no-cache' });
+            if (!r.ok) {
+                console.error('Failed to load bottomnav.html:', r.status, r.statusText);
+                return;
+            }
+            const html = await r.text();
+            if (!html.trim()) return;
 
-.nav-link.active span {
-	color: var(--brand);
-	font-weight: 600;
-}
-</style>
+            container.innerHTML = html;
+            container.dataset.loaded = 'true';
 
-<!-- Navigation initialization moved to bottomnav-init.js?v=3 which is included in all pages -->
+            this.initBottomNav();
+
+            // Apply translations to the freshly injected nav
+            if (window.TranslationUtils && typeof window.TranslationUtils.applyTranslations === 'function') {
+                try { window.TranslationUtils.applyTranslations(); } catch (_) {}
+            }
+        } catch (err) {
+            console.error('Error loading bottom nav:', err);
+        }
+    }
+};
+
+// Auto-inject on DOM ready so individual pages don't have to duplicate the loader.
+(function autoInit() {
+    const run = () => window.BottomNavUtils.loadBottomNav();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run, { once: true });
+    } else {
+        run();
+    }
+})();
 
