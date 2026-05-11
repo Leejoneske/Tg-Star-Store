@@ -93,7 +93,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
     <link rel="icon" href="/favicon.png" type="image/png">
     
     <!-- Required JavaScript Libraries -->
@@ -133,7 +132,6 @@
     
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" data-cfasync="false" defer></script>
     <script src="js/modal.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" data-cfasync="false" defer></script>
     <!-- @ton/core for building Jetton (USDT-TON) transfer payloads -->
     <script type="module">
         try {
@@ -861,21 +859,6 @@
         margin-bottom: 12px;
     }
 
-    .sticker-container {
-        width: 72px;
-        height: 72px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto;
-    }
-
-    .sticker-container img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-    }
-
     .premium-package {
         padding: 20px;
         position: relative;
@@ -1505,10 +1488,6 @@ let currentUserIsAdmin = false; // Global admin flag for wallet/purchase functio
 
 // (Removed API wrapper; using axios directly)
 
-const stickerCache = new Map();
-const CACHE_DURATION = 40 * 60 * 1000; 
-let batchLoadPromise = null;        
-      
 window.getUserIdentifier = function() {
     if (currentUser?.id) return currentUser.id.toString();
     if (currentWalletAddress) return currentWalletAddress;
@@ -1632,7 +1611,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     initCustomStars();
                     updatePackagePrices(); // Initialize package prices
                     initNotificationSystem();
-                    loadStickers();
                     
                     // Ensure package buttons are properly initialized
                     setTimeout(() => {
@@ -1692,307 +1670,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-
-// Enhanced device detection
-function isLowEndDevice() {
-  const userAgent = navigator.userAgent.toLowerCase();
-  const isMobile = /android|webos|iphone|ipod|ipad|blackberry|windows phone/.test(userAgent);
-  const isOldBrowser = !/(chrome|firefox|safari|opera)/.test(userAgent);
-  const hasLowMemory = navigator.deviceMemory && navigator.deviceMemory < 4;
-  const hasSlowConnection = navigator.connection && 
-    (navigator.connection.effectiveType === 'slow-2g' || navigator.connection.effectiveType === '2g');
-  
-  return (isMobile && isOldBrowser) || hasLowMemory || hasSlowConnection;
-}
-
-// Check if cached data is still valid
-function isCacheValid(cacheEntry) {
-  return cacheEntry && (Date.now() - cacheEntry.timestamp < CACHE_DURATION);
-}
-
-// Get sticker info with caching
-async function getStickerInfo(stickerId) {
-  const cached = stickerCache.get(stickerId);
-  if (isCacheValid(cached)) {
-    return cached.data;
-  }
-
-  try {
-    const response = await fetch(`/api/sticker/${stickerId}/info`);
-    if (!response.ok) return null;
-    
-    const info = await response.json();
-    stickerCache.set(stickerId, {
-      data: info,
-      timestamp: Date.now()
-    });
-    return info;
-  } catch (error) {
-    console.warn(`Failed to fetch sticker info for ${stickerId}:`, error);
-    return null;
-  }
-}
-
-// Lazy loading state
-let stickerLazyLoadObserver = null;
-const loadingStickerIds = new Set();
-
-// Load a single sticker container
-async function loadStickerContainer(container) {
-  const stickerId = container.getAttribute('data-sticker-id');
-  if (!stickerId || loadingStickerIds.has(stickerId)) return;
-  
-  loadingStickerIds.add(stickerId);
-  
-  try {
-    // Fetch sticker info if not cached
-    const cached = stickerCache.get(stickerId);
-    let info = cached?.data;
-    
-    if (!info) {
-      const response = await fetch(`/api/sticker/${stickerId}/info`);
-      if (!response.ok) {
-        loadPlaceholder(container);
-        return;
-      }
-      
-      info = await response.json();
-      stickerCache.set(stickerId, {
-        data: info,
-        timestamp: Date.now()
-      });
-    }
-
-    // For low-end devices, prefer static stickers
-    if (isLowEndDevice() || info.is_animated === false) {
-      await loadStaticSticker(container, stickerId);
-    } else if (info.is_animated) {
-      await loadAnimatedSticker(container, stickerId)
-        .catch(() => loadStaticSticker(container, stickerId));
-    } else if (info.is_video) {
-      await loadVideoSticker(container, stickerId);
-    } else {
-      await loadStaticSticker(container, stickerId);
-    }
-  } catch (error) {
-    console.warn(`Failed to load sticker ${stickerId}:`, error);
-    loadPlaceholder(container);
-  } finally {
-    loadingStickerIds.delete(stickerId);
-  }
-}
-
-// Setup lazy loading observer for stickers
-function setupStickerLazyLoading() {
-  if (stickerLazyLoadObserver) return;
-  
-  stickerLazyLoadObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        loadStickerContainer(entry.target);
-      }
-    });
-  }, {
-    threshold: 0.1,
-    rootMargin: '100px' // Start loading 100px before visible
-  });
-
-  // Observe all sticker containers
-  const containers = document.querySelectorAll('.sticker-container');
-  containers.forEach(container => {
-    stickerLazyLoadObserver.observe(container);
-  });
-}
-
-async function loadStickers() {
-  // Setup lazy loading instead of batch loading
-  setupStickerLazyLoading();
-}
-
-function loadStaticSticker(container, stickerId) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.width = 72;
-    img.height = 72;
-    img.alt = 'Sticker';
-    img.loading = 'lazy';
-    img.style.objectFit = 'contain';
-    
-    img.onload = () => {
-      container.replaceChildren(img);
-      resolve();
-    };
-    
-    img.onerror = () => {
-      loadPlaceholder(container);
-      reject(new Error('Failed to load static sticker'));
-    };
-    
-    img.src = `/api/sticker/${stickerId}`;
-  });
-}
-
-function loadVideoSticker(container, stickerId) {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.width = 72;
-    video.height = 72;
-    video.autoplay = false; 
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.style.objectFit = 'contain';
-    video.preload = 'metadata';
-    
-    video.onloadedmetadata = () => {
-      container.replaceChildren(video);
-      container._videoElement = video;
-      resolve();
-    };
-    
-    video.onerror = () => {
-      loadPlaceholder(container);
-      reject(new Error('Failed to load video sticker'));
-    };
-    
-    video.src = `/api/sticker/${stickerId}`;
-  });
-}
-
-async function loadAnimatedSticker(container, stickerId) {
-  if (typeof lottie === 'undefined') {
-    throw new Error('Lottie not available');
-  }
-
-  try {
-    const response = await fetch(`/api/sticker/${stickerId}/json`);
-    if (!response.ok) throw new Error('Failed to fetch animation');
-    
-    const animationData = await response.json();
-    container.innerHTML = '';
-    container.style.width = '72px';
-    container.style.height = '72px';
-    
-    const animation = lottie.loadAnimation({
-      container: container,
-      renderer: 'svg',
-      loop: true,
-      autoplay: false, // Don't autoplay yet
-      animationData: animationData
-    });
-    
-    container._lottieAnimation = animation;
-    
-    return new Promise((resolve) => {
-      animation.addEventListener('DOMLoaded', () => {
-        resolve();
-      });
-    });
-  } catch (error) {
-    throw error;
-  }
-}
-
-function loadPlaceholder(container) {
-  const placeholder = document.createElement('div');
-  placeholder.style.width = '72px';
-  placeholder.style.height = '72px';
-  placeholder.style.backgroundColor = '#f0f0f0';
-  placeholder.style.display = 'flex';
-  placeholder.style.alignItems = 'center';
-  placeholder.style.justifyContent = 'center';
-  placeholder.style.color = '#999';
-  placeholder.style.fontSize = '12px';
-  placeholder.style.borderRadius = '4px';
-  placeholder.textContent = 'Sticker';
-  container.replaceChildren(placeholder);
-}
-
-// Synchronize all animations to play at the same time
-function synchronizeAnimations() {
-  const containers = document.querySelectorAll('.sticker-container');
-  
-  // Start all Lottie animations
-  containers.forEach(container => {
-    if (container._lottieAnimation) {
-      container._lottieAnimation.goToAndPlay(0);
-    }
-  });
-  
-  // Start all video elements
-  containers.forEach(container => {
-    if (container._videoElement) {
-      container._videoElement.currentTime = 0;
-      container._videoElement.play().catch(() => {
-        // Autoplay might be blocked, ignore error
-      });
-    }
-  });
-}
-
-// Optimized intersection observer for performance
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    const container = entry.target;
-    if (!entry.isIntersecting) {
-      // Pause animations when not visible to save resources
-      if (container._lottieAnimation) {
-        container._lottieAnimation.pause();
-      }
-      if (container._videoElement) {
-        container._videoElement.pause();
-      }
-    } else {
-      // Resume animations when visible
-      if (container._lottieAnimation) {
-        container._lottieAnimation.play();
-      }
-      if (container._videoElement) {
-        container._videoElement.play().catch(() => {});
-      }
-    }
-  });
-}, { 
-  threshold: 0.1,
-  rootMargin: '50px' 
-});
-
-// Clean up animations when they leave viewport completely
-const cleanupObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    const container = entry.target;
-    if (!entry.isIntersecting && container._lottieAnimation) {
-      // Only destroy if far from viewport to avoid unnecessary recreation
-      const rect = container.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const distanceFromViewport = Math.min(
-        Math.abs(rect.bottom),
-        Math.abs(rect.top - viewportHeight)
-      );
-      
-      if (distanceFromViewport > viewportHeight) {
-        container._lottieAnimation.destroy();
-        container._lottieAnimation = null;
-      }
-    }
-  });
-}, { threshold: 0, rootMargin: '-100px' });
-
-// Initialize observers
-document.querySelectorAll('.sticker-container').forEach(container => {
-  observer.observe(container);
-  cleanupObserver.observe(container);
-});
-
-// Clean up cache periodically to prevent memory leaks
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of stickerCache.entries()) {
-    if (now - value.timestamp > CACHE_DURATION) {
-      stickerCache.delete(key);
-    }
-  }
-}, 5 * 60 * 1000); // Clean up every 5 minutes        
 
 
         
