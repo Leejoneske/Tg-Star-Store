@@ -4,6 +4,16 @@
 		var storageKey = 'theme_preference';
 		var appThemeKey = 'appTheme'; // Legacy theme key used by the app
 
+		// One-time migration: copy legacy key into the canonical key, then drop it.
+		try {
+			var hasNew = !!localStorage.getItem(storageKey);
+			var legacy = localStorage.getItem(appThemeKey);
+			if (!hasNew && (legacy === 'dark' || legacy === 'light')) {
+				localStorage.setItem(storageKey, legacy);
+			}
+			if (legacy !== null) localStorage.removeItem(appThemeKey);
+		} catch(_) {}
+
 		function applyTheme(mode) {
 			if (mode === 'dark') {
 				root.setAttribute('data-theme', 'dark');
@@ -30,12 +40,6 @@
 				// First check for new theme preference key
 				var newPref = localStorage.getItem(storageKey);
 				if (newPref) return newPref;
-				
-				// Fallback to legacy appTheme storage key
-				var legacyTheme = localStorage.getItem(appThemeKey);
-				if (legacyTheme === 'dark') return 'dark';
-				if (legacyTheme === 'light') return 'light';
-				
 				return 'system'; 
 			} catch(_) { return 'system'; }
 		}
@@ -78,15 +82,28 @@
 				if (!mode || (mode !== 'light' && mode !== 'dark' && mode !== 'system')) mode = 'system';
 				try { localStorage.setItem(storageKey, mode); } catch(_) {}
 				applyTheme(mode);
+				try { window.dispatchEvent(new CustomEvent('themechange', { detail: { mode: mode } })); } catch(_) {}
 			},
 			get: function() { return getStoredPreference(); },
+			toggle: function() {
+				var cur = getStoredPreference();
+				var resolved = cur === 'system'
+					? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+					: cur;
+				this.set(resolved === 'dark' ? 'light' : 'dark');
+			},
 			// Ensure theme persists even after errors
 			persist: function() {
 				var pref = getStoredPreference();
 				applyTheme(pref);
 			}
 		};
-		
+
+		// Cross-tab/page sync: react to changes from other tabs.
+		window.addEventListener('storage', function(e) {
+			if (e.key === storageKey) applyTheme(getStoredPreference());
+		});
+
 		// Re-apply theme if page reconnects or recovers from errors
 		window.addEventListener('connection-restored', function() {
 			window.Theme && window.Theme.persist && window.Theme.persist();
@@ -94,4 +111,5 @@
 		
 	} catch(_) {}
 })();
+
 
