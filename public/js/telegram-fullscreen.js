@@ -5,6 +5,8 @@ class TelegramFullscreenManager {
         this.isFullscreen = false;
         this.isImmersiveMode = false;
         this.originalViewport = null;
+        this._fsListenerAdded = false;
+        this._safeAreaStyleInjected = false;
         this.init();
     }
 
@@ -29,6 +31,8 @@ class TelegramFullscreenManager {
         
         // Add fullscreen class to body
         document.body.classList.add('telegram-fullscreen');
+        this.syncFullscreenClass();
+        this.applySafeAreaInsets();
         
         // Store original viewport
         this.originalViewport = document.querySelector('meta[name="viewport"]')?.getAttribute('content');
@@ -91,20 +95,22 @@ class TelegramFullscreenManager {
                      this.webApp.isVersionAtLeast('8.0'));
 
                 if (supportsFullscreen && !this.webApp.isFullscreen) {
+                    document.body.classList.add('telegram-fullscreen-requested');
                     this.webApp.requestFullscreen();
                 }
+
+                this.syncFullscreenClass();
 
                 // Listen once for fullscreen state changes so the app can
                 // react to safe-area insets if needed.
                 if (typeof this.webApp.onEvent === 'function' && !this._fsListenerAdded) {
                     this.webApp.onEvent('fullscreenChanged', () => {
-                        document.body.classList.toggle(
-                            'telegram-true-fullscreen',
-                            !!this.webApp.isFullscreen
-                        );
+                        this.syncFullscreenClass();
                         this.applySafeAreaInsets();
                     });
                     this.webApp.onEvent('fullscreenFailed', (e) => {
+                        document.body.classList.remove('telegram-fullscreen-requested');
+                        this.syncFullscreenClass();
                         console.warn('Telegram fullscreen failed:', e);
                     });
                     if (typeof this.webApp.onEvent === 'function') {
@@ -116,6 +122,10 @@ class TelegramFullscreenManager {
                 }
                 // Apply once now in case fullscreen was already active
                 this.applySafeAreaInsets();
+                setTimeout(() => {
+                    this.syncFullscreenClass();
+                    this.applySafeAreaInsets();
+                }, 250);
             } catch (_) { /* older Telegram clients */ }
 
             // Match Telegram's header & background to the WebApp's theme bg_color
@@ -264,15 +274,23 @@ class TelegramFullscreenManager {
         }
     }
 
+    syncFullscreenClass() {
+        const active = !!(this.webApp && this.webApp.isFullscreen);
+        document.body.classList.toggle('telegram-true-fullscreen', active);
+        if (!active) {
+            document.body.classList.remove('telegram-fullscreen-requested');
+        }
+    }
+
     applySafeAreaInsets() {
         if (!this.webApp) return;
         try {
             const sa = this.webApp.safeAreaInset || {};
             const csa = this.webApp.contentSafeAreaInset || {};
-            const top = Math.max(Number(sa.top) || 0, Number(csa.top) || 0);
-            const bottom = Math.max(Number(sa.bottom) || 0, Number(csa.bottom) || 0);
-            const left = Math.max(Number(sa.left) || 0, Number(csa.left) || 0);
-            const right = Math.max(Number(sa.right) || 0, Number(csa.right) || 0);
+            const top = Math.max(Number(sa.top) || 0, Number(csa.top) || 0, 0);
+            const bottom = Math.max(Number(sa.bottom) || 0, Number(csa.bottom) || 0, 0);
+            const left = Math.max(Number(sa.left) || 0, Number(csa.left) || 0, 0);
+            const right = Math.max(Number(sa.right) || 0, Number(csa.right) || 0, 0);
             const root = document.documentElement;
             root.style.setProperty('--tg-safe-area-top', top + 'px');
             root.style.setProperty('--tg-safe-area-bottom', bottom + 'px');
@@ -296,12 +314,32 @@ class TelegramFullscreenManager {
                 --tg-safe-area-left: 0px;
                 --tg-safe-area-right: 0px;
             }
-            body.telegram-true-fullscreen {
-                padding-top: var(--tg-safe-area-top) !important;
-                padding-bottom: var(--tg-safe-area-bottom) !important;
+            body.telegram-fullscreen-requested {
+                --tg-safe-area-top: max(var(--tg-safe-area-top), env(safe-area-inset-top, 0px));
+                --tg-safe-area-bottom: max(var(--tg-safe-area-bottom), env(safe-area-inset-bottom, 0px));
+                --tg-safe-area-left: max(var(--tg-safe-area-left), env(safe-area-inset-left, 0px));
+                --tg-safe-area-right: max(var(--tg-safe-area-right), env(safe-area-inset-right, 0px));
+            }
+            body.telegram-true-fullscreen,
+            body.telegram-fullscreen-requested {
                 padding-left: var(--tg-safe-area-left) !important;
                 padding-right: var(--tg-safe-area-right) !important;
                 box-sizing: border-box;
+            }
+            body.telegram-true-fullscreen {
+                padding-top: var(--tg-safe-area-top) !important;
+                padding-bottom: var(--tg-safe-area-bottom) !important;
+            }
+            body.telegram-true-fullscreen .app-container,
+            body.telegram-fullscreen-requested .app-container {
+                min-height: calc(100vh - var(--tg-safe-area-top) - var(--tg-safe-area-bottom)) !important;
+                min-height: calc(100dvh - var(--tg-safe-area-top) - var(--tg-safe-area-bottom)) !important;
+            }
+            body.telegram-true-fullscreen .bottom-nav,
+            body.telegram-true-fullscreen [style*="bottom: 0"],
+            body.telegram-fullscreen-requested .bottom-nav,
+            body.telegram-fullscreen-requested [style*="bottom: 0"] {
+                bottom: var(--tg-safe-area-bottom) !important;
             }
         `;
         document.head.appendChild(style);
