@@ -88,7 +88,8 @@
     <!-- CSS & Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<noscript>
+</noscript>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
@@ -125,8 +126,13 @@
         })();
     </script>
     
+    <!-- Shared toast notifications (load early so any script can call Toast.*) -->
+    <script src="/js/toast.js?v=1" data-cfasync="false"></script>
+    <!-- Shared number/currency formatters -->
+    <script src="/js/format.js?v=1" data-cfasync="false"></script>
+    
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" data-cfasync="false" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js" data-cfasync="false" defer></script>
+    <script src="js/modal.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" data-cfasync="false" defer></script>
     <!-- @ton/core for building Jetton (USDT-TON) transfer payloads -->
     <script type="module">
@@ -1067,13 +1073,13 @@
                     <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Buy & Sell Telegram Stars</p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button style="position: relative; padding: 8px; border-radius: 50%; background: transparent; border: none; cursor: pointer; transition: background 0.2s;" id="notificationButton" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+                    <button style="position: relative; padding: 8px; border-radius: 50%; background: transparent; border: none; cursor: pointer; transition: background 0.2s;" id="notificationButton" aria-label="Notifications" title="Notifications" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
                         <svg style="width: 20px; height: 20px; color: #666;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
                         <div class="notification-badge hidden" id="notificationBadge" style="position: absolute; top: 2px; right: 2px; background: #007AFF; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,122,255,0.3);">0</div>
                     </button>
-                    <select id="languageSelect" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #333; cursor: pointer;">
+                    <select id="languageSelect" aria-label="Language" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #333; cursor: pointer;">
                         <option value="en">English</option>
                         <option value="ru">Русский</option>
                         <option value="hi">हिंदी</option>
@@ -1217,9 +1223,9 @@
                                     </button>
                                 </div>
                                 <!-- Package 6: 1000 Stars (hidden) -->
-                                <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="1000">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" data-best="true" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="1000">
                                     <div style="flex: 1;">
-                                        <div style="font-size: 16px; font-weight: 600; color: #000;">1000 Stars</div>
+                                    <div style="font-size: 16px; font-weight: 600; color: #000;">1000 Stars <span class="best-badge">Best value</span></div>
                                         <div style="font-size: 13px; color: #666; margin-top: 2px;">20.00 USDT</div>
                                     </div>
                                     <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>
@@ -1345,10 +1351,10 @@
                                     <span>Subscribe Now</span>
                                 </button>
                             </div>
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option premium-package" data-premium-duration="12" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option premium-package" data-best="true" data-premium-duration="12" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                                     <div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;" data-translate="12monthsPremium">12 Months Premium</div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;" data-translate="12monthsPremium">12 Months Premium <span class="best-badge">Best value</span></div>
                                         <div style="font-size: 13px; color: #666;" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
                                     </div>
                                     <div style="font-size: 16px; font-weight: 600; color: #007AFF;" class="package-price">44.79 USDT</div>
@@ -1545,53 +1551,19 @@ function detectTelegramEnvironment() {
     }
 }
 
+// Lightweight wrappers around the shared Toast system. Older code calls these
+// functions; they now route to top-right toasts instead of modal popups.
 function showErrorToUser(message) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Error',
-            text: message,
-            icon: 'error',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#EF4444',
-            showClass: {
-                popup: 'animate__animated animate__fadeInUp animate__faster'
-            },
-            hideClass: {
-                popup: 'animate__animated animate__fadeOutDown animate__faster'
-            },
-            customClass: {
-                popup: 'rounded-xl shadow-lg',
-                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
-            }
-        });
-    } else {
-        // Fallback to native alert if SweetAlert2 is not available
-        alert(message);
-    }
+    if (window.Toast) return window.Toast.error(message, 4500);
+    if (typeof Swal !== 'undefined') return Swal.fire({ title: 'Error', text: message, icon: 'error' });
+    alert(message);
 }
 
-function showSuccessToUser(message, title = 'Success') {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: title,
-            text: message,
-            icon: 'success',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#10B981',
-            showClass: {
-                popup: 'animate__animated animate__fadeInUp animate__faster'
-            },
-            hideClass: {
-                popup: 'animate__animated animate__fadeOutDown animate__faster'
-            },
-            customClass: {
-                popup: 'rounded-xl shadow-lg',
-                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
-            }
-        });
-    } else {
-        alert(`${title}: ${message}`);
-    }
+function showSuccessToUser(message, title) {
+    var msg = title && title !== 'Success' ? title + ': ' + message : message;
+    if (window.Toast) return window.Toast.success(msg, 3500);
+    if (typeof Swal !== 'undefined') return Swal.fire({ title: title || 'Success', text: message, icon: 'success' });
+    alert(msg);
 }
 
 function showUsernameRequiredError(user, dmSent = false) {
@@ -2812,76 +2784,8 @@ function updateLanguage() {
 }
 
 
-// Sonner-style toast notifications — top-right, dark-mode aware
-const ToastNotification = {
-    show(message, type = 'info', duration = 3000) {
-        const container = document.getElementById('toastContainer') || this.createContainer();
-        const icons = {
-            info:    { color:'#3b82f6', svg:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>' },
-            success: { color:'#10b981', svg:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' },
-            warning: { color:'#f59e0b', svg:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>' },
-            error:   { color:'#ef4444', svg:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>' },
-        };
-        const meta = icons[type] || icons.info;
-        const toast = document.createElement('div');
-        toast.className = `sonner-toast sonner-${type}`;
-        toast.innerHTML = `
-            <span class="sonner-icon" style="color:${meta.color};">${meta.svg}</span>
-            <span class="sonner-msg">${message}</span>
-        `;
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.classList.add('sonner-out');
-            setTimeout(() => toast.remove(), 220);
-        }, duration);
-    },
-
-    createContainer() {
-        const container = document.createElement('div');
-        container.id = 'toastContainer';
-        document.body.appendChild(container);
-        if (!document.getElementById('sonnerToastStyles')) {
-            const style = document.createElement('style');
-            style.id = 'sonnerToastStyles';
-            style.textContent = `
-                #toastContainer {
-                    position: fixed !important;
-                    top: max(16px, env(safe-area-inset-top, 0px)) !important;
-                    right: max(16px, env(safe-area-inset-right, 0px)) !important;
-                    left: auto !important;
-                    z-index: 2147483647 !important;
-                    display: flex; flex-direction: column; gap: 8px;
-                    pointer-events: none;
-                    max-width: min(380px, calc(100vw - 32px));
-                }
-                .sonner-toast {
-                    display: flex; align-items: center; gap: 10px;
-                    background: #ffffff; color: #0f172a;
-                    padding: 12px 14px; border-radius: 12px;
-                    font-size: 14px; font-weight: 500; line-height: 1.35;
-                    border: 1px solid rgba(0,0,0,0.06);
-                    box-shadow: 0 6px 24px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04);
-                    pointer-events: auto;
-                    animation: sonnerIn .24s cubic-bezier(.21,1.02,.73,1) both;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                }
-                .sonner-toast.sonner-out { animation: sonnerOut .2s ease-in forwards; }
-                .sonner-icon { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
-                .sonner-msg  { flex: 1; min-width: 0; word-break: break-word; }
-                [data-theme="dark"] .sonner-toast,
-                .dark .sonner-toast {
-                    background: #1f2937; color: #f1f5f9;
-                    border-color: rgba(255,255,255,0.08);
-                    box-shadow: 0 6px 24px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.30);
-                }
-                @keyframes sonnerIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-                @keyframes sonnerOut { from { transform: translateX(0); opacity: 1; }   to { transform: translateX(110%); opacity: 0; } }
-            `;
-            document.head.appendChild(style);
-        }
-        return container;
-    }
-};
+// Sonner-style toast notifications are provided by /js/toast.js (window.Toast).
+// window.ToastNotification is kept as a backward-compat alias.
 
 // Progressive rate limiting with intelligent penalties - PERSISTENT across sessions
 const purchaseRateLimiter = {
@@ -4272,6 +4176,19 @@ async function handlePurchase(item) {
             }
         });
         loadingShown = true;
+        // Beforeunload guard: warn users if they try to navigate away while a
+        // payment is mid-flight. Cleared after success/failure.
+        window.__paymentPending = true;
+        if (!window.__paymentBeforeUnloadAttached) {
+            window.__paymentBeforeUnloadAttached = true;
+            window.addEventListener('beforeunload', function (e) {
+                if (window.__paymentPending) {
+                    e.preventDefault();
+                    e.returnValue = 'A payment is in progress. Leave anyway?';
+                    return e.returnValue;
+                }
+            });
+        }
 
         // Get payment address (store-owner wallet — same address receives TON & USDT-TON jettons)
         const headers = {
@@ -4472,8 +4389,11 @@ async function handlePurchase(item) {
                                 </svg>
                             </div>
                             <div class="ps-title">Payment Successful</div>
-                            <div class="ps-amount">+ ${totalAmountUsdt} <span class="ps-unit">USDT</span></div>
-                            <div class="ps-meta">Order #${response.order.id}</div>
+                            <div class="ps-amount">+ ${window.Fmt ? Fmt.usdt(totalAmountUsdt) : totalAmountUsdt} <span class="ps-unit">USDT</span></div>
+                            <button type="button" class="ps-order" data-copy="${response.order.id}" title="Copy order ID">
+                                <span>Order #${response.order.id}</span>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            </button>
                             <div class="ps-meta">Delivery within 2 hours</div>
                             <style>
                                 .tg-check-wrap { display:flex; justify-content:center; margin-top:6px; }
@@ -4494,11 +4414,16 @@ async function handlePurchase(item) {
                                 .ps-amount { font-size:28px; font-weight:700; color:#111827; margin-top:6px; letter-spacing:-.5px; }
                                 .ps-unit   { font-size:18px; color:#6b7280; font-weight:600; }
                                 .ps-meta   { font-size:13px; color:#8a8f98; margin-top:4px; }
+                                .ps-order  { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:6px 10px; border-radius:8px; border:1px solid rgba(0,0,0,.08); background:transparent; font-size:13px; color:#6b7280; cursor:pointer; transition:background .15s, color .15s; font-family:inherit; }
+                                .ps-order:hover { background:rgba(0,0,0,.04); color:#111827; }
+                                .ps-order:active { transform:scale(.98); }
                                 [data-theme="dark"] .swal2-popup { background:#1f2937 !important; color:#f1f5f9 !important; }
                                 [data-theme="dark"] .ps-title,
                                 [data-theme="dark"] .ps-amount { color:#f1f5f9; }
                                 [data-theme="dark"] .ps-unit { color:#cbd5e1; }
                                 [data-theme="dark"] .ps-meta { color:#94a3b8; }
+                                [data-theme="dark"] .ps-order { color:#94a3b8; border-color:rgba(255,255,255,.10); }
+                                [data-theme="dark"] .ps-order:hover { background:rgba(255,255,255,.06); color:#f1f5f9; }
                             </style>
                         </div>
                     `,
@@ -4510,9 +4435,29 @@ async function handlePurchase(item) {
                     customClass: {
                         popup: 'rounded-xl shadow-lg',
                         confirmButton: 'rounded-lg px-6 py-2 w-full font-semibold'
+                    },
+                    didOpen: (popup) => {
+                        const btn = popup.querySelector('.ps-order');
+                        if (btn) btn.addEventListener('click', async () => {
+                            const text = btn.getAttribute('data-copy') || '';
+                            try {
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    await navigator.clipboard.writeText(text);
+                                } else {
+                                    const ta = document.createElement('textarea');
+                                    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                                    document.body.appendChild(ta); ta.select();
+                                    document.execCommand('copy'); ta.remove();
+                                }
+                                window.Toast && window.Toast.success('Order ID copied');
+                            } catch (_) {
+                                window.Toast && window.Toast.error('Could not copy');
+                            }
+                        });
                     }
                 });
                 
+                window.__paymentPending = false;
                 return; // Exit payment flow - order is complete
             } else {
                 throw new Error(response?.error || TranslationUtils.get('orderFailed'));
@@ -4522,7 +4467,7 @@ async function handlePurchase(item) {
         }
     } catch (error) {
         console.debug('Payment error:', error.message);
-        
+        window.__paymentPending = false;
         // Close loading before showing error
         if (loadingShown) {
             Swal.close();
