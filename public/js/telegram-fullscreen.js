@@ -81,6 +81,35 @@ class TelegramFullscreenManager {
                 this.webApp.MainButton.hide();
             }
 
+            // True fullscreen mode (Telegram Bot API 8.0+).
+            // This is how BotFather and other modern Mini Apps cover the
+            // entire screen including the area behind the Telegram header.
+            try {
+                const supportsFullscreen =
+                    typeof this.webApp.requestFullscreen === 'function' &&
+                    (typeof this.webApp.isVersionAtLeast !== 'function' ||
+                     this.webApp.isVersionAtLeast('8.0'));
+
+                if (supportsFullscreen && !this.webApp.isFullscreen) {
+                    this.webApp.requestFullscreen();
+                }
+
+                // Listen once for fullscreen state changes so the app can
+                // react to safe-area insets if needed.
+                if (typeof this.webApp.onEvent === 'function' && !this._fsListenerAdded) {
+                    this.webApp.onEvent('fullscreenChanged', () => {
+                        document.body.classList.toggle(
+                            'telegram-true-fullscreen',
+                            !!this.webApp.isFullscreen
+                        );
+                    });
+                    this.webApp.onEvent('fullscreenFailed', (e) => {
+                        console.warn('Telegram fullscreen failed:', e);
+                    });
+                    this._fsListenerAdded = true;
+                }
+            } catch (_) { /* older Telegram clients */ }
+
             // Match Telegram's header & background to the WebApp's theme bg_color
             // so the top safe-area doesn't show a foggy white band over the
             // phone's status bar (especially in light theme).
