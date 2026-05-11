@@ -47,6 +47,37 @@ function calculateRunningBalance(transactions) {
   });
 }
 
+function maskReferralIdentifier(identifier) {
+  if (!identifier || typeof identifier !== 'string') {
+    return 'Unknown';
+  }
+
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    return 'Unknown';
+  }
+
+  // Numeric IDs: keep first 4 and last 2 digits
+  if (/^\d+$/.test(trimmed)) {
+    if (trimmed.length <= 6) {
+      return trimmed;
+    }
+    const visibleStart = trimmed.slice(0, 4);
+    const visibleEnd = trimmed.slice(-2);
+    const maskedMiddle = '*'.repeat(trimmed.length - 6);
+    return `${visibleStart}${maskedMiddle}${visibleEnd}`;
+  }
+
+  // Usernames: keep first 2 chars and last char, mask the rest
+  if (trimmed.length <= 3) {
+    return trimmed;
+  }
+  const visibleStart = trimmed.slice(0, 2);
+  const visibleEnd = trimmed.slice(-1);
+  const maskedMiddle = '*'.repeat(Math.max(1, trimmed.length - 3));
+  return `${visibleStart}${maskedMiddle}${visibleEnd}`;
+}
+
 /**
  * Generate professional transaction statement PDF
  */
@@ -367,11 +398,12 @@ function generateReferralPDF(userId, username, referrals) {
     
     const statusColor = ref.status === 'active' ? COLORS.success : COLORS.warning;
     const statusDisplay = ref.status.charAt(0).toUpperCase() + ref.status.slice(1);
+    const referredUserLabel = maskReferralIdentifier(ref.referredUsername || ref.referredUserId || 'Unknown');
 
     return [
       { text: dateStr, fontSize: 9, color: COLORS.text, alignment: 'center' },
       { text: timeStr, fontSize: 9, color: COLORS.lightText },
-      { text: ref.referredUsername || 'Unknown', fontSize: 9, color: COLORS.text },
+      { text: referredUserLabel, fontSize: 9, color: COLORS.text },
       { text: `$${(ref.amount || 0).toFixed(2)}`, fontSize: 9, bold: true, color: COLORS.success, alignment: 'right' },
       { text: `$${runningTotal.toFixed(2)}`, fontSize: 9, bold: true, color: COLORS.info, alignment: 'right' },
       { text: statusDisplay, fontSize: 8, bold: true, color: statusColor, alignment: 'center' }
