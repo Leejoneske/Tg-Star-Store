@@ -158,9 +158,16 @@ body {
 html { scrollbar-color: var(--border) var(--surface-muted); scrollbar-width: thin; }
 
 header, footer {
-	background: var(--surface);
 	color: var(--text);
 	border-color: var(--border);
+}
+
+header {
+	background: transparent;
+}
+
+footer {
+	background: var(--surface);
 }
 
 a { color: var(--brand); text-decoration: none; }
