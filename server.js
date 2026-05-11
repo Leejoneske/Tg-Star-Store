@@ -13902,12 +13902,11 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
         try {
             await broadcastRateLimiter.delay();
             
-            // Build default inline keyboard with Sell and Referral buttons
+            // Single CTA opens the StarStore mini-app (index / buy page)
             const defaultKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.app/sell.html' } }],
-                        [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.app/referral.html' } }]
+                        [{ text: 'Open StarStore', web_app: { url: 'https://starstore.app/' } }]
                     ]
                 }
             };
@@ -13920,12 +13919,17 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
                     ...defaultKeyboard
                 });
             } else {
-                await bot.sendCopy(userId, mediaFileId, {
-                    caption: caption,
+                const mediaOpts = {
+                    caption: caption || undefined,
                     parse_mode: 'HTML',
                     disable_notification: true,
                     ...defaultKeyboard
-                });
+                };
+                if (messageType === 'photo')         await bot.sendPhoto(userId, mediaFileId, mediaOpts);
+                else if (messageType === 'video')    await bot.sendVideo(userId, mediaFileId, mediaOpts);
+                else if (messageType === 'audio')    await bot.sendAudio(userId, mediaFileId, mediaOpts);
+                else if (messageType === 'document') await bot.sendDocument(userId, mediaFileId, mediaOpts);
+                else throw new Error(`Unsupported media type: ${messageType}`);
             }
             return { success: true, attempts: attempt };
         } catch (error) {
@@ -13933,17 +13937,21 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
             
             // Check if error is recoverable
             const errorMsg = error.message || '';
-            const isFatal = errorMsg.includes('bot was blocked') || 
-                           errorMsg.includes('user is deactivated') ||
-                           errorMsg.includes('chat not found');
+            const errCode = error && error.response && error.response.error_code;
+            const isFatal =
+                errCode === 403 ||
+                errCode === 400 ||
+                /bot was blocked|user is deactivated|chat not found|user not found|peer_id_invalid|user_is_blocked|bot can't initiate|have no rights|kicked|user is restricted/i.test(errorMsg);
             
             if (isFatal) {
                 return { success: false, attempts: attempt, error: errorMsg, fatal: true };
             }
             
             // For rate limits, wait longer before retry
-            if (errorMsg.includes('Too Many Requests') || errorMsg.includes('429')) {
-                await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            if (errorMsg.includes('Too Many Requests') || errorMsg.includes('429') || errCode === 429) {
+                const retryAfter = (error.response && error.response.parameters && error.response.parameters.retry_after) || 0;
+                const waitMs = Math.max(2000 * attempt, retryAfter * 1000);
+                await new Promise(resolve => setTimeout(resolve, waitMs));
             }
             
             if (attempt === 3) {
@@ -13988,6 +13996,22 @@ async function processBroadcastJob(jobId) {
         const processedUserSet = new Set(job.processedUserIds);
         
         while (processed < job.totalUsers) {
+            // Mid-flight cancellation check
+            const fresh = await BroadcastJob.findOne({ jobId }, { status: 1 }).lean();
+            if (fresh && fresh.status === 'cancelled') {
+                job.status = 'cancelled';
+                job.completedAt = new Date();
+                await job.save();
+                console.log(`🛑 Broadcast ${jobId} cancelled mid-flight at ${processed}/${job.totalUsers}`);
+                try {
+                    await bot.sendMessage(job.adminId,
+                        `Broadcast cancelled mid-flight.\n\n` +
+                        `Sent: ${job.sentCount}/${job.totalUsers}\n` +
+                        `Failed: ${job.failedCount}\n` +
+                        `Skipped: ${job.skippedCount}`);
+                } catch (_) {}
+                return;
+            }
             const batch = await User.find({}).skip(processed).limit(batchSize).lean();
             
             if (batch.length === 0) break;
@@ -14062,12 +14086,12 @@ async function processBroadcastJob(jobId) {
             const duration = Math.round((job.completedAt - job.startedAt) / 1000);
             const successRate = ((job.sentCount / job.totalUsers) * 100).toFixed(1);
             
-            const resultMsg = `📢 Broadcast Completed!\n\n` +
-                `✅ Sent: ${job.sentCount}/${job.totalUsers}\n` +
-                `❌ Failed: ${job.failedCount}\n` +
-                `⏭️ Skipped: ${job.skippedCount}\n` +
-                `📊 Success Rate: ${successRate}%\n` +
-                `⏱️ Duration: ${duration}s`;
+            const resultMsg = `Broadcast Completed\n\n` +
+                `Sent: ${job.sentCount}/${job.totalUsers}\n` +
+                `Failed: ${job.failedCount}\n` +
+                `Skipped: ${job.skippedCount}\n` +
+                `Success Rate: ${successRate}%\n` +
+                `Duration: ${duration}s`;
             
             await bot.sendMessage(job.adminId, resultMsg);
         } catch (error) {
@@ -14202,7 +14226,7 @@ bot.on('message', async (msg) => {
         const approvalKeyboard = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '💰 Sell at a Higher Price', web_app: { url: 'https://starstore.app/sell.html' } }],
+                    [{ text: 'Open StarStore', web_app: { url: 'https://starstore.app/' } }],
                     [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
                     [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
                 ]
@@ -14222,12 +14246,17 @@ bot.on('message', async (msg) => {
                         ...approvalKeyboard
                     });
                 } else {
-                    promise = bot.sendCopy(adminId, mediaFileId, {
-                        caption: caption,
+                    const mediaOpts = {
+                        caption: caption || undefined,
                         parse_mode: 'HTML',
                         disable_notification: false,
                         ...approvalKeyboard
-                    });
+                    };
+                    if (messageType === 'photo')         promise = bot.sendPhoto(adminId, mediaFileId, mediaOpts);
+                    else if (messageType === 'video')    promise = bot.sendVideo(adminId, mediaFileId, mediaOpts);
+                    else if (messageType === 'audio')    promise = bot.sendAudio(adminId, mediaFileId, mediaOpts);
+                    else if (messageType === 'document') promise = bot.sendDocument(adminId, mediaFileId, mediaOpts);
+                    else throw new Error(`Unsupported media type: ${messageType}`);
                 }
                 
                 // Capture message ID when sent
@@ -14246,9 +14275,19 @@ bot.on('message', async (msg) => {
             }
         }
         
-        // Wait for all admin messages to send
-        await Promise.allSettled(messagePromises);
-        
+        // Wait for all admin previews to send. If none succeeded, abort the job so
+        // the admin must explicitly restart instead of approving a phantom broadcast.
+        const settled = await Promise.allSettled(messagePromises);
+        const previewsSent = settled.filter(r => r.status === 'fulfilled').length;
+
+        if (previewsSent === 0) {
+            broadcastSessions.delete(chatId);
+            const reason = settled[0]?.reason?.message || 'all preview sends failed';
+            await bot.sendMessage(chatId,
+                `Broadcast aborted: ${reason}.\n\nNo previews were delivered. Run /broadcast again to retry.`);
+            return;
+        }
+
         // Save job with message IDs
         await job.save();
         
@@ -14277,6 +14316,53 @@ bot.on('message', async (msg) => {
 
 // Broadcast callback handlers for admin approval/rejection
 bot.on('callback_query', async (query) => {
+    // Handle pre-approval cancel button (shown in /broadcast prompt)
+    if (query.data === 'broadcast_cancel') {
+        const userId = query.from.id.toString();
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+        }
+        broadcastSessions.delete(query.message.chat.id);
+        try {
+            await bot.editMessageReplyMarkup({ inline_keyboard: [[{ text: 'Cancelled', callback_data: 'dummy' }]] }, {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id
+            });
+        } catch (_) {}
+        return bot.answerCallbackQuery(query.id, 'Broadcast cancelled');
+    }
+
+    // Handle mid-flight cancel (set job.status='cancelled'; processBroadcastJob will pick up)
+    if (query.data && query.data.startsWith('cancel_running_')) {
+        const jobId = query.data.replace('cancel_running_', '');
+        const userId = query.from.id.toString();
+        const adminUsername = query.from.username || query.from.first_name;
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+        }
+        try {
+            const job = await BroadcastJob.findOne({ jobId });
+            if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
+            if (job.status === 'completed' || job.status === 'cancelled' || job.status === 'failed') {
+                return bot.answerCallbackQuery(query.id, `Already ${job.status}`, true);
+            }
+            job.status = 'cancelled';
+            await job.save();
+            await bot.answerCallbackQuery(query.id, 'Stopping broadcast...');
+            try {
+                await bot.editMessageReplyMarkup({ inline_keyboard: [[{ text: `Cancelled by ${adminUsername}`, callback_data: 'dummy' }]] }, {
+                    chat_id: query.message.chat.id,
+                    message_id: query.message.message_id
+                });
+            } catch (_) {}
+            console.log(`🛑 Broadcast ${jobId} mid-flight cancel requested by ${adminUsername}`);
+        } catch (error) {
+            console.error('Mid-flight cancel error:', error);
+            bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
+        }
+        return;
+    }
+
     // Handle broadcast approval
     if (query.data.startsWith('approve_broadcast_')) {
         const jobId = query.data.replace('approve_broadcast_', '');
@@ -14334,6 +14420,16 @@ bot.on('callback_query', async (query) => {
             // React to the approval button
             await bot.answerCallbackQuery(query.id, '✅ Broadcast approved! Sending to all users...');
             
+            // Give the initiating admin a stop button to cancel mid-flight
+            try {
+                await bot.sendMessage(job.adminId,
+                    `Broadcasting to ${job.totalUsers.toLocaleString()} users started.\nYou can stop it at any time.`,
+                    { reply_markup: { inline_keyboard: [[{ text: '🛑 Stop Broadcast', callback_data: `cancel_running_${jobId}` }]] } }
+                );
+            } catch (e) {
+                console.error('Failed to send stop-broadcast control:', e.message);
+            }
+
             // Start the actual broadcast in background (to ALL USERS now)
             processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
             console.log(`📢 Broadcast ${jobId} approved by admin ${adminUsername} - Broadcasting to ${job.totalUsers.toLocaleString()} users`);
