@@ -85,13 +85,17 @@ class TelegramFullscreenManager {
                 this.webApp.MainButton.hide();
             }
 
-            // NOTE: We intentionally do NOT call requestFullscreen() here.
-            // True fullscreen (Bot API 8.0+) makes the Mini App paint behind
-            // the phone's status bar. In light theme that produces a foggy
-            // white band over the status bar icons, hurting readability.
-            // expand() above already gives us maximum viewport height while
-            // letting Telegram render its own header with proper contrast.
+            // Request TRUE fullscreen (Bot API 8.0+) so the Mini App takes
+            // the full Telegram screen shape (rounded corners, full height).
+            // The foggy/overlap issues are handled by applying Telegram's
+            // safeAreaInset + contentSafeAreaInset as padding on the body so
+            // content never sits behind the status bar / Close button / home
+            // indicator.
             try {
+                if (typeof this.webApp.requestFullscreen === 'function') {
+                    document.body.classList.add('telegram-fullscreen-requested');
+                    this.webApp.requestFullscreen();
+                }
                 this.syncFullscreenClass();
 
                 // Still listen for fullscreen state changes in case the user
@@ -317,11 +321,9 @@ class TelegramFullscreenManager {
             body.telegram-fullscreen-requested {
                 padding-left: var(--tg-safe-area-left) !important;
                 padding-right: var(--tg-safe-area-right) !important;
-                box-sizing: border-box;
-            }
-            body.telegram-true-fullscreen {
                 padding-top: var(--tg-safe-area-top) !important;
                 padding-bottom: var(--tg-safe-area-bottom) !important;
+                box-sizing: border-box;
             }
             body.telegram-true-fullscreen .app-container,
             body.telegram-fullscreen-requested .app-container {
