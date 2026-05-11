@@ -153,10 +153,9 @@
     <link rel="canonical" href="https://starstore.app/referral">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-    <!-- Tailwind CSS for bottom nav styling -->
+<!-- Tailwind CSS for bottom nav styling -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js" data-cfasync="false" defer></script>
+    <script src="js/modal.js" defer></script>
     <script src="/js/translations.js?v=5" data-cfasync="false"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css?v=3">
@@ -627,6 +626,11 @@
             <i class="fas fa-user-friends"></i>
             <h3 data-translate="noReferrals">You don't have any referrals yet</h3>
             <p data-translate="referralEmptyHint">Share your link to get started</p>
+            <button type="button" id="emptyStateShareBtn"
+                style="margin-top:14px;padding:10px 22px;background:var(--brand,#3b82f6);color:#fff;border:none;border-radius:10px;font-weight:600;font-size:.95rem;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                <i class="fas fa-share-alt"></i>
+                <span data-translate="shareInvite">Invite Friends</span>
+            </button>
         </div>
         <div id="referralsList"></div>
     </div>
@@ -898,13 +902,29 @@
             withdrawBtn.removeEventListener('click', showWithdrawPopup);
             withdrawBtn.addEventListener('click', showWithdrawPopup);
         }
+
+        const emptyShareBtn = document.getElementById('emptyStateShareBtn');
+        if (emptyShareBtn) {
+            emptyShareBtn.removeEventListener('click', shareReferral);
+            emptyShareBtn.addEventListener('click', shareReferral);
+        }
     }
 
     // Share referral
     function shareReferral() {
         const link = state.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
         const text = `Join StarStore & earn rewards! 🌟\n${link}`;
-        
+
+        // Prefer native Telegram share when running inside Telegram WebApp.
+        try {
+            const tg = window.Telegram && window.Telegram.WebApp;
+            if (tg && typeof tg.openTelegramLink === 'function') {
+                const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+                tg.openTelegramLink(url);
+                return;
+            }
+        } catch (_) { /* fall through */ }
+
         if (navigator.share) {
             navigator.share({ 
                 title: 'StarStore - Referral Program',
@@ -1086,3 +1106,4 @@
 <script src="/js/version-display.js?v=3"></script>
 </body>
 </html>
+
