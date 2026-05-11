@@ -946,7 +946,7 @@ function loadReferralHistory() {
         headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
     }
 
-    fetch(`${BASE_API_URL}/api/referrals/${userId}?type=referral`, {
+    fetch(`${BASE_API_URL}/referrals/${userId}?type=referral`, {
         headers: headers
     })
     .then(response => {
@@ -1447,7 +1447,7 @@ async function doExportTransactions(format) {
             throw new Error('User authentication required');
         }
 
-        const response = await fetch(`${BASE_API_URL}/api/export-transactions-pdf?t=${Date.now()}`, {
+        const response = await fetch(`${BASE_API_URL}/export-transactions-pdf?t=${Date.now()}`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ timestamp: Date.now() })
@@ -1576,7 +1576,7 @@ async function doExportReferrals(format) {
             throw new Error('User authentication required');
         }
 
-        const response = await fetch(`${BASE_API_URL}/api/export-referrals-pdf?t=${Date.now()}`, {
+        const response = await fetch(`${BASE_API_URL}/export-referrals-pdf?t=${Date.now()}`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ timestamp: Date.now() })
