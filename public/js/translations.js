@@ -200,6 +200,12 @@ const translations = {
         withdrawals: "Withdrawals",
         noReferrals: "You don't have any referrals yet",
         referralEmptyHint: "Share your link to get started",
+        noTransactionsTitle: "No transactions yet",
+        noTransactionsDesc: "Your purchases will appear here. Explore packages to get started.",
+        noReferralsTitle: "No referrals yet",
+        noReferralsDesc: "Invite friends to StarStore and earn rewards for every signup.",
+        browsePackages: "Browse packages",
+        inviteFriends: "Invite friends",
         actions: "Quick Actions",
         copy: "Copy",
         share: "Share",
@@ -1026,6 +1032,12 @@ const translations = {
         withdrawals: "Выводы",
         noReferrals: "У вас пока нет рефералов",
         shareInvite: "Поделитесь своей реферальной ссылкой, чтобы пригласить друзей",
+        noTransactionsTitle: "Пока нет транзакций",
+        noTransactionsDesc: "Ваши покупки появятся здесь. Изучите пакеты, чтобы начать.",
+        noReferralsTitle: "Пока нет рефералов",
+        noReferralsDesc: "Приглашайте друзей в StarStore и зарабатывайте за каждую регистрацию.",
+        browsePackages: "Смотреть пакеты",
+        inviteFriends: "Пригласить друзей",
         completed: "Завершено",
         noWithdrawals: "История выводов пуста",
         startEarning: "Начните зарабатывать, приглашая друзей",
@@ -2273,6 +2285,12 @@ try {
         exportReferrals: "रेफरल निर्यात करें",
         searchTransactions: "लेन-देन खोजें...",
         searchReferrals: "रेफरल खोजें...",
+        noTransactionsTitle: "अभी तक कोई लेन-देन नहीं",
+        noTransactionsDesc: "आपकी खरीदारी यहाँ दिखाई देगी। शुरू करने के लिए पैकेज देखें।",
+        noReferralsTitle: "अभी तक कोई रेफरल नहीं",
+        noReferralsDesc: "दोस्तों को StarStore पर आमंत्रित करें और हर साइनअप पर इनाम पाएं।",
+        browsePackages: "पैकेज देखें",
+        inviteFriends: "दोस्तों को आमंत्रित करें",
         // Referral page explicit overrides
         referralTitle: "रेफरल प्रोग्राम",
         referralSubtitle: "दोस्तों को आमंत्रित करें और कमाएँ",
@@ -2539,6 +2557,12 @@ try {
         exportReferrals: "تصدير الإحالات",
         searchTransactions: "ابحث في المعاملات...",
         searchReferrals: "ابحث في الإحالات...",
+        noTransactionsTitle: "لا توجد معاملات بعد",
+        noTransactionsDesc: "ستظهر مشترياتك هنا. تصفح الباقات للبدء.",
+        noReferralsTitle: "لا توجد إحالات بعد",
+        noReferralsDesc: "ادعُ أصدقاءك إلى StarStore واكسب مكافآت عن كل تسجيل.",
+        browsePackages: "تصفح الباقات",
+        inviteFriends: "دعوة الأصدقاء",
         // Referral page explicit overrides
         referralTitle: "برنامج الإحالات",
         referralSubtitle: "ادعُ الأصدقاء واكسب المكافآت",
@@ -2727,4 +2751,5 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { translations, TranslationUtils };
 }
+
 
