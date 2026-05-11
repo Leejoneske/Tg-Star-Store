@@ -63,8 +63,8 @@ html { color-scheme: light dark; scrollbar-gutter: stable; }
 		--surface-overlay: #1c2128;
 
 		--text: #f0f6fc;
-		--text-muted: #9198a1;
-		--text-secondary: #7d8590;
+		--text-muted: #b3bcc6;
+		--text-secondary: #9aa5b1;
 		--text-on-brand: #ffffff;
 
 		--border: #3d444d;
@@ -102,8 +102,8 @@ html { color-scheme: light dark; scrollbar-gutter: stable; }
 	--surface-overlay: #1c2128;
 
 	--text: #f0f6fc;
-	--text-muted: #9198a1;
-	--text-secondary: #7d8590;
+	--text-muted: #b3bcc6;
+	--text-secondary: #9aa5b1;
 	--text-on-brand: #ffffff;
 
 	--border: #3d444d;
@@ -1247,5 +1247,137 @@ body.swal2-shown {
 .swal2-html-container {
 	max-width: 100%;
 	overflow-x: hidden;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   Shared utility tokens (skeletons, empty states, copy buttons)
+   Added in batch 1 — used across index/history/sell/referral.
+   ───────────────────────────────────────────────────────────── */
+
+/* Skeleton placeholder — use as: <div class="skeleton skeleton-line"></div> */
+.skeleton {
+	background: linear-gradient(90deg,
+		color-mix(in srgb, var(--surface, #f3f4f6) 92%, transparent),
+		color-mix(in srgb, var(--surface, #e5e7eb) 70%, transparent),
+		color-mix(in srgb, var(--surface, #f3f4f6) 92%, transparent));
+	background-size: 200% 100%;
+	animation: skeletonShine 1.4s ease-in-out infinite;
+	border-radius: 8px;
+	display: block;
+}
+.skeleton-line  { height: 12px; margin: 6px 0; }
+.skeleton-title { height: 18px; width: 60%; margin-bottom: 10px; }
+.skeleton-card  { height: 84px; border-radius: 14px; margin-bottom: 12px; }
+.skeleton-avatar { width: 40px; height: 40px; border-radius: 50%; }
+
+@keyframes skeletonShine {
+	0%   { background-position: 200% 0; }
+	100% { background-position: -200% 0; }
+}
+
+[data-theme="dark"] .skeleton {
+	background: linear-gradient(90deg,
+		rgba(255,255,255,0.04),
+		rgba(255,255,255,0.10),
+		rgba(255,255,255,0.04));
+	background-size: 200% 100%;
+}
+
+/* Copy-to-clipboard chip */
+.copy-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	border-radius: 8px;
+	border: 1px solid var(--border, rgba(0,0,0,.08));
+	background: transparent;
+	color: var(--text-secondary, #6b7280);
+	font-size: 12px;
+	cursor: pointer;
+	transition: background .15s, color .15s, transform .1s;
+	font-family: inherit;
+}
+.copy-chip:hover  { background: color-mix(in srgb, var(--text, #111) 6%, transparent); color: var(--text, #111827); }
+.copy-chip:active { transform: scale(.97); }
+
+/* ─────────────────────────────────────────────────────────────
+   Batch 2 — package cards, focus rings, badges, form errors
+   ───────────────────────────────────────────────────────────── */
+
+/* Package cards — enhanced hover/press/focus without rewriting inline styles */
+.package-option {
+	position: relative;
+	border: 1px solid transparent;
+	transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease !important;
+	cursor: pointer;
+	outline: none;
+}
+.package-option:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 14px rgba(0,0,0,.06);
+	border-color: color-mix(in srgb, var(--brand, #4f46e5) 25%, transparent);
+}
+.package-option:active {
+	transform: translateY(0) scale(.99);
+	box-shadow: 0 2px 6px rgba(0,0,0,.04);
+}
+.package-option:focus-visible {
+	box-shadow: 0 0 0 2px var(--brand, #4f46e5);
+	border-color: var(--brand, #4f46e5);
+}
+
+/* "Best value" badge — used inline next to a package title */
+.best-badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 2px 7px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: .03em;
+	text-transform: uppercase;
+	color: #fff;
+	background: linear-gradient(135deg, #f59e0b, #ef4444);
+	border-radius: 999px;
+	vertical-align: middle;
+	box-shadow: 0 1px 3px rgba(239,68,68,.30);
+}
+
+/* Highlighted "best" package gets a soft ring + corner ribbon glow */
+.package-option[data-best="true"] {
+	border-color: color-mix(in srgb, #f59e0b 50%, transparent);
+	box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 18%, transparent), 0 2px 8px rgba(245,158,11,.10);
+}
+.package-option[data-best="true"]:hover {
+	box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 35%, transparent), 0 6px 18px rgba(245,158,11,.18);
+}
+
+/* Global focus ring tokens — restore visible focus on interactive elements */
+:where(button, a, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+	outline: 2px solid var(--brand, #4f46e5);
+	outline-offset: 2px;
+	border-radius: 6px;
+}
+
+/* Inline form validation hint */
+.form-error {
+	display: none;
+	color: #ef4444;
+	font-size: 12px;
+	margin-top: 4px;
+	line-height: 1.3;
+}
+.form-error.show { display: block; }
+
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+	border-color: #ef4444 !important;
+	background-color: color-mix(in srgb, #ef4444 6%, transparent) !important;
+}
+input[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"]:focus {
+	outline-color: #ef4444 !important;
+	box-shadow: 0 0 0 3px rgba(239,68,68,.15) !important;
 }
 
