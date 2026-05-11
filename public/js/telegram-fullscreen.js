@@ -85,24 +85,17 @@ class TelegramFullscreenManager {
                 this.webApp.MainButton.hide();
             }
 
-            // True fullscreen mode (Telegram Bot API 8.0+).
-            // This is how BotFather and other modern Mini Apps cover the
-            // entire screen including the area behind the Telegram header.
+            // NOTE: We intentionally do NOT call requestFullscreen() here.
+            // True fullscreen (Bot API 8.0+) makes the Mini App paint behind
+            // the phone's status bar. In light theme that produces a foggy
+            // white band over the status bar icons, hurting readability.
+            // expand() above already gives us maximum viewport height while
+            // letting Telegram render its own header with proper contrast.
             try {
-                const supportsFullscreen =
-                    typeof this.webApp.requestFullscreen === 'function' &&
-                    (typeof this.webApp.isVersionAtLeast !== 'function' ||
-                     this.webApp.isVersionAtLeast('8.0'));
-
-                if (supportsFullscreen && !this.webApp.isFullscreen) {
-                    document.body.classList.add('telegram-fullscreen-requested');
-                    this.webApp.requestFullscreen();
-                }
-
                 this.syncFullscreenClass();
 
-                // Listen once for fullscreen state changes so the app can
-                // react to safe-area insets if needed.
+                // Still listen for fullscreen state changes in case the user
+                // toggles fullscreen via Telegram's UI.
                 if (typeof this.webApp.onEvent === 'function' && !this._fsListenerAdded) {
                     this.webApp.onEvent('fullscreenChanged', () => {
                         this.syncFullscreenClass();
