@@ -1887,6 +1887,9 @@ const buyOrderSchema = new mongoose.Schema({
     status: String,
     dateCreated: Date,
     adminMessages: Array,
+    // Payment currency used at checkout: 'TON' (native) or 'USDT' (USDT-TON jetton).
+    // Same store wallet address receives both; only the on-chain message type differs.
+    paymentCurrency: { type: String, enum: ['TON', 'USDT'], default: 'TON' },
     // New fields for "buy for" functionality
     recipients: [{
         username: String,
@@ -3920,7 +3923,7 @@ app.post('/api/validate-usernames', requireTelegramAuth, (req, res) => {
 });
 
 app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
-    const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTestnet } = req.body;
+    const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTestnet, paymentCurrency } = req.body;
     const requestKey = transactionHash ? `tx:${transactionHash}` : `order:${telegramId}:${walletAddress}:${stars}`;
 
     try {
@@ -4166,6 +4169,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             status: 'pending',
             dateCreated: new Date(),
             adminMessages: [],
+            paymentCurrency: paymentCurrency === 'USDT' ? 'USDT' : 'TON',
             recipients: processedRecipients,
             isBuyForOthers,
             totalRecipients,
@@ -20520,4 +20524,5 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
 });
 // Webhook fix - 1776877634
 //some harmless comment
+
 
