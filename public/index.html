@@ -128,6 +128,20 @@
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" data-cfasync="false" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js" data-cfasync="false" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" data-cfasync="false" defer></script>
+    <!-- @ton/core for building Jetton (USDT-TON) transfer payloads -->
+    <script type="module">
+        try {
+            const mod = await import('https://esm.sh/@ton/core@0.56.3');
+            window.TonCore = {
+                Address: mod.Address,
+                beginCell: mod.beginCell,
+                toNano: mod.toNano
+            };
+            window.dispatchEvent(new Event('toncore-ready'));
+        } catch (e) {
+            console.warn('Failed to load @ton/core for USDT payments:', e);
+        }
+    </script>
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/theme-additional.css?v=9">
     
@@ -4219,6 +4233,17 @@ async function handlePurchase(item) {
                             ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}
                         </div>
                     ` : ''}
+                    <div class="text-left text-sm font-medium text-gray-700 pt-1">Pay with:</div>
+                    <div class="flex gap-2 justify-center" id="payMethodWrap">
+                        <label class="flex-1 cursor-pointer border rounded-lg px-3 py-2 text-sm flex items-center gap-2 justify-center hover:border-blue-500 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
+                            <input type="radio" name="payMethod" value="TON" checked> <span>TON</span>
+                            ${approxTon ? `<span class="text-xs text-gray-500">(${approxTon.toFixed(4)})</span>` : ''}
+                        </label>
+                        <label class="flex-1 cursor-pointer border rounded-lg px-3 py-2 text-sm flex items-center gap-2 justify-center hover:border-blue-500 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
+                            <input type="radio" name="payMethod" value="USDT"> <span>USDT</span>
+                            <span class="text-xs text-gray-500">(${totalAmountUsdt})</span>
+                        </label>
+                    </div>
                     <div class="text-xs text-amber-600 bg-amber-50 p-2 rounded border">
                         ⏱️ Processing may take up to 2 hours<br>
                         ⚠️ Do not change username before completion
@@ -4231,6 +4256,10 @@ async function handlePurchase(item) {
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#10B981',
             cancelButtonColor: '#6B7280',
+            preConfirm: () => {
+                const sel = document.querySelector('input[name="payMethod"]:checked');
+                return { payMethod: sel ? sel.value : 'TON' };
+            },
             showClass: {
                 popup: 'animate__animated animate__fadeInUp animate__faster'
             },
@@ -4244,6 +4273,7 @@ async function handlePurchase(item) {
             }
         });
         if (!confirm.isConfirmed) return;
+        const payMethod = (confirm.value && confirm.value.payMethod) || 'TON';
 
         // Simplified loading indicator
         Swal.fire({
@@ -4265,19 +4295,7 @@ async function handlePurchase(item) {
         });
         loadingShown = true;
 
-        // Get current exchange rate (already fetched above if needed)
-        const tonToUsdtRate = rateQuick || await fetchCurrentRate();
-        if (!tonToUsdtRate || tonToUsdtRate <= 0) {
-            throw new Error('Failed to fetch current exchange rate');
-        }
-        
-        // Calculate amount in TON - ALWAYS ROUND UP to prevent undercharging
-        const tonAmount = totalAmountUsdt / tonToUsdtRate;
-        const nanoTonAmount = Math.ceil(tonAmount * 1e9);  // Round UP not down
-        
-        console.log(`💱 TON Conversion | USDT: ${totalAmountUsdt} | Rate: ${tonToUsdtRate} | TON: ${(tonAmount).toFixed(8)} | nanoTON: ${nanoTonAmount}`);
-        
-        // Get payment address directly from server
+        // Get payment address (store-owner wallet — same address receives TON & USDT-TON jettons)
         const headers = {
             'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
             'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user',
@@ -4287,17 +4305,75 @@ async function handlePurchase(item) {
         if (!walletResponse.success || !walletResponse.walletAddress) {
             throw new Error('Failed to get payment address');
         }
+        const storeOwnerAddress = walletResponse.walletAddress;
 
-        // Prepare transaction
-        const transaction = {
-            validUntil: Math.floor(Date.now() / 1000) + 300,
-            messages: [
-                {
-                    address: walletResponse.walletAddress,
-                    amount: nanoTonAmount.toString(),
-                }
-            ]
-        };
+        // Build the transaction based on selected payment currency
+        let transaction;
+        let nanoTonAmount = 0; // for logging/order record
+        if (payMethod === 'USDT') {
+            // USDT-TON (Jetton) transfer
+            if (!window.TonCore) {
+                throw new Error('USDT payments are still initializing. Please try again in a moment.');
+            }
+            if (!currentWalletAddress) {
+                throw new Error('Please connect your TON wallet first.');
+            }
+            // USDT-TON Jetton master (mainnet)
+            const USDT_JETTON_MASTER = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
+            // 1) Look up the sender's USDT jetton wallet via tonapi.io
+            let senderJettonWallet;
+            try {
+                const r = await fetch(`https://tonapi.io/v2/accounts/${currentWalletAddress}/jettons/${USDT_JETTON_MASTER}`);
+                if (!r.ok) throw new Error(`tonapi ${r.status}`);
+                const j = await r.json();
+                senderJettonWallet = j?.wallet_address?.address || j?.jetton_wallet?.address;
+                if (!senderJettonWallet) throw new Error('No USDT jetton wallet found for this address');
+            } catch (err) {
+                console.error('Jetton wallet lookup failed:', err);
+                throw new Error('Could not find your USDT-TON balance. Make sure your wallet holds USDT-TON and try again.');
+            }
+            // 2) Build jetton transfer payload (op = 0xf8a7ea5). USDT-TON has 6 decimals.
+            const { Address, beginCell, toNano } = window.TonCore;
+            const usdtUnits = BigInt(Math.ceil(totalAmountUsdt * 1_000_000));
+            const body = beginCell()
+                .storeUint(0xf8a7ea5, 32)                       // jetton transfer op
+                .storeUint(0, 64)                                // query_id
+                .storeCoins(usdtUnits)                           // jetton amount
+                .storeAddress(Address.parse(storeOwnerAddress))  // destination (store owner)
+                .storeAddress(Address.parse(currentWalletAddress)) // response_destination (excess back to sender)
+                .storeBit(0)                                     // no custom_payload
+                .storeCoins(1n)                                  // forward_ton_amount (1 nanoton)
+                .storeBit(0)                                     // forward_payload empty in-place
+                .endCell();
+            const payloadB64 = body.toBoc().toString('base64');
+            // 0.1 TON attached for jetton-transfer gas (excess auto-refunded)
+            const gasNanoTon = '100000000';
+            transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 300,
+                messages: [{
+                    address: senderJettonWallet,
+                    amount: gasNanoTon,
+                    payload: payloadB64
+                }]
+            };
+            console.log(`💵 USDT Transfer | USDT: ${totalAmountUsdt} | units: ${usdtUnits} | jettonWallet: ${senderJettonWallet}`);
+        } else {
+            // Native TON payment (default)
+            const tonToUsdtRate = rateQuick || await fetchCurrentRate();
+            if (!tonToUsdtRate || tonToUsdtRate <= 0) {
+                throw new Error('Failed to fetch current exchange rate');
+            }
+            const tonAmount = totalAmountUsdt / tonToUsdtRate;
+            nanoTonAmount = Math.ceil(tonAmount * 1e9);
+            console.log(`💱 TON Conversion | USDT: ${totalAmountUsdt} | Rate: ${tonToUsdtRate} | TON: ${(tonAmount).toFixed(8)} | nanoTON: ${nanoTonAmount}`);
+            transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 300,
+                messages: [{
+                    address: storeOwnerAddress,
+                    amount: nanoTonAmount.toString()
+                }]
+            };
+        }
         
         // Send transaction with timeout handling
         const result = await Promise.race([
@@ -4331,7 +4407,8 @@ async function handlePurchase(item) {
                 isTelegramUser: isTelegramEnv,
                 isTestnet: isTestnetDetected,
                 recipients: recipients.map(r => r.username),
-                totalAmount: totalAmountUsdt
+                totalAmount: totalAmountUsdt,
+                paymentCurrency: payMethod
             };
             
             console.log(`[ORDER DATA PREPARED] Amount: ${totalAmountUsdt} USDT | Stars: ${orderData.stars} | Recipients: ${orderData.recipients.length} | Item: ${item.isPremium ? `${item.premiumDuration}mo Premium` : `${orderData.stars} stars`}`);
@@ -4528,3 +4605,4 @@ async function fetchCurrentRate() {
     </script>
 </body>
 </html>
+
