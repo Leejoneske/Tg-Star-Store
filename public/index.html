@@ -4332,15 +4332,18 @@ async function handlePurchase(item) {
                 console.error('Jetton wallet lookup failed:', err);
                 throw new Error('Could not find your USDT-TON balance. Make sure your wallet holds USDT-TON and try again.');
             }
-            // 2) Build jetton transfer payload (op = 0xf8a7ea5). USDT-TON has 6 decimals.
             const { Address, beginCell, toNano } = window.TonCore;
+            // Normalize all addresses to user-friendly bounceable form for TonConnect
+            const senderJettonWalletFriendly = Address.parse(senderJettonWallet).toString({ urlSafe: true, bounceable: true });
+            const storeOwnerFriendly = Address.parse(storeOwnerAddress).toString({ urlSafe: true, bounceable: true });
+            const senderFriendly = Address.parse(currentWalletAddress).toString({ urlSafe: true, bounceable: false });
             const usdtUnits = BigInt(Math.ceil(totalAmountUsdt * 1_000_000));
             const body = beginCell()
                 .storeUint(0xf8a7ea5, 32)                       // jetton transfer op
                 .storeUint(0, 64)                                // query_id
                 .storeCoins(usdtUnits)                           // jetton amount
-                .storeAddress(Address.parse(storeOwnerAddress))  // destination (store owner)
-                .storeAddress(Address.parse(currentWalletAddress)) // response_destination (excess back to sender)
+                .storeAddress(Address.parse(storeOwnerFriendly))  // destination (store owner)
+                .storeAddress(Address.parse(senderFriendly))      // response_destination (excess back to sender)
                 .storeBit(0)                                     // no custom_payload
                 .storeCoins(1n)                                  // forward_ton_amount (1 nanoton)
                 .storeBit(0)                                     // forward_payload empty in-place
@@ -4351,12 +4354,12 @@ async function handlePurchase(item) {
             transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 300,
                 messages: [{
-                    address: senderJettonWallet,
+                    address: senderJettonWalletFriendly,
                     amount: gasNanoTon,
                     payload: payloadB64
                 }]
             };
-            console.log(`💵 USDT Transfer | USDT: ${totalAmountUsdt} | units: ${usdtUnits} | jettonWallet: ${senderJettonWallet}`);
+            console.log(`💵 USDT Transfer | USDT: ${totalAmountUsdt} | units: ${usdtUnits} | jettonWallet: ${senderJettonWalletFriendly}`);
         } else {
             // Native TON payment (default)
             const tonToUsdtRate = rateQuick || await fetchCurrentRate();
