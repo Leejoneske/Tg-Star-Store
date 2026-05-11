@@ -4187,12 +4187,15 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         console.log(`[${timestamp}] ORDER CREATED | OrderID: ${order.id} | User: ${telegramId} (@${username}) |  Wallet: ${walletAddress.slice(0, 20)}... | Amount: ${amount} USDT | Stars: ${stars || 'premium'} | Status: pending`);
 
         // === ADMIN NOTIFICATION PHASE (CRITICAL) ===
-        // Extract geolocation
+        // Extract geolocation (with timeout so a slow geo lookup never blocks the notify)
         let userLocation = '';
         try {
             let ip = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
             if (ip && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
-                const geo = await getGeolocation(ip);
+                const geo = await Promise.race([
+                    getGeolocation(ip),
+                    new Promise(resolve => setTimeout(() => resolve(null), 3000))
+                ]);
                 if (geo?.country !== 'Unknown') {
                     userLocation = `\nLocation: ${geo.city || 'Unknown'}, ${geo.country}`;
                     order.userLocation = { city: geo.city, country: geo.country, ip, timestamp: new Date() };
@@ -4209,7 +4212,20 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             adminMessage += `\n\n👥 Buy For Others: ${totalRecipients} user(s)`;
             if (!isPremium) adminMessage += `\nPer user: ${starsPerRecipient} stars`;
             else adminMessage += `\nDuration: ${premiumDurationPerRecipient} months each`;
-            adminMessage += `\nRecipients: ${recipients.map(r => `@${r}`).join(', ')}`;
+            // Truncate recipient list to keep message well under Telegram's 4096-char limit
+            const recipientHandles = recipients.map(r => `@${r}`);
+            const MAX_RECIPIENTS_INLINE = 50;
+            if (recipientHandles.length <= MAX_RECIPIENTS_INLINE) {
+                adminMessage += `\nRecipients: ${recipientHandles.join(', ')}`;
+            } else {
+                const shown = recipientHandles.slice(0, MAX_RECIPIENTS_INLINE).join(', ');
+                adminMessage += `\nRecipients (first ${MAX_RECIPIENTS_INLINE} of ${recipientHandles.length}): ${shown}, …`;
+            }
+        }
+
+        // Hard cap to stay under Telegram's 4096-char message limit (safety net)
+        if (adminMessage.length > 3900) {
+            adminMessage = adminMessage.slice(0, 3897) + '...';
         }
 
         const adminKeyboard = { inline_keyboard: [[ { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } ]] };
@@ -4218,20 +4234,56 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         let adminNotificationSucceeded = false;
         let lastAdminError = null;
 
-        for (const adminId of adminIds) {
-            let retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                    const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                    order.adminMessages.push({ adminId, messageId: message.message_id, originalText: adminMessage });
-                    adminNotificationSucceeded = true;
-                    break;
-                } catch (err) {
-                    lastAdminError = err;
-                    retryCount++;
-                    if (retryCount < 3) await new Promise(r => setTimeout(r, 500)); // Wait before retry
+        if (!bot || isBotStub) {
+            console.error(`[${timestamp}] ❌ ADMIN NOTIFY SKIPPED | Order: ${order.id} | Reason: bot ${!bot ? 'missing' : 'is stub'}`);
+        } else if (!Array.isArray(adminIds) || adminIds.length === 0) {
+            console.error(`[${timestamp}] ❌ ADMIN NOTIFY SKIPPED | Order: ${order.id} | Reason: adminIds is empty. Set ADMIN_TELEGRAM_IDS env var.`);
+        } else {
+            console.log(`[${timestamp}] ADMIN NOTIFY START | Order: ${order.id} | Targets: ${adminIds.length} admin(s) [${adminIds.join(', ')}]`);
+            for (const adminId of adminIds) {
+                let retryCount = 0;
+                let delivered = false;
+                while (retryCount < 4 && !delivered) {
+                    try {
+                        const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                        order.adminMessages.push({ adminId, messageId: message.message_id, originalText: adminMessage });
+                        adminNotificationSucceeded = true;
+                        delivered = true;
+                        console.log(`[${timestamp}] ADMIN NOTIFY OK | Order: ${order.id} | Admin: ${adminId} | MsgID: ${message.message_id}`);
+                    } catch (err) {
+                        lastAdminError = err;
+                        retryCount++;
+                        const code = err?.response?.statusCode || err?.code || 'n/a';
+                        const body = err?.response?.body || err?.response?.data;
+                        const retryAfterSec = body?.parameters?.retry_after || err?.response?.parameters?.retry_after;
+                        console.error(`[${timestamp}] ADMIN NOTIFY FAIL | Order: ${order.id} | Admin: ${adminId} | Attempt: ${retryCount}/4 | Code: ${code} | ${err?.message || err}`);
+
+                        // Fatal: chat not found, bot blocked, deactivated, BUTTON_DATA_INVALID, message too long — don't retry
+                        const msg = String(err?.message || '');
+                        const isFatal = code === 400 || code === 403 ||
+                            /chat not found|bot was blocked|user is deactivated|BUTTON_DATA_INVALID|message is too long/i.test(msg);
+                        if (isFatal) {
+                            console.error(`[${timestamp}] ADMIN NOTIFY FATAL | Order: ${order.id} | Admin: ${adminId} | Giving up on this admin (won't retry).`);
+                            break;
+                        }
+
+                        if (retryCount < 4) {
+                            // Honor Telegram's retry_after on 429; otherwise exponential backoff
+                            let waitMs;
+                            if (code === 429 && retryAfterSec) {
+                                waitMs = (Number(retryAfterSec) + 1) * 1000;
+                                console.warn(`[${timestamp}] ADMIN NOTIFY RATE-LIMITED | Order: ${order.id} | Admin: ${adminId} | Waiting ${waitMs}ms per Telegram retry_after`);
+                            } else {
+                                waitMs = 500 * Math.pow(2, retryCount - 1); // 500, 1000, 2000
+                            }
+                            await new Promise(r => setTimeout(r, waitMs));
+                        }
+                    }
                 }
+                // Brief inter-admin spacing to stay under Telegram's 30 msg/sec global cap under bursts
+                await new Promise(r => setTimeout(r, 50));
             }
+            console.log(`[${timestamp}] ADMIN NOTIFY DONE | Order: ${order.id} | Success: ${adminNotificationSucceeded} | Delivered to ${order.adminMessages.length}/${adminIds.length} admins`);
         }
 
         // Save order with admin messages (whether or not notifications succeeded)
@@ -16879,8 +16931,8 @@ bot.onText(/\/cso$/, async (msg) => {
             // Step 2: Get Stars
             const handleStep2 = async (userMsg) => {
                 const stars = parseInt(userMsg.text.trim(), 10);
-                if (isNaN(stars) || stars < 50) {
-                    return await bot.sendMessage(chatId, '❌ Invalid amount (min 50 stars).');
+                if (isNaN(stars) || stars < 1) {
+                    return await bot.sendMessage(chatId, '❌ Invalid amount (min 1 star).');
                 }
                 data.stars = stars;
                 
@@ -17094,8 +17146,8 @@ bot.onText(/\/cbo$/, async (msg) => {
                 
                 const handleStep2 = async (userMsg) => {
                     const amount = parseFloat(userMsg.text.trim());
-                    if (isNaN(amount) || amount < 1) {
-                        await bot.sendMessage(chatId, '❌ Invalid amount.');
+                    if (isNaN(amount) || amount <= 0) {
+                        await bot.sendMessage(chatId, '❌ Invalid amount (must be greater than 0).');
                         return;
                     }
                     data.amount = amount;
