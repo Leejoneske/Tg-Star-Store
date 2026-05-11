@@ -102,12 +102,20 @@ class TelegramFullscreenManager {
                             'telegram-true-fullscreen',
                             !!this.webApp.isFullscreen
                         );
+                        this.applySafeAreaInsets();
                     });
                     this.webApp.onEvent('fullscreenFailed', (e) => {
                         console.warn('Telegram fullscreen failed:', e);
                     });
+                    if (typeof this.webApp.onEvent === 'function') {
+                        this.webApp.onEvent('safeAreaChanged', () => this.applySafeAreaInsets());
+                        this.webApp.onEvent('contentSafeAreaChanged', () => this.applySafeAreaInsets());
+                        this.webApp.onEvent('viewportChanged', () => this.applySafeAreaInsets());
+                    }
                     this._fsListenerAdded = true;
                 }
+                // Apply once now in case fullscreen was already active
+                this.applySafeAreaInsets();
             } catch (_) { /* older Telegram clients */ }
 
             // Match Telegram's header & background to the WebApp's theme bg_color
@@ -254,6 +262,49 @@ class TelegramFullscreenManager {
             // Default back behavior
             window.history.back();
         }
+    }
+
+    applySafeAreaInsets() {
+        if (!this.webApp) return;
+        try {
+            const sa = this.webApp.safeAreaInset || {};
+            const csa = this.webApp.contentSafeAreaInset || {};
+            const top = Math.max(Number(sa.top) || 0, Number(csa.top) || 0);
+            const bottom = Math.max(Number(sa.bottom) || 0, Number(csa.bottom) || 0);
+            const left = Math.max(Number(sa.left) || 0, Number(csa.left) || 0);
+            const right = Math.max(Number(sa.right) || 0, Number(csa.right) || 0);
+            const root = document.documentElement;
+            root.style.setProperty('--tg-safe-area-top', top + 'px');
+            root.style.setProperty('--tg-safe-area-bottom', bottom + 'px');
+            root.style.setProperty('--tg-safe-area-left', left + 'px');
+            root.style.setProperty('--tg-safe-area-right', right + 'px');
+            this.injectSafeAreaStyles();
+        } catch (e) {
+            console.warn('applySafeAreaInsets error:', e);
+        }
+    }
+
+    injectSafeAreaStyles() {
+        if (this._safeAreaStyleInjected) return;
+        this._safeAreaStyleInjected = true;
+        const style = document.createElement('style');
+        style.setAttribute('data-tg-safe-area', '');
+        style.textContent = `
+            :root {
+                --tg-safe-area-top: 0px;
+                --tg-safe-area-bottom: 0px;
+                --tg-safe-area-left: 0px;
+                --tg-safe-area-right: 0px;
+            }
+            body.telegram-true-fullscreen {
+                padding-top: var(--tg-safe-area-top) !important;
+                padding-bottom: var(--tg-safe-area-bottom) !important;
+                padding-left: var(--tg-safe-area-left) !important;
+                padding-right: var(--tg-safe-area-right) !important;
+                box-sizing: border-box;
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     updateLayout() {
