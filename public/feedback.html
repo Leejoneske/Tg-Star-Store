@@ -448,7 +448,8 @@
                 </div>
 
                 <!-- Email -->
-                <input type="email" id="userEmail" name="userEmail" placeholder="Your email address" required>
+                <input type="email" id="userEmail" name="userEmail" placeholder="Your email address" required aria-describedby="userEmailError" autocomplete="email">
+                <div id="userEmailError" class="form-error" role="alert">Please enter a valid email address.</div>
 
                 <!-- Media -->
                 <div>
@@ -542,13 +543,32 @@
         });
     });
 
-    // ── Email ──
-    document.getElementById('userEmail').addEventListener('input', validateForm);
+    // ── Email (with inline validation) ──
+    (function () {
+        const emailEl = document.getElementById('userEmail');
+        const errEl   = document.getElementById('userEmailError');
+        let touched = false;
+        function syncEmail() {
+            const v = emailEl.value.trim();
+            const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+            if (touched && v && !valid) {
+                emailEl.setAttribute('aria-invalid', 'true');
+                errEl.classList.add('show');
+            } else {
+                emailEl.removeAttribute('aria-invalid');
+                errEl.classList.remove('show');
+            }
+            validateForm();
+        }
+        emailEl.addEventListener('input', syncEmail);
+        emailEl.addEventListener('blur', () => { touched = true; syncEmail(); });
+    })();
 
     function validateForm() {
         const hasType  = !!document.getElementById('feedbackType').value;
         const hasMsg   = ta.value.trim().length > 0;
-        const hasEmail = document.getElementById('userEmail').value.includes('@');
+        const emailVal = document.getElementById('userEmail').value.trim();
+        const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal);
         document.getElementById('submitBtn').disabled = !(hasType && hasMsg && hasEmail);
     }
 
@@ -613,3 +633,4 @@
 <script src="/js/feedback.js?v=3"></script>
 </body>
 </html>
+
