@@ -4219,42 +4219,55 @@ async function handlePurchase(item) {
             distributionInfo = recipients.length ? `${recipients.length} recipient(s)` : '';
         }
         
-        // Simplified confirmation dialog
+        // Wallet-style coin icons (TON + USDT) shared by confirm + success modals
+        const TON_ICON_SVG = `
+            <svg viewBox="0 0 56 56" width="56" height="56" xmlns="http://www.w3.org/2000/svg" aria-label="TON">
+                <circle cx="28" cy="28" r="28" fill="#0098EA"/>
+                <path d="M18.4 18h19.2c1.4 0 2.3 1.5 1.6 2.7L29.4 38.5c-.6 1-2.2 1-2.8 0L16.8 20.7c-.7-1.2.2-2.7 1.6-2.7zm9.6 4.1l-6.4 11 6.4 3.3v-14.3zm0 0v14.3l6.4-3.3-6.4-11z" fill="#fff"/>
+            </svg>`;
+        const USDT_ICON_SVG = `
+            <svg viewBox="0 0 56 56" width="56" height="56" xmlns="http://www.w3.org/2000/svg" aria-label="USDT">
+                <circle cx="28" cy="28" r="28" fill="#0BB58C"/>
+                <path d="M31.4 25.6v-2.9h6.6V18H18v4.7h6.6v2.9c-5.4.3-9.4 1.4-9.4 2.6 0 1.3 4 2.4 9.4 2.6v9.3h6.8v-9.3c5.4-.2 9.4-1.4 9.4-2.6 0-1.2-4-2.3-9.4-2.6zm0 4.4c-.1 0-1.6.1-3.4.1-1.5 0-2.7 0-3.4-.1-4.5-.2-7.9-1-7.9-1.9 0-.9 3.4-1.7 7.9-1.9v3.1c.7.1 2 .1 3.5.1 1.7 0 3-.1 3.3-.1v-3.1c4.5.2 7.9 1 7.9 1.9 0 .9-3.4 1.7-7.9 1.9z" fill="#fff"/>
+            </svg>`;
+        const renderCoinIcons = () => `
+            <div style="display:flex;justify-content:center;align-items:center;margin:8px 0 12px;">
+                <div style="z-index:1;">${TON_ICON_SVG}</div>
+                <div style="margin-left:-14px;">${USDT_ICON_SVG}</div>
+            </div>`;
+
+        // Telegram-Wallet-style confirmation dialog
         const confirm = await Swal.fire({
-            title: 'Confirm Purchase',
             html: `
-                <div class="text-center space-y-3">
-                    <div class="text-2xl font-bold text-gray-800">${starsDisplay}</div>
-                    ${distributionInfo ? `<div class="text-sm text-gray-600">${distributionInfo}</div>` : ''}
-                    <div class="text-xl font-bold text-green-600">${totalAmountUsdt} USDT</div>
-                    ${approxTon ? `<div class="text-sm text-gray-500">~${approxTon.toFixed(4)} TON</div>` : ''}
-                    ${recipients.length ? `
-                        <div class="text-xs text-gray-500">
-                            ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}
-                        </div>
-                    ` : ''}
-                    <div class="text-left text-sm font-medium text-gray-700 pt-1">Pay with:</div>
-                    <div class="flex gap-2 justify-center" id="payMethodWrap">
-                        <label class="flex-1 cursor-pointer border rounded-lg px-3 py-2 text-sm flex items-center gap-2 justify-center hover:border-blue-500 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
-                            <input type="radio" name="payMethod" value="TON" checked> <span>TON</span>
-                            ${approxTon ? `<span class="text-xs text-gray-500">(${approxTon.toFixed(4)})</span>` : ''}
+                <div style="text-align:center;">
+                    ${renderCoinIcons()}
+                    <div style="font-size:15px;color:#8a8f98;font-weight:500;">${starsDisplay}${distributionInfo ? ` &middot; ${distributionInfo}` : ''}</div>
+                    <div style="font-size:26px;font-weight:700;color:#111827;margin-top:6px;">${totalAmountUsdt} USDT</div>
+                    ${approxTon ? `<div style="font-size:14px;color:#8a8f98;margin-top:2px;">≈ ${approxTon.toFixed(4)} TON</div>` : ''}
+
+                    <div style="margin-top:18px;background:#f5f6f8;border-radius:12px;padding:6px;display:flex;gap:6px;">
+                        <label style="flex:1;cursor:pointer;border-radius:10px;padding:10px 8px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;" class="pm-pill">
+                            <input type="radio" name="payMethod" value="TON" checked style="display:none;">
+                            <span style="display:inline-flex;width:18px;height:18px;">${TON_ICON_SVG.replace(/width="56" height="56"/,'width="18" height="18"')}</span>
+                            TON
                         </label>
-                        <label class="flex-1 cursor-pointer border rounded-lg px-3 py-2 text-sm flex items-center gap-2 justify-center hover:border-blue-500 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
-                            <input type="radio" name="payMethod" value="USDT"> <span>USDT</span>
-                            <span class="text-xs text-gray-500">(${totalAmountUsdt})</span>
+                        <label style="flex:1;cursor:pointer;border-radius:10px;padding:10px 8px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;" class="pm-pill">
+                            <input type="radio" name="payMethod" value="USDT" style="display:none;">
+                            <span style="display:inline-flex;width:18px;height:18px;">${USDT_ICON_SVG.replace(/width="56" height="56"/,'width="18" height="18"')}</span>
+                            USDT
                         </label>
                     </div>
-                    <div class="text-xs text-amber-600 bg-amber-50 p-2 rounded border">
-                        ⏱️ Processing may take up to 2 hours<br>
-                        ⚠️ Do not change username before completion
-                    </div>
+                    <style>
+                        .pm-pill { color:#6b7280; transition: all .15s; }
+                        .pm-pill:has(input:checked) { background:#fff; color:#111827; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+                    </style>
                 </div>
             `,
-            icon: 'question',
+            icon: null,
             showCancelButton: true,
             confirmButtonText: 'Confirm',
             cancelButtonText: 'Cancel',
-            confirmButtonColor: '#10B981',
+            confirmButtonColor: '#3b82f6',
             cancelButtonColor: '#6B7280',
             preConfirm: () => {
                 const sel = document.querySelector('input[name="payMethod"]:checked');
@@ -4268,7 +4281,7 @@ async function handlePurchase(item) {
             },
             customClass: {
                 popup: 'rounded-xl shadow-lg',
-                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-semibold w-full transition-all duration-200',
                 cancelButton: 'rounded-lg px-6 py-2 text-gray-700 font-medium transition-all duration-200 hover:scale-105'
             }
         });
@@ -4485,31 +4498,23 @@ async function handlePurchase(item) {
                 console.log('✅ Order created successfully:', response.order.id);
                 
                 await Swal.fire({
-                    title: '✅ Order Confirmed',
                     html: `
-                        <div class="text-center space-y-4">
-                            <div class="text-5xl text-green-600">✓</div>
-                            <div class="text-lg font-semibold text-gray-800">Payment Received</div>
-                            <div class="space-y-2 text-sm text-gray-600">
-                                <div><strong>Order ID:</strong> ${response.order.id}</div>
-                                <div><strong>Amount:</strong> ${totalAmountUsdt} USDT</div>
-                                <div><strong>Status:</strong> Processing</div>
-                            </div>
-                            <div class="text-xs text-gray-500 bg-blue-50 p-3 rounded mt-4">
-                                ✓ Payment confirmed by your wallet<br/>
-                                ✓ Order entered our system<br/>
-                                ✓ You'll receive your order within 2 hours
-                            </div>
+                        <div style="text-align:center;">
+                            ${renderCoinIcons()}
+                            <div style="font-size:15px;color:#0BB58C;font-weight:600;">Payment Received</div>
+                            <div style="font-size:26px;font-weight:700;color:#111827;margin-top:6px;">+ ${totalAmountUsdt} USDT</div>
+                            <div style="font-size:13px;color:#8a8f98;margin-top:6px;">Order #${response.order.id}</div>
+                            <div style="font-size:12px;color:#8a8f98;margin-top:2px;">Delivery within 2 hours</div>
                         </div>
                     `,
                     icon: null,
                     confirmButtonText: 'Done',
-                    confirmButtonColor: '#10b981',
+                    confirmButtonColor: '#3b82f6',
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     customClass: {
                         popup: 'rounded-xl shadow-lg',
-                        confirmButton: 'rounded-lg px-6 py-2'
+                        confirmButton: 'rounded-lg px-6 py-2 w-full font-semibold'
                     }
                 });
                 
@@ -4537,7 +4542,33 @@ async function handlePurchase(item) {
         }
         
         let errorMessage = TranslationUtils.get('paymentFailed') || 'Payment failed';
-        
+        let isCancellation = false;
+
+        // Detect user-cancelled transaction (from TonConnect or wallet UI)
+        const errName = error?.name || '';
+        const errMsg = (error?.message || '').toLowerCase();
+        if (
+            errName === 'UserRejectsError' ||
+            errMsg.includes('user reject') ||
+            errMsg.includes('user declined') ||
+            errMsg.includes('cancel') ||
+            errMsg.includes('not be charged') ||
+            errMsg.includes('won\u2019t be charged') ||
+            errMsg.includes("won't be charged")
+        ) {
+            isCancellation = true;
+        }
+
+        if (isCancellation) {
+            // Non-intrusive toast — no scary error modal
+            ToastNotification.show(
+                TranslationUtils.get('transactionCancelled') || 'Transaction cancelled — you were not charged',
+                'info',
+                3500
+            );
+            return;
+        }
+
         if (error?.response?.data?.error) {
             errorMessage = error.response.data.error;
         } else if (error?.response?.status) {
@@ -4546,8 +4577,6 @@ async function handlePurchase(item) {
             errorMessage = error.message;
         } else if (typeof error === 'string') {
             errorMessage = error;
-        } else if (error?.name === 'UserRejectsError') {
-            errorMessage = TranslationUtils.get('transactionCancelled') || 'Transaction was cancelled';
         } else if (error?.name === 'WalletNotConnectedError') {
             errorMessage = 'Wallet not connected. Please connect your wallet and try again.';
         } else if (error?.name === 'WalletNotReadyError') {
