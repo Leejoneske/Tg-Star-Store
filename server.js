@@ -9387,6 +9387,26 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         const skip = (page - 1) * displayLimit;
         const referralsDisplay = referralsForDisplay.slice(skip, skip + displayLimit);
 
+        // Fetch ambassador withdrawal/payout history for ambassadors
+        let withdrawHistory = [];
+        if (isAmbassadorRequest && isAmbassador) {
+            try {
+                const wds = await ReferralWithdrawal.find({ userId })
+                    .sort({ createdAt: -1 })
+                    .limit(50)
+                    .lean();
+                withdrawHistory = wds.map(w => ({
+                    withdrawalId: w.withdrawalId,
+                    amount: w.amount || 0,
+                    walletAddress: w.walletAddress || null,
+                    status: (w.status || 'pending').toLowerCase(),
+                    date: w.processedAt || w.createdAt || new Date(0)
+                }));
+            } catch (e) {
+                console.warn('[Ambassador] Failed to load withdraw history:', e.message);
+            }
+        }
+
         const responseData = {
             success: true,
             referrals: referralsDisplay.map(ref => ({
@@ -9397,6 +9417,7 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 amount: 0.5,
                 linkFormat: ref.linkFormat || 'old'
             })),
+            withdrawHistory,
             stats: {
                 availableBalance: availableReferrals * 0.5,
                 totalEarned: completedReferrals * 0.5,
@@ -15716,7 +15737,7 @@ app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) =
             return res.status(500).json({ error: 'Failed to create PDF file: ' + err.message });
         }
 
-        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        const filename = `Transactions_${new Date().toISOString().slice(0, 10)}.pdf`;
 
         // Send via Telegram if possible
         if (process.env.BOT_TOKEN) {
@@ -15795,7 +15816,7 @@ app.get('/api/export-transactions-pdf-download', async (req, res) => {
 
         const docDefinition = pdfGenerator.generateTransactionPDF(userId, null, transactions);
         const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
-        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        const filename = `Transactions_${new Date().toISOString().slice(0, 10)}.pdf`;
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -16032,7 +16053,7 @@ app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
             return res.status(500).json({ error: 'Failed to create PDF file: ' + err.message });
         }
 
-        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        const filename = `Referrals_${new Date().toISOString().slice(0, 10)}.pdf`;
 
         // Send via Telegram if possible
         if (process.env.BOT_TOKEN) {
@@ -16089,7 +16110,7 @@ app.get('/api/export-referrals-pdf-download', async (req, res) => {
 
         const docDefinition = pdfGenerator.generateReferralPDF(userId, null, referrals);
         const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
-        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        const filename = `Referrals_${new Date().toISOString().slice(0, 10)}.pdf`;
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
