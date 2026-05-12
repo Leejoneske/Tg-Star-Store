@@ -1561,14 +1561,22 @@ async function doExportTransactions(format) {
             throw new Error('Unexpected response format');
         }
         
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Transactions_${new Date().toISOString().slice(0, 10)}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        {
+            const fname = `Transactions_${new Date().toISOString().slice(0, 10)}.pdf`;
+            const fileBlob = (typeof File === 'function')
+                ? new File([blob], fname, { type: 'application/pdf' })
+                : blob;
+            const url = window.URL.createObjectURL(fileBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fname;
+            a.rel = 'noopener';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        }
         
         Swal.fire({
             title: TranslationUtils.get('success'),
@@ -1687,14 +1695,22 @@ async function doExportReferrals(format) {
             throw new Error('Unexpected response format');
         }
         
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Referrals_${new Date().toISOString().slice(0, 10)}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        {
+            const fname = `Referrals_${new Date().toISOString().slice(0, 10)}.pdf`;
+            const fileBlob = (typeof File === 'function')
+                ? new File([blob], fname, { type: 'application/pdf' })
+                : blob;
+            const url = window.URL.createObjectURL(fileBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fname;
+            a.rel = 'noopener';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        }
         
         Swal.fire({
             title: TranslationUtils.get('success'),
