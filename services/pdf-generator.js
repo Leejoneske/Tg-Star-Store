@@ -68,7 +68,8 @@ function maskUserId(id) {
 function calculateRunningBalance(transactions) {
   let balance = 0;
   return transactions.map(txn => {
-    const amount = txn.type.includes('Buy') ? txn.usdtValue : -txn.usdtValue;
+    // Buying stars spends USD (-), selling stars earns USD (+)
+    const amount = txn.type.includes('Buy') ? -txn.usdtValue : txn.usdtValue;
     balance += amount;
     return { ...txn, runningBalance: balance };
   });
@@ -119,7 +120,7 @@ function generateTransactionPDF(userId, username, transactions) {
       { text: `${dateStr}`, fontSize: 9, color: COLORS.text, alignment: 'center' },
       { text: `${timeStr}`, fontSize: 9, color: COLORS.lightText },
       { text: typeDisplay, fontSize: 9, bold: true, color: typeColor },
-      { text: `${txn.amount.toFixed(2)} ★`, fontSize: 9, color: COLORS.text, alignment: 'right' },
+      { text: `${txn.amount.toFixed(2)}`, fontSize: 9, color: COLORS.text, alignment: 'right' },
       { text: `$${txn.usdtValue.toFixed(2)}`, fontSize: 9, bold: true, color: typeColor, alignment: 'right' },
       { text: `$${txn.runningBalance.toFixed(2)}`, fontSize: 9, bold: true, color: txn.runningBalance >= 0 ? COLORS.success : COLORS.danger, alignment: 'right' },
       { text: txn.status.charAt(0).toUpperCase() + txn.status.slice(1), fontSize: 8, bold: true, color: statusColor, alignment: 'center' }
@@ -193,10 +194,10 @@ function generateTransactionPDF(userId, username, transactions) {
           {
             width: '50%',
             stack: [
-              { text: 'Balance Summary', fontSize: 10, bold: true, color: COLORS.primary, margin: [0, 0, 0, 8] },
+              { text: 'Activity Summary', fontSize: 10, bold: true, color: COLORS.primary, margin: [0, 0, 0, 8] },
               {
                 columns: [
-                  { text: 'Current Balance:', fontSize: 9, color: COLORS.text, width: '70%' },
+                  { text: 'Net Activity:', fontSize: 9, color: COLORS.text, width: '70%' },
                   { text: `$${finalBalance.toFixed(2)}`, fontSize: 10, bold: true, color: finalBalance >= 0 ? COLORS.success : COLORS.danger, width: '30%', alignment: 'right' }
                 ]
               }
@@ -326,12 +327,12 @@ function generateTransactionPDF(userId, username, transactions) {
           {
             columns: [
               { text: 'Total Stars Traded:', fontSize: 11, bold: true, color: COLORS.primary },
-              { text: `${totalStarsTraded.toFixed(2)} ★`, fontSize: 11, bold: true, color: COLORS.primary, alignment: 'right' }
+              { text: `${totalStarsTraded.toFixed(2)} Stars`, fontSize: 11, bold: true, color: COLORS.primary, alignment: 'right' }
             ]
           },
           {
             columns: [
-              { text: 'Net Balance:', fontSize: 11, bold: true, color: COLORS.primary },
+              { text: 'Net Activity:', fontSize: 11, bold: true, color: COLORS.primary },
               { text: `$${finalBalance.toFixed(2)}`, fontSize: 11, bold: true, color: finalBalance >= 0 ? COLORS.success : COLORS.danger, alignment: 'right' }
             ],
             margin: [0, 3, 0, 0]
