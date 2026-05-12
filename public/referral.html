@@ -23,12 +23,38 @@
     <link rel="prefetch" href="/amb_ref.html">
     <link rel="preconnect" href="/api">
     
+    <!-- Hide page until ambassador check resolves to prevent flash + missed redirect -->
+    <style id="amb-gate-style">
+      html.amb-gate body { visibility: hidden !important; }
+      #ambGateOverlay {
+        position: fixed; inset: 0; z-index: 999999;
+        background: #ffffff;
+        display: flex; align-items: center; justify-content: center;
+        visibility: visible !important;
+      }
+      #ambGateOverlay .amb-gate-spinner {
+        width: 28px; height: 28px; border-radius: 50%;
+        border: 3px solid #e5e7eb; border-top-color: #4f46e5;
+        animation: ambGateSpin 0.7s linear infinite;
+      }
+      @keyframes ambGateSpin { to { transform: rotate(360deg); } }
+      html:not(.amb-gate) #ambGateOverlay { display: none; }
+    </style>
+    <script>document.documentElement.classList.add('amb-gate');</script>
+
     <!-- Check if user is ambassador - redirect to ambassador page if yes -->
     <script>
         (function() {
             // Cache TTL: 30 minutes (ambassador status rarely changes mid-session)
             const AMBASSADOR_CACHE_KEY = 'ambassadorStatus_v1';
             const AMBASSADOR_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+            // Hard cap so the page never hangs behind the overlay
+            const GATE_MAX_WAIT_MS = 4000;
+            const gateStart = Date.now();
+
+            function dropGate() {
+                document.documentElement.classList.remove('amb-gate');
+            }
             
             // Get cached ambassador status if valid
             function getCachedAmbassadorStatus(userId) {
@@ -96,58 +122,68 @@
                 
                 return null;
             }
-            
-            // Check ambassador status and redirect if ambassador (with caching)
-            function checkAndRedirect() {
-                const userId = getUserId();
-                
-                if (!userId || userId === 'dev-user' || userId === 'default_user_id') {
-                    console.log('No valid user ID');
-                    return; // Show regular page
-                }
-                
-                // Check cache first before API call
-                const cachedStatus = getCachedAmbassadorStatus(userId);
-                if (cachedStatus !== null) {
-                    if (cachedStatus) {
-                        console.log('✓ Redirecting ambassador (from cache) to ambassador page');
-                        window.location.href = '/amb_ref.html';
-                    }
-                    // If cached as non-ambassador, show regular page (no else needed)
-                    return;
-                }
-                
-                // No cache hit - check with API
-                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`, { signal: AbortSignal.timeout(3000) })
-                    .then(r => r.ok ? r.json() : null)
-                    .then(data => {
-                        if (data && data.isAmbassador) {
-                            setCachedAmbassadorStatus(userId, true);
-                            console.log('✓ User is ambassador, redirecting to ambassador page');
-                            window.location.href = '/amb_ref.html';
-                        } else {
-                            // Cache negative result too to avoid repeated API calls
-                            setCachedAmbassadorStatus(userId, false);
-                            console.log('User is not ambassador, showing regular referral page');
+
+            // Poll until a userId is resolvable (Telegram WebApp can be slow to init),
+            // capped by GATE_MAX_WAIT_MS so we never hang behind the overlay.
+            function waitForUserId() {
+                return new Promise((resolve) => {
+                    const id = getUserId();
+                    if (id) return resolve(id);
+                    try { window.Telegram?.WebApp?.ready?.(); } catch (_) {}
+                    const t = setInterval(() => {
+                        const u = getUserId();
+                        if (u || (Date.now() - gateStart) > GATE_MAX_WAIT_MS) {
+                            clearInterval(t);
+                            resolve(u || null);
                         }
-                    })
-                    .catch(err => {
-                        console.log('Could not check ambassador status:', err.message);
-                        // On error, show regular page (don't redirect)
+                    }, 80);
+                });
+            }
+
+            async function checkAndRedirect() {
+                const userId = await waitForUserId();
+
+                if (!userId || userId === 'dev-user' || userId === 'default_user_id') {
+                    console.log('No valid user ID — showing regular referral page');
+                    return dropGate();
+                }
+
+                // Cache hit — redirect immediately, no flicker
+                const cachedStatus = getCachedAmbassadorStatus(userId);
+                if (cachedStatus === true) {
+                    console.log('✓ Redirecting ambassador (from cache) to /amb_ref.html');
+                    window.location.replace('/amb_ref.html');
+                    return; // keep overlay until navigation completes
+                }
+                if (cachedStatus === false) {
+                    return dropGate();
+                }
+
+                // No cache — block render until API answers (with timeout fallback)
+                const remaining = Math.max(800, GATE_MAX_WAIT_MS - (Date.now() - gateStart));
+                try {
+                    const r = await fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`, {
+                        signal: AbortSignal.timeout(remaining),
+                        cache: 'no-store'
                     });
-            }
-            
-            // Check immediately if we have a userId
-            if (getUserId()) {
-                checkAndRedirect();
-            } else {
-                // Wait a moment for localStorage/Telegram to be ready
-                setTimeout(() => {
-                    if (getUserId()) {
-                        checkAndRedirect();
+                    const data = r.ok ? await r.json() : null;
+                    if (data && data.isAmbassador) {
+                        setCachedAmbassadorStatus(userId, true);
+                        console.log('✓ User is ambassador, redirecting to /amb_ref.html');
+                        window.location.replace('/amb_ref.html');
+                        return; // keep overlay until navigation completes
                     }
-                }, 200);
+                    setCachedAmbassadorStatus(userId, !!(data && data.isAmbassador));
+                } catch (err) {
+                    console.log('Could not check ambassador status:', err && err.message);
+                }
+                dropGate();
             }
+
+            // Safety net: never leave the overlay up indefinitely
+            setTimeout(dropGate, GATE_MAX_WAIT_MS + 500);
+
+            checkAndRedirect();
         })();
     </script>
     
@@ -548,6 +584,7 @@
     <script src="/js/global-loader.js?v=1"></script>
 </head>
 <body>
+<div id="ambGateOverlay" aria-hidden="true"><div class="amb-gate-spinner"></div></div>
 <div class="app-container">
     <div id="bottomnav-container"></div>
 
