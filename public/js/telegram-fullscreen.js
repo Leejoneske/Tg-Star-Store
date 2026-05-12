@@ -86,7 +86,7 @@ class TelegramFullscreenManager {
             // phone's status bar (especially in light theme).
             try {
                 if (typeof this.webApp.setHeaderColor === 'function') {
-                    this.webApp.setHeaderColor('bg_color');
+                    this.webApp.setHeaderColor('transparent');
                 }
                 if (typeof this.webApp.setBackgroundColor === 'function') {
                     this.webApp.setBackgroundColor('bg_color');
@@ -130,7 +130,7 @@ class TelegramFullscreenManager {
             
             try {
                 if (typeof this.webApp.setHeaderColor === 'function') {
-                    this.webApp.setHeaderColor('bg_color');
+                    this.webApp.setHeaderColor('transparent');
                 }
                 if (typeof this.webApp.setBackgroundColor === 'function') {
                     this.webApp.setBackgroundColor('bg_color');
