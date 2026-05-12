@@ -377,8 +377,39 @@
             document.body.classList.add('telegram-fullscreen');
         }
 
+        // Resolve case details from URL params (server-side template values are used when
+        // served directly by Express; client-side fallback supports JS-driven redirects).
+        (function fillBanDetails() {
+            try {
+                var qs = new URLSearchParams(location.search);
+                var caseId = qs.get('caseId');
+                var deadline = qs.get('deadline');
+                if (deadline) {
+                    try { deadline = new Date(deadline).toLocaleDateString(); } catch (_) {}
+                }
+                document.querySelectorAll('body *').forEach(function (el) {
+                    if (el.children.length === 0 && el.textContent) {
+                        if (caseId && el.textContent.indexOf('{{CASE_ID}}') !== -1) {
+                            el.textContent = el.textContent.split('{{CASE_ID}}').join(caseId);
+                        }
+                        if (deadline && el.textContent.indexOf('{{APPEAL_DEADLINE}}') !== -1) {
+                            el.textContent = el.textContent.split('{{APPEAL_DEADLINE}}').join(deadline);
+                        }
+                        // Clean unsubstituted placeholders
+                        if (el.textContent.indexOf('{{CASE_ID}}') !== -1) {
+                            el.textContent = el.textContent.split('{{CASE_ID}}').join('N/A');
+                        }
+                        if (el.textContent.indexOf('{{APPEAL_DEADLINE}}') !== -1) {
+                            el.textContent = el.textContent.split('{{APPEAL_DEADLINE}}').join('N/A');
+                        }
+                    }
+                });
+            } catch (_) {}
+        })();
+
         function openAppealEmail() {
-            const caseId = '{{CASE_ID}}';
+            var caseEl = document.querySelector('.detail-value');
+            var caseId = (caseEl && caseEl.textContent && caseEl.textContent.trim()) || 'N/A';
             const subject = encodeURIComponent(`Appeal Request - Case: ${caseId}`);
             const body = encodeURIComponent(
                 `Case ID: ${caseId}\n\n` +
@@ -395,3 +426,4 @@
     </script>
 </body>
 </html>
+
