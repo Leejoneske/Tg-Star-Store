@@ -36,6 +36,33 @@ const fonts = {
 const printer = new PdfPrinter(fonts);
 
 /**
+ * Mask a username for privacy: show first 2 and last 3 chars,
+ * with *** in the middle. If invalid/unknown, generate a masked placeholder.
+ */
+function maskUsername(name) {
+  const raw = (name && typeof name === 'string') ? name.trim().replace(/^@/, '') : '';
+  if (!raw) {
+    // Random masked placeholder instead of "Unknown"
+    const rand = Math.random().toString(36).replace(/[^a-z]/g, '').padEnd(5, 'x');
+    return '@' + rand.slice(0, 2) + '***' + rand.slice(-3);
+  }
+  if (raw.length <= 5) {
+    return '@' + raw.charAt(0) + '***' + raw.charAt(raw.length - 1);
+  }
+  return '@' + raw.slice(0, 2) + '***' + raw.slice(-3);
+}
+
+/**
+ * Mask a user ID: keep first 2 and last 2 digits, mask the middle.
+ */
+function maskUserId(id) {
+  const s = id == null ? '' : String(id);
+  if (!s) return '***';
+  if (s.length <= 4) return s.charAt(0) + '***' + s.charAt(s.length - 1);
+  return s.slice(0, 2) + '***' + s.slice(-2);
+}
+
+/**
  * Calculate running balance through transactions
  */
 function calculateRunningBalance(transactions) {
@@ -45,37 +72,6 @@ function calculateRunningBalance(transactions) {
     balance += amount;
     return { ...txn, runningBalance: balance };
   });
-}
-
-function maskReferralIdentifier(identifier) {
-  if (!identifier || typeof identifier !== 'string') {
-    return 'Unknown';
-  }
-
-  const trimmed = identifier.trim();
-  if (!trimmed) {
-    return 'Unknown';
-  }
-
-  // Numeric IDs: keep first 4 and last 2 digits
-  if (/^\d+$/.test(trimmed)) {
-    if (trimmed.length <= 6) {
-      return trimmed;
-    }
-    const visibleStart = trimmed.slice(0, 4);
-    const visibleEnd = trimmed.slice(-2);
-    const maskedMiddle = '*'.repeat(trimmed.length - 6);
-    return `${visibleStart}${maskedMiddle}${visibleEnd}`;
-  }
-
-  // Usernames: keep first 2 chars and last char, mask the rest
-  if (trimmed.length <= 3) {
-    return trimmed;
-  }
-  const visibleStart = trimmed.slice(0, 2);
-  const visibleEnd = trimmed.slice(-1);
-  const maskedMiddle = '*'.repeat(Math.max(1, trimmed.length - 3));
-  return `${visibleStart}${maskedMiddle}${visibleEnd}`;
 }
 
 /**
@@ -190,8 +186,8 @@ function generateTransactionPDF(userId, username, transactions) {
             width: '50%',
             stack: [
               { text: 'Account Details', fontSize: 10, bold: true, color: COLORS.primary, margin: [0, 0, 0, 8] },
-              { text: `Username: ${username ? '@' + username : 'Unknown'}`, fontSize: 9, color: COLORS.text },
-              { text: `User ID: ${userId}`, fontSize: 9, color: COLORS.text, margin: [0, 2, 0, 0] }
+              { text: `Username: ${maskUsername(username)}`, fontSize: 9, color: COLORS.text },
+              { text: `User ID: ${maskUserId(userId)}`, fontSize: 9, color: COLORS.text, margin: [0, 2, 0, 0] }
             ]
           },
           {
@@ -398,12 +394,11 @@ function generateReferralPDF(userId, username, referrals) {
     
     const statusColor = ref.status === 'active' ? COLORS.success : COLORS.warning;
     const statusDisplay = ref.status.charAt(0).toUpperCase() + ref.status.slice(1);
-    const referredUserLabel = maskReferralIdentifier(ref.referredUsername || ref.referredUserId || 'Unknown');
 
     return [
       { text: dateStr, fontSize: 9, color: COLORS.text, alignment: 'center' },
       { text: timeStr, fontSize: 9, color: COLORS.lightText },
-      { text: referredUserLabel, fontSize: 9, color: COLORS.text },
+      { text: maskUsername(ref.referredUsername), fontSize: 9, color: COLORS.text },
       { text: `$${(ref.amount || 0).toFixed(2)}`, fontSize: 9, bold: true, color: COLORS.success, alignment: 'right' },
       { text: `$${runningTotal.toFixed(2)}`, fontSize: 9, bold: true, color: COLORS.info, alignment: 'right' },
       { text: statusDisplay, fontSize: 8, bold: true, color: statusColor, alignment: 'center' }
@@ -470,8 +465,8 @@ function generateReferralPDF(userId, username, referrals) {
             width: '50%',
             stack: [
               { text: 'Account Details', fontSize: 10, bold: true, color: COLORS.primary, margin: [0, 0, 0, 8] },
-              { text: `Username: ${username ? '@' + username : 'Unknown'}`, fontSize: 9, color: COLORS.text },
-              { text: `User ID: ${userId}`, fontSize: 9, color: COLORS.text, margin: [0, 2, 0, 0] }
+              { text: `Username: ${maskUsername(username)}`, fontSize: 9, color: COLORS.text },
+              { text: `User ID: ${maskUserId(userId)}`, fontSize: 9, color: COLORS.text, margin: [0, 2, 0, 0] }
             ]
           },
           {
@@ -668,3 +663,4 @@ module.exports = {
   generateReferralPDF,
   createPDFBuffer
 };
+
