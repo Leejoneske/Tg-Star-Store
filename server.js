@@ -331,6 +331,63 @@ const authenticateAmbassadorApp = (req, res, next) => {
 // Apply ambassador authentication middleware
 app.use(authenticateAmbassadorApp);
 
+// ==================== GLOBAL API BAN ENFORCEMENT ====================
+// Block ALL /api/* requests from banned users (except probe/health/appeal endpoints).
+// This catches notifications, daily, referral, orders, wallet, etc. with one gate.
+const BAN_EXEMPT_API_PATHS = new Set([
+  '/api/whoami',
+  '/api/health',
+  '/api/version',
+  '/api/ban-status',
+  '/api/ban-appeal',
+]);
+app.use(async (req, res, next) => {
+  try {
+    if (!req.path.startsWith('/api/')) return next();
+    if (req.method === 'OPTIONS') return next();
+    if (BAN_EXEMPT_API_PATHS.has(req.path)) return next();
+    if (req.path.startsWith('/api/admin/')) return next(); // admin endpoints have their own auth
+    if (req.path.startsWith('/api/public/')) return next();
+    if (req.isAmbassadorApp) return next();
+
+    // Extract telegram id from header or initData (cheap, no signature verify here —
+    // per-endpoint requireTelegramAuth still enforces signature for sensitive ops)
+    let userId = null;
+    const hdr = req.headers['x-telegram-id'];
+    if (hdr && hdr !== 'undefined' && hdr !== 'null' && hdr !== 'dev-user') {
+      userId = String(hdr).trim();
+    }
+    if (!userId && req.headers['x-telegram-init-data']) {
+      try {
+        const params = new URLSearchParams(req.headers['x-telegram-init-data']);
+        const u = params.get('user');
+        if (u) {
+          const parsed = JSON.parse(u);
+          if (parsed?.id) userId = String(parsed.id);
+        }
+      } catch (_) {}
+    }
+    if (!userId) return next();
+
+    if (typeof checkUserBanStatus !== 'function') return next();
+    const isBanned = await checkUserBanStatus(userId);
+    if (!isBanned) return next();
+
+    const banDetails = await getBanDetails(userId);
+    return res.status(403).json({
+      error: 'Account restricted',
+      isBanned: true,
+      caseId: banDetails?.caseId || null,
+      appealDeadline: banDetails?.appealDeadline || null,
+      message: 'Your account has been restricted. Contact support with your case ID to appeal.'
+    });
+  } catch (err) {
+    console.error('[BAN GATE] middleware error:', err.message);
+    return next();
+  }
+});
+// ==================== END GLOBAL API BAN ENFORCEMENT ====================
+
 
 // Ensure directories with index.html return 200 (no 302/redirects)
 // This MUST come before express.static so it takes priority
@@ -1854,10 +1911,14 @@ app.get('/api/whoami', async (req, res) => {
     // Check if user is banned
     const isBanned = await checkUserBanStatus(tgId);
     if (isBanned) {
+      const banDetails = await getBanDetails(tgId);
       return res.json({ 
         id: tgId, 
         isAdmin: false, 
         isBanned: true,
+        caseId: banDetails?.caseId || null,
+        appealDeadline: banDetails?.appealDeadline || null,
+        reason: banDetails?.reason || null,
         message: 'Access Denied: Your account is restricted'
       });
     }
