@@ -82,12 +82,10 @@ class TelegramFullscreenManager {
             }
 
             // Match Telegram's header & background to the WebApp's theme bg_color
-            // so the top safe-area doesn't show a foggy white band over the
-            // phone's status bar (especially in light theme).
+            // Let Telegram handle header rendering naturally to avoid
+            // foggy white band over the phone's status bar in light theme.
+            // Don't override header color - let Telegram use its default.
             try {
-                if (typeof this.webApp.setHeaderColor === 'function') {
-                    this.webApp.setHeaderColor('transparent');
-                }
                 if (typeof this.webApp.setBackgroundColor === 'function') {
                     this.webApp.setBackgroundColor('bg_color');
                 }
@@ -129,9 +127,6 @@ class TelegramFullscreenManager {
             this.webApp.expand();
             
             try {
-                if (typeof this.webApp.setHeaderColor === 'function') {
-                    this.webApp.setHeaderColor('transparent');
-                }
                 if (typeof this.webApp.setBackgroundColor === 'function') {
                     this.webApp.setBackgroundColor('bg_color');
                 }
