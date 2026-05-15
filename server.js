@@ -490,21 +490,6 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
 });
 
 // ==================== STATIC DIRECTORY ROUTES ====================
-// Explicitly serve subdirectory index.html files to avoid static middleware issues
-app.get('/blog', async (req, res) => {
-  try {
-    const htmlContent = await fs.readFile(path.join(__dirname, 'public', 'blog', 'index.html'), 'utf8');
-    res.type('text/html').send(htmlContent);
-  } catch (err) {
-    console.error('Error serving /blog:', err.message);
-    try {
-      const notFound = await fs.readFile(path.join(__dirname, 'public', 'errors', '404.html'), 'utf8');
-      res.status(404).type('text/html').send(notFound);
-    } catch {
-      res.status(404).send('Not found');
-    }
-  }
-});
 
 
 // Serve static files from public directory
@@ -1377,7 +1362,7 @@ app.get('/sitemap-duplicate-removed', async (req, res) => {
     // Fallback to core URLs if traversal found nothing
     if (urls.length === 0) {
       const now = new Date().toISOString();
-      ['/','/about','/sell','/history','/blog/','/knowledge-base/','/how-to-withdraw-telegram-stars/']
+      ['/','/about','/sell','/history']
         .forEach(u => urls.push({ loc: `${base}${u}`, lastmod: now }));
     }
 

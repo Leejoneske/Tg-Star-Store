@@ -345,7 +345,7 @@ For issues, questions, or feedback:
 
 - **GitHub Issues**: Report bugs and request features via GitHub Issues
 - **Email**: Contact project maintainers
-- **Documentation**: See the knowledge base at `/blog`
+- **Documentation**: See the knowledge base at https://blog.starstore.app
 
 ## Acknowledgments
 
