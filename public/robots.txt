@@ -2,7 +2,6 @@
 
 User-agent: *
 Allow: /
-Allow: /blog/
 Allow: /about
 Allow: /sell
 Allow: /referral
