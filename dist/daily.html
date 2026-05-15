@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <title>StarStore Daily Rewards - Check-Ins, Streaks & Bonuses for Telegram Stars</title>
+    <link rel="canonical" href="https://starstore.app/daily">
+    <meta name="description" content="StarStore Daily Rewards - Earn bonuses with daily check-ins, maintain streaks, complete missions. Trade Telegram Stars and earn USDT rewards.">
+    <meta name="keywords" content="daily rewards, Telegram Stars, check-in bonus, streak rewards, mission rewards, earn Stars">
+    <meta property="og:title" content="StarStore Daily Rewards | Earn Bonuses">
+    <meta property="og:description" content="Earn daily rewards by checking in, maintaining streaks, and completing missions at StarStore.">
+    <meta property="og:url" content="https://starstore.app/daily">
+    <script src="https://telegram.org/js/telegram-web-app.js" data-cfasync="false" defer></script>
+    <script src="/js/ban-guard.js?v=1" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="js/modal.js" defer></script>
+    <link rel="stylesheet" href="/css/daily-enhanced.css">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=7">
+    <style>
+        /* RTL-aware back button positioning */
+        html[dir="rtl"] #exitButton {
+            right: auto !important;
+            left: 16px !important;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .app-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: #f5f5f5; 
+            min-height: 100vh; 
+            position: relative; 
+            overflow: hidden; 
+        }
+        .telegram-fullscreen .app-container { 
+            max-width: 100%; 
+            width: 100%; 
+            margin: 0; 
+            box-shadow: none; 
+            border-radius: 0; 
+        }
+        .clean-card { 
+            background: white; 
+            border-radius: 16px; 
+            padding: 20px;
+            margin-bottom: 12px;
+        }
+        .stat-box {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .stat-box:active {
+            transform: scale(0.97);
+        }
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s, transform 0.2s;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-primary:active {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .calendar-day {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9f9f9;
+            color: #666;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .calendar-day.checked {
+            background: #007AFF;
+            color: white;
+        }
+        .calendar-day.today {
+            border: 2px solid #007AFF;
+        }
+        .calendar-day:active {
+            transform: scale(0.95);
+        }
+        .mission-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+        .mission-item:active {
+            background: #f0f0f0;
+        }
+        .mission-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .mission-btn.complete {
+            background: #007AFF;
+            color: white;
+        }
+        .mission-btn.completed {
+            background: #e8e8e8;
+            color: #999;
+            cursor: default;
+        }
+        .mission-btn:active:not(.completed) {
+            opacity: 0.7;
+            transform: scale(0.97);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e8e8e8;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #007AFF;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: background 0.2s, transform 0.2s;
+            cursor: pointer;
+        }
+        .leaderboard-item:active {
+            background: #f0f0f0;
+            transform: scale(0.99);
+        }
+        .leaderboard-item.top-3 {
+            background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
+        }
+        .leaderboard-item.current-user {
+            background: linear-gradient(135deg, #e6f3ff 0%, #fff 100%);
+            border: 1px solid #007AFF20;
+        }
+        .rank-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e8e8e8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            color: #666;
+            flex-shrink: 0;
+        }
+        .rank-badge.gold {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+        }
+        .rank-badge.silver {
+            background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(192, 192, 192, 0.3);
+        }
+        .rank-badge.bronze {
+            background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(205, 127, 50, 0.3);
+        }
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+        .streak-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fff3e0;
+            color: #ff9800;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .achievement-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #e8f5e9;
+            color: #4caf50;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            background: #f0f0f0;
+            padding: 4px;
+            border-radius: 10px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #007AFF;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        .success-message {
+            background: #e8f5e9;
+            color: #4caf50;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Topbar styling for back button */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px 20px 16px;
+            border-bottom: 1px solid var(--border, #e5e7eb);
+            background: var(--surface, #f5f5f5);
+        }
+
+        .topbar-exit-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: var(--text2, #666);
+            border-radius: 50%;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .topbar-exit-btn:hover {
+            background: var(--bg2, rgba(0, 0, 0, 0.05));
+        }
+
+        .topbar-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text, #000);
+            flex: 1;
+        }
+
+        html[dir="rtl"] .topbar-exit-btn {
+            right: auto !important;
+            left: 16px !important;
+        }
+    </style>
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- Page Header -->
+        <div class="topbar">
+            <button id="exitButton" class="topbar-exit-btn" aria-label="Back">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                    <path d="M14 5L8 11L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <span class="topbar-title" data-translate="dailyRewardsTitle">Daily Rewards</span>
+        </div>
+
+        <!-- Main Content -->
+        <main style="padding: 16px 16px 80px 16px;">
+
+            <!-- Streak + Summary -->
+            <section class="clean-card">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; color: #999; font-weight: 500; margin-bottom: 4px;" data-translate="currentStreak">Current Streak</div>
+                    <div style="font-size: 36px; font-weight: 700; color: #000; display: flex; align-items: baseline; gap: 6px;">
+                        <span id="streakCount">0</span>
+                        <span style="font-size: 18px; font-weight: 600; color: #666;" data-translate="days">days</span>
+                        <span id="streakEmoji" style="font-size: 24px; margin-left: 4px;">🔥</span>
+                    </div>
+                    <div style="font-size: 13px; color: #999; margin-top: 4px;" data-translate="nextRewardAt">Next reward at 7 days streak</div>
+                    <div id="achievementBadge"></div>
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <div class="stat-box" style="flex: 1;">
+                        <div style="font-size: 11px; color: #999; margin-bottom: 4px;" data-translate="dailyPoints">Daily</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #007AFF;" id="dailyPoints">10</div>
+                    </div>
+                    <div class="stat-box" style="flex: 1;">
+                        <div style="font-size: 11px; color: #999; margin-bottom: 4px;" data-translate="weeklyBonusShort">Weekly</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #007AFF;" id="weeklyBonus">50</div>
+                    </div>
+                    <div class="stat-box" style="flex: 1;">
+                        <div style="font-size: 11px; color: #999; margin-bottom: 4px;" data-translate="totalPoints">Total</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #007AFF;" id="totalPoints">0</div>
+                    </div>
+                </div>
+                
+                <button id="checkInBtn" class="btn-primary">
+                    <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span data-translate="checkInToday">Check-in today</span>
+                </button>
+                <div id="checkInStatus"></div>
+            </section>
+
+            <!-- Streak Calendar -->
+            <section class="clean-card">
+                <div class="month-nav">
+                    <button id="prevMonth" class="month-nav-btn" title="Previous month">◀</button>
+                    <div>
+                        <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0; text-align: center;" data-translate="streakCalendar">Streak Calendar</h2>
+                        <div style="font-size: 13px; color: #999; text-align: center; margin-top: 4px;" id="calendarMonth"></div>
+                    </div>
+                    <button id="nextMonth" class="month-nav-btn" title="Next month" disabled>▶</button>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px;">
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">S</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">M</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">T</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">W</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">T</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">F</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">S</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;" id="calendarGrid"></div>
+                <div style="font-size: 11px; color: #999; margin-top: 12px; text-align: center;" data-translate="calendarLegend">✓ = checked-in • Blue border = today</div>
+            </section>
+
+            <!-- Missions / Tasks -->
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="missionsTitle">Daily Missions</h2>
+                    <div style="font-size: 13px; font-weight: 600; color: #007AFF;" id="missionsSummary">0/4</div>
+                </div>
+                <div id="missionsList"></div>
+            </section>
+
+            <!-- Weekly Rewards -->
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="weeklyRewardsTitle">Weekly Progress</h2>
+                    <div style="font-size: 13px; font-weight: 600; color: #007AFF;" id="weekProgress">0%</div>
+                </div>
+                <div class="progress-bar" style="margin-bottom: 12px;">
+                    <div id="weekBar" class="progress-fill" style="width:0%"></div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <div style="flex: 1; padding: 10px; background: #f9f9f9; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #000;" id="daysThisWeek">0</div>
+                        <div style="font-size: 11px; color: #999; margin-top: 2px;">Days this week</div>
+                    </div>
+                    <div style="flex: 1; padding: 10px; background: #f9f9f9; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #000;" id="weeklyEarned">0</div>
+                        <div style="font-size: 11px; color: #999; margin-top: 2px;">Bonus earned</div>
+                    </div>
+                </div>
+                <ul style="margin-top: 12px; padding-left: 20px; font-size: 13px; color: #666; line-height: 1.8;">
+                    <li data-translate="weekReward1">Check-in 5 days to earn +25 bonus</li>
+                    <li data-translate="weekReward2">Complete all missions to earn +50 bonus</li>
+                </ul>
+            </section>
+
+            <!-- Rewards & Points Shop -->
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;">🎁 Rewards Shop</h2>
+                    <div style="font-size: 13px; font-weight: 600; color: #007AFF;" id="userPointsDisplay">0 pts</div>
+                </div>
+                <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Redeem your points for exclusive rewards and power-ups!</p>
+                <button id="redeemBtn" class="btn-primary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
+                    Browse Rewards
+                </button>
+            </section>
+
+            <!-- Leaderboard -->
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="leaderboardTitle">Leaderboard</h2>
+                    <button id="refreshLeaderboard" style="font-size: 13px; color: #007AFF; background: none; border: none; cursor: pointer; font-weight: 600;" data-translate="refresh">↻ Refresh</button>
+                </div>
+                
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="global">🌍 Global</button>
+                    <button class="tab-btn" data-tab="friends">👥 Friends</button>
+                </div>
+                <div id="weightControls" style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                    <div style="font-size:12px; color:#666;">Weights:</div>
+                    <label style="font-size:12px; color:#666;">Referrals <input id="wRef" type="number" min="0" max="1" step="0.1" value="0.7" style="width:56px; padding:4px; border:1px solid #ddd; border-radius:6px; margin-left:4px;"/></label>
+                    <label style="font-size:12px; color:#666;">Activity <input id="wAct" type="number" min="0" max="1" step="0.1" value="0.3" style="width:56px; padding:4px; border:1px solid #ddd; border-radius:6px; margin-left:4px;"/></label>
+                </div>
+                
+                <div id="leaderboardList"></div>
+                
+                <div style="margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 13px; color: #666; margin-bottom: 6px;">Your Rank</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #007AFF;" id="userRank">#--</div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="/js/translations.js?v=4" data-cfasync="false"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/daily-enhanced.js?v=2"></script>
+    <script>
+        let currentLeaderboardTab = 'global';
+        
+        // Theme is initialized by /js/theme.js; avoid duplicating here
+
+        // Translations init
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Give the enhanced system first priority; if it's present at all, don't run fallback
+            setTimeout(async () => {
+                if (typeof DailyRewardsSystem !== 'undefined') {
+                    console.log('Enhanced system present - skipping basic fallback');
+                    return;
+                }
+                
+                console.log('Using basic daily system (enhanced system not available or failed)');
+                
+                // Debug API availability in basic system
+                console.log('Basic system - API object:', window.API);
+                console.log('Basic system - API methods:', {
+                    getDailyState: typeof window.API?.getDailyState,
+                    dailyCheckIn: typeof window.API?.dailyCheckIn,
+                    getLeaderboard: typeof window.API?.getLeaderboard
+                });
+                
+                // Translations are auto-initialized by translations.js
+                
+                // Telegram WebApp parity and fullscreen
+                try {
+                    if (window.Telegram?.WebApp) {
+                        const webApp = window.Telegram.WebApp;
+                        webApp.ready();
+                        webApp.expand();
+                        document.body.classList.add('telegram-fullscreen');
+                    }
+                } catch(_) {}
+
+                buildCalendar(new Date());
+                await hydrateFromAPI();
+                await loadMissions();
+                await loadLeaderboard();
+                bindHandlers();
+            }, 100); // Wait 100ms for enhanced system to initialize
+        });
+
+        let handlersBound = false;
+        
+        function bindHandlers() {
+            if (handlersBound) {
+                console.log('Handlers already bound, skipping...');
+                return;
+            }
+            
+            const btn = document.getElementById('checkInBtn');
+            btn.addEventListener('click', onCheckInAPI);
+            handlersBound = true;
+            const refresh = document.getElementById('refreshLeaderboard');
+            refresh.addEventListener('click', () => {
+                loadLeaderboard();
+                refresh.textContent = '✓ Refreshed';
+                setTimeout(() => {
+                    refresh.textContent = '↻ Refresh';
+                }, 1500);
+            });
+            
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentLeaderboardTab = btn.getAttribute('data-tab');
+                    // Hide weights when friends tab (friends are referrals list)
+                    document.getElementById('weightControls').style.display = currentLeaderboardTab === 'global' ? 'flex' : 'none';
+                    loadLeaderboard();
+                });
+            });
+            document.getElementById('wRef').addEventListener('change', loadLeaderboard);
+            document.getElementById('wAct').addEventListener('change', loadLeaderboard);
+        }
+
+        async function hydrateFromAPI() {
+            try {
+                const data = await window.API.getDailyState();
+                if (!data?.success) {
+                    console.warn('Failed to load state, using fallback');
+                    return;
+                }
+                const streak = data.streak || 0;
+                document.getElementById('streakCount').textContent = streak;
+                document.getElementById('totalPoints').textContent = data.totalPoints || 0;
+                const emojiEl = document.getElementById('streakEmoji');
+                if (streak >= 30) emojiEl.textContent = '🏆';
+                else if (streak >= 14) emojiEl.textContent = '⭐';
+                else if (streak >= 7) emojiEl.textContent = '🔥';
+                else emojiEl.textContent = '💪';
+                const badgeEl = document.getElementById('achievementBadge');
+                if (streak >= 30) {
+                    badgeEl.innerHTML = '<div class="achievement-badge">🏆 Streak Master - 30 Days!</div>';
+                } else if (streak >= 14) {
+                    badgeEl.innerHTML = '<div class="achievement-badge">⭐ 2 Week Warrior!</div>';
+                } else if (streak >= 7) {
+                    badgeEl.innerHTML = '<div class="achievement-badge">🔥 Week Streak!</div>';
+                }
+                if (Array.isArray(data.checkedInDays)) {
+                    const days = new Set(data.checkedInDays);
+                    document.querySelectorAll('[data-day]').forEach(el => {
+                        const d = parseInt(el.getAttribute('data-day'), 10);
+                        if (days.has(d)) el.classList.add('checked');
+                    });
+                }
+                const weekCount = (data.checkedInDays || []).length % 7; // approx for now
+                const pct = Math.min(100, Math.round((weekCount/7)*100));
+                document.getElementById('weekBar').style.width = pct + '%';
+                document.getElementById('weekProgress').textContent = pct + '%';
+                document.getElementById('daysThisWeek').textContent = weekCount;
+                document.getElementById('weeklyEarned').textContent = Math.floor(weekCount * 5);
+                const completed = (data.missionsCompleted || []).length;
+                const total = 4;
+                document.getElementById('missionsSummary').textContent = `${completed}/${total} completed`;
+            } catch (e) {
+                console.warn('API hydration failed:', e.message);
+                // Silently fail - enhanced system will handle it
+            }
+        }
+
+        let checkInInProgress = false;
+        
+        async function onCheckInAPI() {
+            if (checkInInProgress) {
+                console.log('Check-in already in progress, ignoring...');
+                return;
+            }
+            
+            checkInInProgress = true;
+            const today = new Date();
+            const dayKey = today.getDate();
+            const btn = document.getElementById('checkInBtn');
+            
+            // Disable button during check-in
+            btn.disabled = true;
+            try {
+                const resp = await window.API.dailyCheckIn();
+                if (!resp?.success) throw new Error(resp?.error || 'Check-in failed');
+                if (resp.alreadyChecked) {
+                    setStatus('checkInStatus', '✓ Already checked in today!', 'success');
+                } else {
+                    const daily = parseInt(document.getElementById('dailyPoints').textContent, 10) || 10;
+                    setStatus('checkInStatus', `🎉 Check-in successful! +${daily} points`, 'success');
+                }
+                await hydrateFromAPI();
+            } catch (e) {
+                console.error(e);
+                setStatus('checkInStatus', 'Failed to check-in', 'error');
+            } finally {
+                setTimeout(() => { 
+                    btn.disabled = false; 
+                    checkInInProgress = false;
+                }, 800);
+            }
+            // UI updates are handled by hydrateFromAPI()
+        }
+
+        function setStatus(id, text, type = 'info') {
+            const el = document.getElementById(id);
+            if (type === 'success') {
+                el.innerHTML = `<div class="success-message animate-in">✓ ${text}</div>`;
+            } else {
+                el.innerHTML = `<div style="color: #666; font-size: 13px; margin-top: 8px;">${text}</div>`;
+            }
+            setTimeout(() => { el.innerHTML = ''; }, 4000);
+        }
+
+        function buildCalendar(date) {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const monthName = date.toLocaleString('default', { month: 'long' });
+            document.getElementById('calendarMonth').textContent = `${monthName} ${year}`;
+            const startWeekday = firstDay.getDay();
+            const totalDays = lastDay.getDate();
+            const today = new Date().getDate();
+            
+            for (let i = 0; i < startWeekday; i++) {
+                const empty = document.createElement('div');
+                empty.style.height = '40px';
+                grid.appendChild(empty);
+            }
+            for (let d = 1; d <= totalDays; d++) {
+                const cell = document.createElement('button');
+                cell.className = 'calendar-day';
+                if (d === today) cell.classList.add('today');
+                cell.textContent = d;
+                cell.setAttribute('data-day', d);
+                grid.appendChild(cell);
+            }
+        }
+
+        async function loadMissions() {
+            const list = document.getElementById('missionsList');
+            list.innerHTML = '';
+            try {
+                const missionsResp = await window.API.getMissions();
+                const stateResp = await window.API.getDailyState();
+            const missions = (missionsResp?.missions || []).map(m => ({ ...m, icon: missionIcon(m.id) }));
+            const done = new Set(stateResp?.missionsCompleted || []);
+            
+            missions.forEach(m => {
+                const row = document.createElement('div');
+                row.className = 'mission-item';
+                const isCompleted = done.has(m.id);
+                row.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">${m.icon}</div>
+                        <div>
+                            <div style="font-size: 15px; font-weight: 500; color: #000;">${m.title}</div>
+                            <div style="font-size: 12px; color: #999;">+${m.points} pts</div>
+                        </div>
+                    </div>
+                    <button data-id="${m.id}" class="mission-btn ${isCompleted ? 'completed' : 'complete'}">${isCompleted ? '✓ Done' : 'Complete'}</button>
+                `;
+                list.appendChild(row);
+            });
+            
+            list.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.mission-btn');
+                if (!btn || btn.classList.contains('completed')) return;
+                const id = btn.getAttribute('data-id');
+                try {
+                    await window.API.completeMission(id);
+                    await loadMissions();
+                    await hydrateFromAPI();
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+            } catch (error) {
+                console.warn('Failed to load missions:', error.message);
+                list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">Missions unavailable</div>';
+            }
+        }
+
+        function missionIcon(id) {
+            switch (id) {
+                case 'm1': return '💳';
+                case 'm2': return '💬';
+                case 'm3': return '🛍️';
+                case 'm4': return '👥';
+                default: return '⭐';
+            }
+        }
+
+        async function loadLeaderboard() {
+            const el = document.getElementById('leaderboardList');
+            el.innerHTML = '';
+            try {
+                const wRef = parseFloat(document.getElementById('wRef')?.value || 0.7);
+                const wAct = parseFloat(document.getElementById('wAct')?.value || 0.3);
+                const data = await window.API.getLeaderboard(currentLeaderboardTab, isNaN(wRef)?undefined:wRef, isNaN(wAct)?undefined:wAct);
+                if (!data?.success) {
+                    console.warn('Leaderboard failed to load');
+                    throw new Error('Failed to load leaderboard');
+                }
+                document.getElementById('userRank').textContent = data.userRank ? `#${data.userRank}` : '#--';
+                const users = data.entries.map(e => {
+                    const display = e.displayName || e.username || shortUser(e.userId);
+                    return { u: display, pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (display || 'U')[0].toUpperCase(), pseudo: !!e.isPseudonym };
+                });
+                
+                // Handle empty leaderboard
+                if (!users || users.length === 0) {
+                    el.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #999;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🏆</div>
+                            <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No competitors yet!</div>
+                            <div style="font-size: 14px;">Be the first to check in and climb the leaderboard</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                users.forEach((s, idx) => {
+                const row = document.createElement('div');
+                const isTop3 = idx < 3;
+                const rank = idx + 1;
+                
+                let rankClass = '';
+                if (rank === 1) rankClass = 'gold';
+                else if (rank === 2) rankClass = 'silver';
+                else if (rank === 3) rankClass = 'bronze';
+                
+                row.className = `leaderboard-item ${isTop3 ? 'top-3' : ''}`;
+                row.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="rank-badge ${rankClass}">${rank <= 3 ? (rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉') : rank}</div>
+                        <div class="avatar" style="background: ${getAvatarColor(s.avatar)}">${s.avatar}</div>
+                        <div>
+                            <div style="font-size: 15px; font-weight: 600; color: #000;">@${s.u}</div>
+                            <div style="font-size: 12px; color: #999;">${getStreakText(s.act)}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 16px; font-weight: 700; color: #007AFF; text-align: right;">${s.pts.toLocaleString()}</div>
+                        <div style="font-size: 11px; color: #999; text-align: right;">score</div>
+                    </div>
+                `;
+                el.appendChild(row);
+            });
+            } catch (e) {
+                console.warn('Leaderboard load failed:', e.message);
+                el.innerHTML = '<div style="text-align:center;color:#999;padding:40px;">Leaderboard unavailable</div>';
+            }
+        }
+        
+        function getAvatarColor(letter) {
+            const colors = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+                'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+            ];
+            const index = letter.charCodeAt(0) % colors.length;
+            return colors[index];
+        }
+        
+        function getStreakText(pts) {
+            const days = Math.floor(pts / 50); // Estimate streak from points
+            if (days >= 30) return '🏆 30+ day streak';
+            if (days >= 14) return '⭐ 14+ day streak';
+            if (days >= 7) return '🔥 7+ day streak';
+            return `${days} day streak`;
+        }
+
+        function shortUser(id) {
+            return 'user_' + (id || '').toString().slice(-5);
+        }
+
+
+        // Exit button functionality
+        document.getElementById('exitButton').addEventListener('click', function() {
+            window.location.href = '/about';
+        });
+
+        // Initialize Enhanced Daily System
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                console.log('🚀 Initializing Enhanced Daily System...');
+                window.dailySystem = new DailyRewardsSystem();
+                window.dailySystem.initialized = false; // Set flag before init
+                await window.dailySystem.init();
+                window.dailySystem.initialized = true;
+                console.log('✅ Enhanced Daily System initialized successfully');
+            } catch (error) {
+                console.error('❌ Enhanced Daily System initialization failed:', error);
+                window.dailySystem.initialized = false; // Ensure flag is false on error
+                // Fall back to basic system
+                console.log('Falling back to basic daily system...');
+            }
+        });
+    </script>
+    
+</body>
+</html>
+

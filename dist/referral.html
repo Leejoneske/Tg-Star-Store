@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Referral Program - Earn USDT with StarStore | Telegram Stars Trading</title>
+    <meta name="description" content="StarStore Referral Program - Earn 0.5 USDT per referral. Share your referral link and grow your earnings by inviting friends to trade Telegram Stars.">
+    <meta name="keywords" content="referral program, earn USDT, Telegram Stars referral, affiliate program, StarStore earnings">
+    
+    <!-- Load Telegram API -->
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <script src="/js/ban-guard.js?v=1" defer></script>
+    
+    <!-- Protective wrapper for window.Telegram -->
+    <script>
+        if (typeof window.Telegram === 'undefined') {
+            window.Telegram = { WebApp: null };
+        }
+    </script>
+    
+    <!-- Prefetch ambassador page to start loading in background immediately -->
+    <link rel="prefetch" href="/amb_ref.html">
+    <link rel="preconnect" href="/api">
+    
+    <!-- Hide page until ambassador check resolves to prevent flash + missed redirect -->
+    <style id="amb-gate-style">
+      html.amb-gate body { visibility: hidden !important; }
+      #ambGateOverlay {
+        position: fixed; inset: 0; z-index: 999999;
+        background: #ffffff;
+        display: flex; align-items: center; justify-content: center;
+        visibility: visible !important;
+      }
+      #ambGateOverlay .amb-gate-spinner {
+        width: 28px; height: 28px; border-radius: 50%;
+        border: 3px solid #e5e7eb; border-top-color: #4f46e5;
+        animation: ambGateSpin 0.7s linear infinite;
+      }
+      @keyframes ambGateSpin { to { transform: rotate(360deg); } }
+      html:not(.amb-gate) #ambGateOverlay { display: none; }
+    </style>
+    <script>document.documentElement.classList.add('amb-gate');</script>
+
+    <!-- Check if user is ambassador - redirect to ambassador page if yes -->
+    <script>
+        (function() {
+            // Cache TTL: 30 minutes (ambassador status rarely changes mid-session)
+            const AMBASSADOR_CACHE_KEY = 'ambassadorStatus_v1';
+            const AMBASSADOR_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+            // Hard cap so the page never hangs behind the overlay
+            const GATE_MAX_WAIT_MS = 4000;
+            const gateStart = Date.now();
+
+            function dropGate() {
+                document.documentElement.classList.remove('amb-gate');
+            }
+            
+            // Get cached ambassador status if valid
+            function getCachedAmbassadorStatus(userId) {
+                try {
+                    const cached = localStorage.getItem(AMBASSADOR_CACHE_KEY);
+                    if (cached) {
+                        const { isAmbassador, userId: cachedUserId, timestamp } = JSON.parse(cached);
+                        // Check if cache is still valid and for same user
+                        if (cachedUserId === userId && (Date.now() - timestamp) < AMBASSADOR_CACHE_TTL) {
+                            console.log('✓ Using cached ambassador status:', isAmbassador);
+                            return isAmbassador;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore cache read errors
+                }
+                return null;
+            }
+            
+            // Store ambassador status in cache
+            function setCachedAmbassadorStatus(userId, isAmbassador) {
+                try {
+                    localStorage.setItem(AMBASSADOR_CACHE_KEY, JSON.stringify({
+                        userId,
+                        isAmbassador,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    // Ignore cache write errors
+                }
+            }
+            
+            // Get user ID from Telegram WebApp OR localStorage (fallback from previous login)
+            function getUserId() {
+                try {
+                    // Try Telegram WebApp first
+                    if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                        const id = window.Telegram.WebApp.initDataUnsafe.user.id;
+                        if (id && String(id).trim() && String(id) !== 'undefined') {
+                            return String(id);
+                        }
+                    }
+                } catch (e) {
+                    // Telegram not ready yet
+                }
+                
+                // Fallback to authenticated user ID from server
+                try {
+                    if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
+                        return window.authenticatedUserId.toString();
+                    }
+                } catch (e) {
+                    // Not available
+                }
+                
+                // Fallback to localStorage (set during previous login on index.html)
+                try {
+                    const stored = localStorage.getItem('userId');
+                    if (stored && String(stored).trim() && String(stored) !== 'undefined' && String(stored) !== 'dev-user') {
+                        return String(stored);
+                    }
+                } catch (e) {
+                    // localStorage not available
+                }
+                
+                return null;
+            }
+
+            // Poll until a userId is resolvable (Telegram WebApp can be slow to init),
+            // capped by GATE_MAX_WAIT_MS so we never hang behind the overlay.
+            function waitForUserId() {
+                return new Promise((resolve) => {
+                    const id = getUserId();
+                    if (id) return resolve(id);
+                    try { window.Telegram?.WebApp?.ready?.(); } catch (_) {}
+                    const t = setInterval(() => {
+                        const u = getUserId();
+                        if (u || (Date.now() - gateStart) > GATE_MAX_WAIT_MS) {
+                            clearInterval(t);
+                            resolve(u || null);
+                        }
+                    }, 80);
+                });
+            }
+
+            async function checkAndRedirect() {
+                const userId = await waitForUserId();
+
+                if (!userId || userId === 'dev-user' || userId === 'default_user_id') {
+                    console.log('No valid user ID — showing regular referral page');
+                    return dropGate();
+                }
+
+                // Cache hit — redirect immediately, no flicker
+                const cachedStatus = getCachedAmbassadorStatus(userId);
+                if (cachedStatus === true) {
+                    console.log('✓ Redirecting ambassador (from cache) to /amb_ref.html');
+                    window.location.replace('/amb_ref.html');
+                    return; // keep overlay until navigation completes
+                }
+                if (cachedStatus === false) {
+                    return dropGate();
+                }
+
+                // No cache — block render until API answers (with timeout fallback)
+                const remaining = Math.max(800, GATE_MAX_WAIT_MS - (Date.now() - gateStart));
+                try {
+                    const r = await fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`, {
+                        signal: AbortSignal.timeout(remaining),
+                        cache: 'no-store'
+                    });
+                    const data = r.ok ? await r.json() : null;
+                    if (data && data.isAmbassador) {
+                        setCachedAmbassadorStatus(userId, true);
+                        console.log('✓ User is ambassador, redirecting to /amb_ref.html');
+                        window.location.replace('/amb_ref.html');
+                        return; // keep overlay until navigation completes
+                    }
+                    setCachedAmbassadorStatus(userId, !!(data && data.isAmbassador));
+                } catch (err) {
+                    console.log('Could not check ambassador status:', err && err.message);
+                }
+                dropGate();
+            }
+
+            // Safety net: never leave the overlay up indefinitely
+            setTimeout(dropGate, GATE_MAX_WAIT_MS + 500);
+
+            checkAndRedirect();
+        })();
+    </script>
+    
+    <link rel="canonical" href="https://starstore.app/referral">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<!-- Tailwind CSS for bottom nav styling -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="js/modal.js" defer></script>
+    <script src="/js/translations.js?v=5" data-cfasync="false"></script>
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/css/theme.css?v=3">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=9">
+    <script src="/js/bottomnav-init.js?v=6"></script>
+
+    <style>
+        * {
+            margin: 0; padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        *:focus { outline: none !important; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--surface-muted, #f5f5f5);
+            color: var(--text, #111111);
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--surface, #ffffff);
+            padding-bottom: 120px;
+            overflow-y: auto;
+        }
+
+        .telegram-fullscreen .app-container { 
+            max-width: 100%; 
+            width: 100%;
+            margin: 0;
+            border-radius: 0;
+        }
+
+        /* Page Header - Matches other pages */
+        .page-header {
+            background: var(--surface, #ffffff);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border, #f0f0f0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text, #111);
+            letter-spacing: 0;
+            margin: 0;
+        }
+
+        /* Hero */
+        .hero { padding: 24px 24px 20px; }
+
+        .icon-cluster {
+            display: flex;
+            margin-bottom: 24px;
+        }
+
+        .cluster-icon {
+            width: 60px; height: 60px;
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; color: white;
+            margin-right: -10px;
+            border: 3px solid var(--surface, white);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .cluster-icon:nth-child(1) { background: #4ade80; z-index: 3; }
+        .cluster-icon:nth-child(2) { background: #22c55e; z-index: 2; }
+        .cluster-icon:nth-child(3) { background: #86efac; z-index: 1; }
+
+        .hero-title {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: 0;
+            color: var(--text, #111);
+            margin-bottom: 10px;
+        }
+
+        .hero-sub {
+            font-size: 15px;
+            color: var(--text-secondary, #666);
+            line-height: 1.55;
+        }
+
+        /* Link Box */
+        .link-section { padding: 0 24px 20px; }
+
+        .link-box {
+            background: var(--surface-elevated, #f5f5f5);
+            border-radius: 14px;
+            padding: 13px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid var(--border, transparent);
+        }
+
+        .link-text {
+            font-size: 13px;
+            color: var(--text-muted, #555);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+
+        .copy-btn {
+            background: #4f46e5; 
+            color: white;
+            border: none; border-radius: 9px;
+            padding: 8px 14px;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; flex-shrink: 0;
+            font-family: 'Inter', sans-serif;
+            transition: opacity 0.15s, transform 0.12s;
+        }
+        .copy-btn:active { transform: scale(0.95); opacity: 0.8; }
+        @media (prefers-color-scheme: dark) {
+            .copy-btn {
+                background: #6366f1;
+                color: white;
+            }
+        }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 0 24px 24px;
+        }
+
+        .stat-pill {
+            background: var(--surface-elevated, #f5f5f5);
+            border-radius: 14px;
+            padding: 14px 10px;
+            text-align: center;
+            border: 1px solid var(--border, transparent);
+        }
+
+        .stat-pill .val {
+            font-size: 20px; font-weight: 600;
+            color: var(--text, #111); letter-spacing: 0; line-height: 1.1;
+        }
+
+        .stat-pill .lbl {
+            font-size: 11px; font-weight: 500;
+            color: var(--text-muted, #999); margin-top: 4px;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+
+        /* Divider */
+        .divider { height: 1px; background: var(--border, #f0f0f0); margin: 0 24px 20px; }
+
+        /* Section label */
+        .section-label {
+            font-size: 13px; font-weight: 600;
+            color: var(--text-muted, #999); padding: 0 24px 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Steps */
+        .steps-list { padding: 0 24px; }
+
+        .step-row {
+            display: flex; align-items: flex-start;
+            gap: 14px; padding: 14px 0;
+            border-bottom: 1px solid var(--border, #f3f3f3);
+        }
+        .step-row:last-child { border-bottom: none; }
+
+        .step-icon-wrap {
+            width: 42px; height: 42px;
+            background: var(--surface-elevated, #f3f3f3); 
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; color: var(--text-muted, #555); 
+            flex-shrink: 0;
+        }
+
+        .step-text h4 {
+            font-size: 15px; font-weight: 600;
+            color: var(--text-secondary, #555); margin-bottom: 2px;
+        }
+
+        .step-text p { 
+            font-size: 13px; 
+            color: var(--text-secondary, #888); 
+            line-height: 1.4; 
+        }
+
+        /* Referrals */
+        .referrals-section {
+            padding: 0 24px 180px 24px;
+            margin-bottom: 0;
+        }
+
+        .referral-row {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border, #f3f3f3);
+        }
+        .referral-row:last-child { border-bottom: none; }
+
+        .ref-left { display: flex; align-items: center; gap: 12px; }
+
+        .ref-avatar {
+            width: 40px; height: 40px;
+            background: var(--surface-elevated, #f0f0f0); 
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; 
+            color: var(--text-secondary, #666); 
+            flex-shrink: 0;
+        }
+
+        .ref-name { 
+            font-size: 15px; 
+            font-weight: 500; 
+            color: var(--text, #111); 
+        }
+        .ref-date { 
+            font-size: 12px; 
+            color: var(--text-muted, #aaa); 
+            margin-top: 2px; 
+        }
+
+        .ref-right { text-align: right; }
+
+        .ref-amount { 
+            font-size: 16px; 
+            font-weight: 800; 
+            color: #16a34a; 
+        }
+
+        .ref-badge {
+            display: inline-block; 
+            font-size: 10px; font-weight: 600;
+            padding: 2px 8px; border-radius: 20px; margin-top: 3px;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .ref-badge.paid { background: rgba(5, 150, 105, 0.15); color: var(--success); }
+        .ref-badge.pending { background: rgba(202, 138, 4, 0.15); color: var(--warning); }
+
+        /* Empty */
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: var(--text-muted, #ccc);
+        }
+        .empty-state i { 
+            font-size: 34px; 
+            margin-bottom: 12px; 
+            display: block;
+            color: var(--text-secondary, #999);
+        }
+        .empty-state h3 { 
+            font-size: 15px; 
+            font-weight: 700; 
+            color: var(--text, #555); 
+            margin-bottom: 6px; 
+        }
+        .empty-state p { 
+            font-size: 13px; 
+            color: var(--text-secondary, #999); 
+        }
+
+        /* Bottom CTA */
+        .bottom-cta {
+            position: fixed; 
+            bottom: 64px; 
+            left: 0; 
+            right: 0;
+            background: var(--surface, white);
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid var(--border, #f0f0f0);
+            display: flex; 
+            gap: 8px;
+            max-width: 600px;
+            margin: 0 auto;
+            z-index: 100;
+            transition: all 0.3s ease;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        }
+        .telegram-fullscreen .bottom-cta { max-width: 100%; }
+
+        .cta-share {
+            flex: 1; background: #4f46e5; color: white;
+            border: none; border-radius: 12px;
+            padding: 8px 16px; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: 'Inter', sans-serif;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .cta-share:active { transform: scale(0.98); opacity: 0.8; }
+        @media (prefers-color-scheme: dark) {
+            .cta-share {
+                background: #6366f1;
+                color: white;
+            }
+        }
+
+        .cta-withdraw {
+            background: var(--surface-elevated, #f3f3f3); 
+            color: var(--text, #111);
+            border: none; border-radius: 12px;
+            padding: 8px 16px; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: 'Inter', sans-serif;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .cta-withdraw:active { transform: scale(0.98); opacity: 0.75; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 110px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--text, #111); 
+            color: var(--surface, white);
+            padding: 10px 20px; border-radius: 50px;
+            font-size: 13px; font-weight: 600; z-index: 9999;
+            white-space: nowrap; transition: opacity 0.3s;
+        }
+        .toast.success { background: var(--success); color: var(--surface); }
+        .toast.error { background: var(--error); color: var(--surface); }
+
+        /* SweetAlert Dark Theme Support */
+        [data-theme="dark"] .swal2-popup {
+            background: var(--surface, #161b22);
+            color: var(--text, #e6edf3);
+        }
+        [data-theme="dark"] .swal2-title {
+            color: var(--text, #e6edf3);
+        }
+        [data-theme="dark"] .swal2-html-container {
+            color: var(--text, #e6edf3);
+        }
+        [data-theme="dark"] .swal2-input {
+            background: var(--surface-elevated, #1c2128);
+            border: 1.5px solid var(--border, #21262d);
+            color: var(--text, #e6edf3);
+        }
+        @media (prefers-color-scheme: dark) {
+            .swal2-popup {
+                background: var(--surface, #161b22);
+                color: var(--text, #e6edf3);
+            }
+            .swal2-title {
+                color: var(--text, #e6edf3);
+            }
+            .swal2-html-container {
+                color: var(--text, #e6edf3);
+            }
+            .swal2-input {
+                background: var(--surface-elevated, #1c2128);
+                border: 1.5px solid var(--border, #21262d);
+                color: var(--text, #e6edf3);
+            }
+            .swal2-input::placeholder {
+                color: var(--text-secondary, #6e7681);
+            }
+            .swal2-confirm {
+                background: var(--brand, #58a6ff);
+                color: var(--surface, #161b22);
+            }
+            .swal2-cancel {
+                background: var(--border, #21262d);
+                color: var(--text, #e6edf3);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .hero-title {
+                font-size: 26px;
+            }
+        }
+    </style>
+    <script src="/js/global-loader.js?v=1"></script>
+</head>
+<body>
+<div id="ambGateOverlay" aria-hidden="true"><div class="amb-gate-spinner"></div></div>
+<div class="app-container">
+    <div id="bottomnav-container"></div>
+
+    <header class="page-header">
+        <h1 class="header-title" data-translate="referral">Referral</h1>
+    </header>
+
+    <div class="hero">
+        <div class="icon-cluster">
+            <div class="cluster-icon"><i class="fas fa-star"></i></div>
+            <div class="cluster-icon"><i class="fas fa-dollar-sign"></i></div>
+            <div class="cluster-icon"><i class="fas fa-user-plus"></i></div>
+        </div>
+        <h2 class="hero-title" data-translate="referralTitle">Earn 0.5 USDT<br>per referral</h2>
+        <p class="hero-sub" data-translate="referralSubtitle">Invite friends to StarStore. Every time they purchase 100+ stars using your link, you get rewarded instantly.</p>
+    </div>
+
+    <div class="link-section">
+        <div class="link-box">
+            <div class="link-text" id="referralLinkDisplay" data-translate="loading">Loading your link…</div>
+            <button class="copy-btn" id="copyButton" onclick="copyReferralLink()"><i class="fas fa-copy"></i> <span data-translate="copy">Copy</span></button>
+        </div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-pill">
+            <div class="val" id="availableBalance">0.00</div>
+            <div class="lbl" data-translate="availableBalance">Available</div>
+        </div>
+        <div class="stat-pill">
+            <div class="val" id="referralsCount">0</div>
+            <div class="lbl" data-translate="referrals">Referrals</div>
+        </div>
+        <div class="stat-pill">
+            <div class="val" id="totalEarned">0.00</div>
+            <div class="lbl" data-translate="totalEarned">Earned</div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label" data-translate="howItWorksReferral">How it works</div>
+    <div class="steps-list">
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-link"></i></div>
+            <div class="step-text">
+                <h4 data-translate="step1Title">Share your link</h4>
+                <p data-translate="step1Desc">Copy and send your unique referral link to friends</p>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-star"></i></div>
+            <div class="step-text">
+                <h4 data-translate="step2Title">Friends make a purchase</h4>
+                <p data-translate="step2Desc">They get instant access to Premium or Stars</p>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-bolt"></i></div>
+            <div class="step-text">
+                <h4 data-translate="step3Title">You earn rewards</h4>
+                <p data-translate="step3Desc">Get 0.5 USDT for each successful referral</p>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-wallet"></i></div>
+            <div class="step-text">
+                <h4 data-translate="step4Title">Withdraw earnings</h4>
+                <p data-translate="step4Desc">Transfer funds to your TON wallet when ready</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label" data-translate="myReferrals">My Referrals</div>
+    <div class="referrals-section">
+        <div id="noReferrals" class="empty-state">
+            <i class="fas fa-user-friends"></i>
+            <h3 data-translate="noReferrals">You don't have any referrals yet</h3>
+            <p data-translate="referralEmptyHint">Share your link to get started</p>
+        </div>
+        <div id="referralsList"></div>
+    </div>
+
+</div>
+
+<div class="bottom-cta">
+    <button class="cta-share" id="shareButton"><i class="fas fa-share-alt"></i> &nbsp;<span data-translate="shareInvite">Invite Friends</span></button>
+    <button class="cta-withdraw" id="withdrawButton"><i class="fas fa-arrow-up"></i> &nbsp;<span data-translate="withdraw">Withdraw</span></button>
+</div>
+
+<script>
+    // Wait for Telegram WebApp to be ready (telegram-web-app.js is loaded with `defer`).
+    function waitForTelegramReady(maxWaitMs = 2500) {
+        return new Promise((resolve) => {
+            const start = Date.now();
+            (function check() {
+                const wa = window.Telegram?.WebApp;
+                if (wa && wa.initDataUnsafe) {
+                    try { wa.ready && wa.ready(); } catch (_) {}
+                    try { wa.expand && wa.expand(); } catch (_) {}
+                    return resolve(true);
+                }
+                if (Date.now() - start >= maxWaitMs) return resolve(false);
+                setTimeout(check, 50);
+            })();
+        });
+    }
+
+    // Cache buster token with timestamp
+    const CACHE_BUSTER = `v${Date.now().toString().slice(-8)}`;
+
+    const BASE_API_URL = window.location.origin + '/api';
+
+    // Helper function to get valid user ID (resolved AFTER Telegram WebApp is ready)
+    function getValidUserId() {
+        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        const tgUserId = tgUser?.id?.toString();
+        if (tgUserId && tgUserId !== 'undefined' && tgUserId !== 'null' && !isNaN(tgUserId)) {
+            return tgUserId;
+        }
+
+        if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
+            return window.authenticatedUserId.toString();
+        }
+
+        try {
+            const stored = localStorage.getItem('userId');
+            if (stored && stored !== 'undefined' && stored !== 'null' && stored !== 'dev-user') {
+                return stored;
+            }
+        } catch (e) { /* localStorage not available */ }
+
+        return null;
+    }
+
+    const state = {
+        userId: null,
+        referralLink: null,
+        newReferralLink: null,
+        stats: {
+            availableBalance: 0,
+            totalEarned: 0,
+            referralsCount: 0,
+            pendingAmount: 0
+        },
+        referrals: [],
+        isWithdrawInProgress: false,
+        lastRefresh: 0,
+        authError: false
+    };
+
+    // Theme/init for Telegram WebApp (after it's available)
+    function applyTelegramTheme() {
+        const webApp = window.Telegram?.WebApp;
+        if (!webApp) return;
+        document.body.classList.add('telegram-fullscreen');
+        if (webApp.themeParams && webApp.themeParams.isDark) {
+            document.body.setAttribute('data-theme', 'dark');
+        }
+    }
+
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', async () => {
+        await waitForTelegramReady();
+        applyTelegramTheme();
+
+        state.userId = getValidUserId();
+        state.authError = !state.userId;
+
+        if (!state.userId) {
+            console.warn('⚠️ No valid user ID found - showing page with empty data');
+            // Continue with empty data instead of showing error
+        }
+
+        console.log('Initializing referral page for user:', state.userId || 'unknown');
+        await loadBottomNav();
+        await loadReferralData();
+        setupEventListeners();
+        applyTranslations();
+    });
+
+    // Show authentication error
+
+
+    // Bottom nav loading is centralized in /js/bottomnav-init.js?v=6 (BottomNavUtils.loadBottomNav).
+    async function loadBottomNav() {
+        if (window.BottomNavUtils) {
+            return window.BottomNavUtils.loadBottomNav();
+        }
+    }
+
+    // Load referral statistics and data from API
+    async function loadReferralData() {
+        if (!state.userId) {
+            console.error('❌ Cannot load referral data: No valid user ID');
+            state.authError = true;
+            // Still update UI with fallback data
+            updateUI();
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
+                headers: {
+                    'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                    'x-telegram-id': state.userId
+                }
+            });
+            
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 404) {
+                    console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
+                    state.authError = true;
+                    // Still update UI with fallback data instead of showing error
+                    updateUI();
+                    return;
+                }
+                throw new Error(`API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Referral data received:', data);
+            
+            if (data.success) {
+                state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+                state.newReferralLink = data.newReferralLink || state.referralLink;
+                
+                state.stats = {
+                    availableBalance: parseFloat(data.stats?.availableBalance || 0),
+                    totalEarned: parseFloat(data.stats?.totalEarned || 0),
+                    referralsCount: parseInt(data.stats?.referralsCount || 0),
+                    pendingAmount: parseFloat(data.stats?.pendingAmount || 0)
+                };
+                
+                state.referrals = data.referrals || [];
+                state.lastRefresh = Date.now();
+                state.authError = false;
+                console.log('Referral data updated successfully');
+            }
+        } catch (error) {
+            console.error('Error loading referral data:', error);
+            // Use fallback link
+            state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+            state.newReferralLink = state.referralLink;
+        }
+        
+        updateUI();
+    }
+
+    // Update UI with current data
+    function updateUI() {
+        // Update stats
+        const balanceEl = document.getElementById('availableBalance');
+        const earnedEl = document.getElementById('totalEarned');
+        const countEl = document.getElementById('referralsCount');
+        const linkEl = document.getElementById('referralLinkDisplay');
+        
+        if (balanceEl) balanceEl.textContent = state.stats.availableBalance.toFixed(2);
+        if (earnedEl) earnedEl.textContent = state.stats.totalEarned.toFixed(2);
+        if (countEl) countEl.textContent = state.stats.referralsCount;
+        if (linkEl) {
+            linkEl.textContent = state.referralLink;
+            linkEl.removeAttribute('data-translate');
+        }
+        
+        renderReferrals();
+        applyTranslations();
+    }
+
+    // Render referrals list
+    function renderReferrals() {
+        const listEl = document.getElementById('referralsList');
+        const emptyEl = document.getElementById('noReferrals');
+        
+        if (!state.referrals || state.referrals.length === 0) {
+            if (listEl) listEl.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+        
+        if (emptyEl) emptyEl.style.display = 'none';
+        
+        const html = state.referrals.map(ref => {
+            const name = ref.name || `User #${ref.userId.substring(0, 6)}`;
+            const initials = name
+                .split(' ')
+                .map(w => w[0])
+                .join('')
+                .toUpperCase()
+                .substring(0, 2) || '?';
+            
+            const date = new Date(ref.date);
+            const dateStr = date.toLocaleDateString();
+            const status = (ref.status || 'pending').toLowerCase();
+            const badgeClass = status === 'active' || status === 'completed' || status === 'paid' ? 'paid' : 'pending';
+            const badgeText = badgeClass === 'paid' ? 'Active' : 'Pending';
+            
+            return `
+                <div class="referral-row">
+                    <div class="ref-left">
+                        <div class="ref-avatar">${initials}</div>
+                        <div>
+                            <div class="ref-name">${name}</div>
+                            <div class="ref-date">${dateStr}</div>
+                        </div>
+                    </div>
+                    <div class="ref-right">
+                        <div class="ref-amount">+0.5 USDT</div>
+                        <span class="ref-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        if (listEl) listEl.innerHTML = html;
+    }
+
+    // Copy referral link
+    function copyReferralLink() {
+        const link = state.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+        navigator.clipboard.writeText(link)
+            .then(() => {
+                showToast('Link copied!', 'success');
+            })
+            .catch(err => {
+                console.error('Failed to copy:', err);
+                showToast('Failed to copy link', 'error');
+            });
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        const copyBtn = document.getElementById('copyButton');
+        const shareBtn = document.getElementById('shareButton');
+        const withdrawBtn = document.getElementById('withdrawButton');
+        
+        if (copyBtn) {
+            copyBtn.removeEventListener('click', copyReferralLink);
+            copyBtn.addEventListener('click', copyReferralLink);
+        }
+        
+        if (shareBtn) {
+            shareBtn.removeEventListener('click', shareReferral);
+            shareBtn.addEventListener('click', shareReferral);
+        }
+        
+        if (withdrawBtn) {
+            withdrawBtn.removeEventListener('click', showWithdrawPopup);
+            withdrawBtn.addEventListener('click', showWithdrawPopup);
+        }
+
+        const emptyShareBtn = document.getElementById('emptyStateShareBtn');
+        if (emptyShareBtn) {
+            emptyShareBtn.removeEventListener('click', shareReferral);
+            emptyShareBtn.addEventListener('click', shareReferral);
+        }
+    }
+
+    // Share referral
+    function shareReferral() {
+        const link = state.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+        const text = `Join StarStore & earn rewards! 🌟\n${link}`;
+
+        // Prefer native Telegram share when running inside Telegram WebApp.
+        try {
+            const tg = window.Telegram && window.Telegram.WebApp;
+            if (tg && typeof tg.openTelegramLink === 'function') {
+                const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+                tg.openTelegramLink(url);
+                return;
+            }
+        } catch (_) { /* fall through */ }
+
+        if (navigator.share) {
+            navigator.share({ 
+                title: 'StarStore - Referral Program',
+                text: text,
+                url: link
+            }).catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.error('Share failed:', err);
+                    showShareDialog(link, text);
+                }
+            });
+        } else {
+            showShareDialog(link, text);
+        }
+    }
+
+    // Show share dialog with platform options
+    function showShareDialog(link, text) {
+        const encodedLink = encodeURIComponent(link);
+        const encodedText = encodeURIComponent(text);
+        
+        Swal.fire({
+            title: 'Share Your Referral Link',
+            html: `
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                    <button onclick="window.open('https://t.me/share/url?url=${encodedLink}&text=${encodedText}', '_blank')" 
+                            style="width:100%;padding:13px;background:#0088cc;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;">
+                        <i class="fab fa-telegram"></i>&nbsp; Telegram
+                    </button>
+                    <button onclick="window.open('https://api.whatsapp.com/send?text=${encodedText}', '_blank')" 
+                            style="width:100%;padding:13px;background:#25d366;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;">
+                        <i class="fab fa-whatsapp"></i>&nbsp; WhatsApp
+                    </button>
+                    <button onclick="window.open('https://twitter.com/intent/tweet?text=${encodedText}', '_blank')" 
+                            style="width:100%;padding:13px;background:#1DA1F2;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;">
+                        <i class="fab fa-twitter"></i>&nbsp; X / Twitter
+                    </button>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCloseButton: true
+        });
+    }
+
+    // Show withdraw popup
+    async function showWithdrawPopup() {
+        if (state.isWithdrawInProgress) {
+            showToast('Withdrawal in progress...', 'error');
+            return;
+        }
+        
+        const available = state.stats.availableBalance;
+        
+        if (available < 0.5) {
+            Swal.fire({
+                title: TranslationUtils?.get('insufficientBalanceTitle') || 'Insufficient Balance',
+                text: `${TranslationUtils?.get('insufficientBalanceText') || 'You need at least 0.5 USDT to withdraw'} ${available.toFixed(2)} USDT`,
+                icon: 'warning',
+                confirmButtonColor: '#111'
+            });
+            return;
+        }
+        
+        state.isWithdrawInProgress = true;
+        
+        try {
+            const { value } = await Swal.fire({
+                title: TranslationUtils?.get('withdrawTitle') || 'Withdraw Earnings',
+                html: `
+                    <div style="text-align:left;">
+                        <label style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;color:var(--text,#111);">${TranslationUtils?.get('amount') || 'Amount'} (USDT)</label>
+                        <input type="number" id="amount" placeholder="0.5" max="${available}" min="0.5" step="0.5" value="${available}" style="width:100%;padding:12px;margin-bottom:14px;border:1.5px solid var(--border,#e5e7eb);border-radius:10px;font-size:14px;background:var(--surface,#fff);color:var(--text,#111);font-family:Inter,sans-serif;">
+                        <label style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;color:var(--text,#111);">${TranslationUtils?.get('walletAddress') || 'TON Wallet Address'}</label>
+                        <input type="text" id="wallet" placeholder="EQxxxxxxxxxx..." style="width:100%;padding:12px;border:1.5px solid var(--border,#e5e7eb);border-radius:10px;font-size:14px;background:var(--surface,#fff);color:var(--text,#111);font-family:Inter,sans-serif;">
+                        <p style="margin-top:14px;font-size:12px;color:var(--text-secondary,#888);">${TranslationUtils?.get('yourBalance') || 'Your balance'}: <strong>${available.toFixed(2)} USDT</strong></p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: TranslationUtils?.get('submitWithdrawal') || 'Withdraw',
+                confirmButtonColor: '#111',
+                preConfirm: () => {
+                    const amount = parseFloat(document.getElementById('amount').value);
+                    const wallet = document.getElementById('wallet').value?.trim();
+                    
+                    if (!amount || amount <= 0) {
+                        Swal.showValidationMessage('Please enter a valid amount');
+                        return false;
+                    }
+                    
+                    if (!wallet) {
+                        Swal.showValidationMessage('Please enter your TON wallet address');
+                        return false;
+                    }
+                    
+                    if (amount > available) {
+                        Swal.showValidationMessage(`Amount cannot exceed available balance (${available.toFixed(2)} USDT)`);
+                        return false;
+                    }
+                    
+                    return { amount, walletAddress: wallet };
+                }
+            });
+            
+            if (value) {
+                await processWithdrawal(value.amount, value.walletAddress);
+            }
+        } finally {
+            state.isWithdrawInProgress = false;
+        }
+    }
+
+    // Process withdrawal request
+    async function processWithdrawal(amount, walletAddress) {
+        try {
+            const response = await fetch(`${BASE_API_URL}/referral-withdrawals`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                    'x-telegram-id': state.userId
+                },
+                body: JSON.stringify({
+                    userId: state.userId,
+                    amount: amount,
+                    walletAddress: walletAddress
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                showToast('Withdrawal request submitted!', 'success');
+                // Refresh data after 1 second
+                setTimeout(() => loadReferralData(), 1000);
+            } else {
+                showToast(data.error || 'Withdrawal failed. Please try again.', 'error');
+            }
+        } catch (error) {
+            console.error('Withdrawal error:', error);
+            showToast('Network error. Please try again.', 'error');
+        }
+    }
+
+    // Show toast notification
+    function showToast(message, type = '') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        // Fade in
+        setTimeout(() => {
+            toast.style.opacity = '1';
+        }, 10);
+        
+        // Fade out
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
+    // Apply translations
+    function applyTranslations() {
+        if (typeof TranslationUtils !== 'undefined' && TranslationUtils.applyTranslations) {
+            TranslationUtils.applyTranslations();
+        }
+    }
+
+    // Refresh data periodically (every 30 seconds)
+    setInterval(() => {
+        const now = Date.now();
+        if (now - state.lastRefresh > 30000) {
+            console.log('Auto-refreshing referral data...');
+            loadReferralData();
+        }
+    }, 30000);
+</script>
+<script src="/js/version-display.js?v=3"></script>
+</body>
+</html>
+

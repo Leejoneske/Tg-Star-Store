@@ -1,0 +1,759 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="notification-container">
+  <div class="notification-header">
+    <h3 data-translate="notifications">Notifications</h3>
+    <div class="notification-actions">
+      <button id="markAllRead" class="action-btn">
+        <i class="fas fa-check"></i> <span data-translate="markAllRead">Mark All Read</span>
+      </button>
+      <button id="refreshNotifications" class="action-btn">
+        <i class="fas fa-sync-alt"></i> <span data-translate="refresh">Refresh</span>
+      </button>
+      <button id="notificationCloseBtn" class="close-btn">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="notification-loading" id="notificationLoading">
+    <div class="loading-spinner"></div>
+    <p data-translate="loadingNotifications">Loading notifications...</p>
+  </div>
+
+  <div class="notification-list" id="notificationList">
+    <div class="empty-state" id="notificationEmpty">
+      <i class="fas fa-bell-slash"></i>
+      <p data-translate="noNotificationsYet">No notifications yet</p>
+      <small data-translate="notificationEmptyDesc">We'll notify you about important updates and activities</small>
+    </div>
+  </div>
+
+  <div class="notification-footer">
+    <div class="notification-stats" id="notificationStats">
+      <span id="unreadCount">0</span> <span data-translate="unread">unread</span>
+    </div>
+    <button id="loadMoreNotifications" class="load-more-btn" style="display: none;">
+      <span data-translate="loadMore">Load More</span>
+    </button>
+  </div>
+</div>
+
+<script>
+// Real Notification System
+(() => {
+  const listElement = document.getElementById('notificationList');
+  const emptyElement = document.getElementById('notificationEmpty');
+  const loadingElement = document.getElementById('notificationLoading');
+  const unreadCountElement = document.getElementById('unreadCount');
+  const loadMoreBtn = document.getElementById('loadMoreNotifications');
+  
+  let currentPage = 0;
+  let hasMoreNotifications = true;
+  let isLoading = false;
+  let currentUserId = null;
+
+  // Get user ID from Telegram WebApp or localStorage
+  function getCurrentUserId() {
+    // Client no longer sends userId; server derives from auth.
+    return window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || localStorage.getItem('userId');
+  }
+
+  // Format timestamp
+  function formatTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d ago`;
+    
+    return date.toLocaleDateString();
+  }
+
+  // Get priority color
+  function getPriorityColor(priority) {
+    switch (priority) {
+      case 2: return '#ef4444'; // High priority - red
+      case 1: return '#f59e0b'; // Medium priority - orange
+      default: return '#6b7280'; // Low priority - gray
+    }
+  }
+
+  // Render notifications
+  function renderNotifications(notifications, append = false) {
+    loadingElement.style.display = 'none';
+    
+    if (!notifications.length && !append) {
+      emptyElement.style.display = 'flex';
+      listElement.innerHTML = '';
+      return;
+    }
+
+    emptyElement.style.display = 'none';
+    
+    const notificationsHTML = notifications.map(notification => `
+      <div class="notification-item ${notification.read ? '' : 'unread'}" data-id="${notification.id}">
+        <div class="notification-priority" style="background-color: ${getPriorityColor(notification.priority)}"></div>
+        <i class="fas ${notification.icon} icon"></i>
+        <div class="content">
+          <div class="title">${notification.title}</div>
+          <div class="message">${notification.message}</div>
+          <div class="time">${formatTimestamp(notification.createdAt)}</div>
+        </div>
+        <button class="mark-read-btn" onclick="markAsRead('${notification.id}')" ${notification.read ? 'style="display: none;"' : ''}>
+          <i class="fas fa-check"></i>
+        </button>
+      </div>
+    `).join('');
+
+    if (append) {
+      listElement.innerHTML += notificationsHTML;
+    } else {
+      listElement.innerHTML = notificationsHTML;
+    }
+
+    // Add click handlers for notification items
+    document.querySelectorAll('.notification-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (!e.target.closest('.mark-read-btn')) {
+          const notificationId = item.dataset.id;
+          markAsRead(notificationId);
+        }
+      });
+    });
+  }
+
+  // Fetch notifications from API
+  async function fetchNotifications(page = 0, append = false) {
+    if (isLoading) return;
+    
+    isLoading = true;
+    currentUserId = getCurrentUserId();
+    
+    // Guard: require Telegram context or header fallback
+    if (!window.Telegram?.WebApp?.initData && !currentUserId) {
+      showError('Notifications require Telegram or a linked session. Please open in Telegram.');
+      isLoading = false;
+      return;
+    }
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      // Don't send x-telegram-id header if we don't have a valid ID - let server extract from initData
+      
+      const response = await fetch(`/api/notifications?limit=10&skip=${page * 10}`, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.notifications) {
+        renderNotifications(data.notifications, append);
+        updateUnreadCount(data.unreadCount);
+        
+        hasMoreNotifications = data.notifications.length === 10;
+        loadMoreBtn.style.display = hasMoreNotifications ? 'block' : 'none';
+      }
+      
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      const message = error?.message?.includes('401') || error?.message?.includes('403')
+        ? 'Authentication required. Please open in Telegram again.'
+        : 'Failed to load notifications. Please try again.';
+      showError(message);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Mark notification as read
+  async function markAsRead(notificationId) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      
+      const response = await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST', headers, body: JSON.stringify({}) });
+
+      if (response.ok) {
+        // Update UI
+        const notificationItem = document.querySelector(`[data-id="${notificationId}"]`);
+        if (notificationItem) {
+          notificationItem.classList.remove('unread');
+          const markReadBtn = notificationItem.querySelector('.mark-read-btn');
+          if (markReadBtn) markReadBtn.style.display = 'none';
+        }
+        
+        // Update unread count
+        updateUnreadCount();
+        
+        // Notify parent window
+        parent.postMessage({ type: 'NOTIFICATION_READ', count: await getUnreadCount() }, '*');
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  }
+
+  // Mark all notifications as read
+  async function markAllAsRead() {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      
+      const response = await fetch('/api/notifications/mark-all-read', { method: 'POST', headers, body: JSON.stringify({}) });
+
+      if (response.ok) {
+        // Update UI
+        document.querySelectorAll('.notification-item').forEach(item => {
+          item.classList.remove('unread');
+          const markReadBtn = item.querySelector('.mark-read-btn');
+          if (markReadBtn) markReadBtn.style.display = 'none';
+        });
+        
+        updateUnreadCount(0);
+        
+        // Notify parent window
+        parent.postMessage({ type: 'ALL_NOTIFICATIONS_READ' }, '*');
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  }
+
+  // Update unread count
+  async function updateUnreadCount(count = null) {
+    if (count === null) {
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+        
+        const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+          headers['x-telegram-id'] = telegramUserId.toString();
+        } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+          headers['x-telegram-id'] = String(currentUserId);
+        }
+        
+        const response = await fetch(`/api/notifications/unread-count`, { headers });
+        if (response.ok) {
+          const data = await response.json();
+          count = data.unreadCount;
+        }
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+        return;
+      }
+    }
+    
+    unreadCountElement.textContent = count;
+    unreadCountElement.style.display = count > 0 ? 'inline' : 'none';
+  }
+
+  // Get unread count
+  async function getUnreadCount() {
+    try {
+      const headers = {};
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      
+      const response = await fetch(`/api/notifications/unread-count`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        return data.unreadCount;
+      }
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+    }
+    return 0;
+  }
+
+  // Show error message
+  function showError(message) {
+    loadingElement.style.display = 'none';
+    emptyElement.style.display = 'flex';
+    emptyElement.innerHTML = `
+      <i class="fas fa-exclamation-triangle"></i>
+      <p>${message}</p>
+    `;
+  }
+
+
+  // Event listeners
+  document.getElementById('markAllRead')?.addEventListener('click', () => {
+    markAllAsRead();
+  });
+
+  document.getElementById('refreshNotifications')?.addEventListener('click', () => {
+    currentPage = 0;
+    fetchNotifications(0, false);
+  });
+
+  document.getElementById('notificationCloseBtn')?.addEventListener('click', () => {
+    // The host (index.html) injects this HTML into a `.notification-content-container`
+    // in the same window AND attaches a `message` listener. postMessage to self
+    // still triggers that listener, so this works whether we're in an iframe,
+    // injected inline, or opened as a standalone page.
+    const injectedHost = document.querySelector('.notification-content-container');
+    try { parent.postMessage({ type: 'CLOSE_NOTIFICATIONS' }, '*'); } catch (_) {}
+    // If we are NOT injected into a host (true standalone page), fall back
+    // to closing the Telegram WebApp / history navigation so the X actually does something.
+    if (!injectedHost) {
+      try {
+        if (window.Telegram?.WebApp?.close) { window.Telegram.WebApp.close(); return; }
+      } catch (_) {}
+      if (window.history.length > 1) { window.history.back(); return; }
+      window.location.href = '/';
+    }
+  });
+
+  document.getElementById('loadMoreNotifications')?.addEventListener('click', () => {
+    if (!isLoading && hasMoreNotifications) {
+      currentPage++;
+      fetchNotifications(currentPage, true);
+    }
+  });
+
+  // Handle messages from parent window
+  window.addEventListener('message', (event) => {
+    if (event.data.type === 'REFRESH_NOTIFICATIONS') {
+      currentPage = 0;
+      fetchNotifications(0, false);
+    }
+  });
+
+  // Initial load
+  loadingElement.style.display = 'flex';
+  fetchNotifications(0, false);
+
+  // Auto-refresh every 30 seconds
+  setInterval(() => {
+    if (!isLoading) {
+      updateUnreadCount();
+    }
+  }, 30000);
+
+  // Expose functions globally for parent window
+  window.notificationSystem = {
+    refresh: () => fetchNotifications(0, false),
+    markAsRead,
+    markAllAsRead,
+    updateUnreadCount
+  };
+})();
+</script>
+
+<style>
+/* Notification panel — matches StarStore "clean-card" design language */
+.notification-container {
+  max-width: 460px;
+  width: 100%;
+  margin: 0 auto;
+  background: #f5f5f5;
+  border-radius: 16px;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2937;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
+}
+
+.notification-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.action-btn {
+  background: #f5f5f5;
+  border: none;
+  color: #007AFF;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.action-btn:hover { background: #ececec; }
+.action-btn:active { transform: scale(0.97); }
+
+@media (max-width: 420px) {
+  .notification-header { padding: 14px; }
+  .notification-header h3 { font-size: 16px; }
+  .action-btn { padding: 7px 10px; font-size: 11.5px; gap: 5px; }
+}
+
+.close-btn {
+  background: #f5f5f5;
+  border: none;
+  color: #666;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.close-btn:hover { background: #ececec; }
+.close-btn:active { transform: scale(0.95); }
+
+.notification-loading {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 20px;
+  color: #666;
+  background: white;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f0f0f0;
+  border-top: 3px solid #007AFF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.notification-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 12px;
+  background: #f5f5f5;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  background: white;
+  border-radius: 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.notification-item:hover { background: #fafafa; }
+.notification-item:active { transform: scale(0.99); }
+
+.notification-item.unread {
+  background: white;
+  border-color: rgba(0, 122, 255, 0.18);
+  box-shadow: 0 1px 0 rgba(0, 122, 255, 0.04);
+}
+.notification-item.unread::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #007AFF;
+}
+
+.notification-priority {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+}
+
+.notification-item .icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f0f7ff;
+  color: #007AFF;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.notification-item .content {
+  flex: 1;
+  min-width: 0;
+  padding-right: 18px;
+}
+
+.notification-item .title {
+  font-weight: 600;
+  color: #000;
+  margin-bottom: 3px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.notification-item .message {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.notification-item .time {
+  color: #999;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.notification-item .action-link { margin-top: 8px; }
+.notification-item .action-link a {
+  color: #007AFF;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+.notification-item .action-link a:hover { text-decoration: underline; }
+
+.mark-read-btn {
+  background: #007AFF;
+  border: none;
+  color: white;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.mark-read-btn:hover { background: #0066d6; }
+.mark-read-btn:active { transform: scale(0.92); }
+
+.empty-state {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 24px;
+  color: #999;
+  text-align: center;
+  background: white;
+  border-radius: 14px;
+  margin: 4px;
+}
+
+.empty-state i {
+  font-size: 44px;
+  margin-bottom: 14px;
+  color: #d1d5db;
+}
+
+.empty-state p {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.empty-state small {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #999;
+}
+
+.notification-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: white;
+  border-top: 1px solid #f0f0f0;
+}
+
+.notification-stats {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.notification-stats span {
+  font-weight: 700;
+  color: #007AFF;
+}
+
+.load-more-btn {
+  background: #007AFF;
+  border: none;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.load-more-btn:hover { opacity: 0.9; }
+.load-more-btn:active { transform: scale(0.97); }
+
+/* Scrollbar styling */
+.notification-list::-webkit-scrollbar { width: 6px; }
+.notification-list::-webkit-scrollbar-track { background: transparent; }
+.notification-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.notification-list::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Hide priority bar on small unread cards (the dot serves the same purpose) */
+.notification-item .notification-priority { display: none; }
+
+/* RTL: flip the unread dot to the left */
+html[dir="rtl"] .notification-item.unread::before { right: auto; left: 14px; }
+
+/* ===== Dark theme ===== */
+html[data-theme="dark"] .notification-container,
+body[data-theme="dark"] .notification-container,
+[data-theme="dark"] .notification-container {
+  background: #0f0f10;
+  color: #e5e7eb;
+}
+[data-theme="dark"] .notification-header,
+[data-theme="dark"] .notification-footer {
+  background: #18181b;
+  border-color: #27272a;
+}
+[data-theme="dark"] .notification-header h3 { color: #fafafa; }
+[data-theme="dark"] .action-btn {
+  background: #27272a;
+  color: #60a5fa;
+}
+[data-theme="dark"] .action-btn:hover { background: #323237; }
+[data-theme="dark"] .close-btn {
+  background: #27272a;
+  color: #d4d4d8;
+}
+[data-theme="dark"] .close-btn:hover { background: #323237; }
+[data-theme="dark"] .notification-list { background: #0f0f10; }
+[data-theme="dark"] .notification-loading { background: #18181b; color: #a1a1aa; }
+[data-theme="dark"] .loading-spinner { border-color: #27272a; border-top-color: #60a5fa; }
+[data-theme="dark"] .notification-item {
+  background: #18181b;
+  border-color: transparent;
+}
+[data-theme="dark"] .notification-item:hover { background: #1f1f23; }
+[data-theme="dark"] .notification-item.unread {
+  background: #1a1f2e;
+  border-color: rgba(96, 165, 250, 0.25);
+}
+[data-theme="dark"] .notification-item .icon {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+}
+[data-theme="dark"] .notification-item .title { color: #fafafa; }
+[data-theme="dark"] .notification-item .message { color: #c4c4c8; }
+[data-theme="dark"] .notification-item .time { color: #71717a; }
+[data-theme="dark"] .empty-state {
+  background: #18181b;
+  color: #71717a;
+}
+[data-theme="dark"] .empty-state p { color: #e5e7eb; }
+[data-theme="dark"] .empty-state small { color: #71717a; }
+[data-theme="dark"] .empty-state i { color: #3f3f46; }
+[data-theme="dark"] .notification-stats { color: #a1a1aa; }
+[data-theme="dark"] .notification-list::-webkit-scrollbar-thumb { background: #3f3f46; }
+[data-theme="dark"] .notification-list::-webkit-scrollbar-thumb:hover { background: #52525b; }
+</style>
+
+<script src="/js/translations.js?v=4" data-cfasync="false"></script>
+<script>
+// Initialize TranslationUtils
+if (typeof TranslationUtils !== 'undefined') {
+    TranslationUtils.init();
+    TranslationUtils.applyTranslations();
+}
+
+// Listen for language changes from other pages
+window.addEventListener('languageChanged', () => {
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.applyTranslations();
+    }
+});
+
+// Also listen for localStorage changes (when language is changed in another tab/page)
+window.addEventListener('storage', (e) => {
+    if (e.key === 'appLanguage' && typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.applyTranslations();
+    }
+});
+
+
+</script>
+
+

@@ -1,0 +1,434 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarStore Admin</title>
+    <link rel="icon" href="/favicon.png" type="image/png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/admin.css?v=4">
+</head>
+<body>
+
+    <!-- Loading -->
+    <div id="loading-screen">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading…</span></div>
+            <p class="mt-3 text-muted small mb-0">Loading admin…</p>
+        </div>
+    </div>
+
+    <!-- Login -->
+    <div id="login-screen" class="d-none">
+        <div class="login-card">
+            <div class="text-center mb-4">
+                <div class="login-logo"><i class="fas fa-star"></i></div>
+                <h1 class="h5 fw-bold mb-1">StarStore Admin</h1>
+                <p class="text-muted small mb-0">Sign in with your Telegram ID</p>
+            </div>
+
+            <form id="login-form" onsubmit="return false;" novalidate>
+                <div class="mb-3">
+                    <label for="telegram-id" class="form-label small fw-semibold">Telegram ID</label>
+                    <input type="text" id="telegram-id" class="form-control form-control-lg"
+                           inputmode="numeric" autocomplete="off" placeholder="e.g. 123456789">
+                    <div class="form-text">We'll send a 6-digit code to your Telegram.</div>
+                </div>
+
+                <button type="button" id="send-otp-btn" class="btn btn-primary btn-lg w-100 mb-3">
+                    <i class="fas fa-paper-plane me-2"></i>Send code
+                </button>
+
+                <div id="otp-section" class="d-none mb-3">
+                    <label for="otp-input" class="form-label small fw-semibold">Verification code</label>
+                    <div class="input-group input-group-lg">
+                        <input type="text" id="otp-input" class="form-control input-otp" maxlength="6"
+                               inputmode="numeric" placeholder="000000">
+                        <button type="button" id="verify-otp-btn" class="btn btn-primary">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                    <div id="otp-timer" class="form-text d-none"></div>
+                </div>
+
+                <div id="login-message" class="alert d-none small mb-0" role="alert"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div id="app" class="app-shell d-none">
+
+        <!-- Sidebar (desktop) / Offcanvas (mobile) -->
+        <aside id="sidebar" class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" aria-labelledby="sidebarLabel">
+            <div class="sidebar-header">
+                <div class="sidebar-logo"><i class="fas fa-star"></i></div>
+                <div class="lh-1">
+                    <div class="fw-bold small" id="sidebarLabel">StarStore</div>
+                    <div class="text-muted" style="font-size:11px;">Admin Panel</div>
+                </div>
+                <button type="button" class="btn-close ms-auto d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close"></button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="sidebar-section-label">Overview</div>
+                <button class="nav-link admin-nav active" data-view="dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
+                <button class="nav-link admin-nav" data-view="performance"><i class="fas fa-tachometer-alt"></i><span>Performance</span></button>
+
+                <div class="sidebar-section-label">Operations</div>
+                <button class="nav-link admin-nav" data-view="orders"><i class="fas fa-shopping-cart"></i><span>Orders</span></button>
+                <button class="nav-link admin-nav" data-view="withdrawals"><i class="fas fa-credit-card"></i><span>Withdrawals</span></button>
+                <button class="nav-link admin-nav" data-view="users"><i class="fas fa-users"></i><span>Users</span></button>
+
+                <div class="sidebar-section-label">Engagement</div>
+                <button class="nav-link admin-nav" data-view="notifications"><i class="fas fa-bell"></i><span>Notifications</span></button>
+                <button class="nav-link admin-nav" data-view="bots"><i class="fas fa-robot"></i><span>Bot Simulator</span></button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="fas fa-sign-out-alt me-1"></i>Sign out
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main column -->
+        <div class="main-col">
+            <header class="main-header">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-light btn-sm d-lg-none" type="button"
+                            data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="page-title" class="page-title">Dashboard</h1>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button id="refresh-btn" class="btn btn-light btn-sm" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <div class="header-user">
+                        <span class="header-avatar"><i class="fas fa-user"></i></span>
+                        <span id="admin-name" class="small fw-medium">Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-body">
+
+                <!-- Dashboard -->
+                <section id="view-dashboard" class="view">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="stat-icon bg-primary-soft"><i class="fas fa-shopping-cart"></i></div>
+                                    <div class="stat-label">Total orders</div>
+                                    <div class="stat-value" id="stat-orders">—</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="stat-icon bg-success-soft"><i class="fas fa-users"></i></div>
+                                    <div class="stat-label">Total users</div>
+                                    <div class="stat-value" id="stat-users">—</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="stat-icon bg-warning-soft"><i class="fas fa-credit-card"></i></div>
+                                    <div class="stat-label">Pending withdrawals</div>
+                                    <div class="stat-value" id="stat-pending-wd">—</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="stat-icon bg-info-soft"><i class="fas fa-coins"></i></div>
+                                    <div class="stat-label">Revenue (USDT)</div>
+                                    <div class="stat-value" id="stat-revenue">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-xl-8">
+                            <div class="card h-100">
+                                <div class="card-header d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h3 class="card-title">Revenue trend</h3>
+                                        <small class="text-muted">Last 7 days</small>
+                                    </div>
+                                    <select id="revenue-period" class="form-select form-select-sm w-auto">
+                                        <option value="7d">7 days</option>
+                                        <option value="30d">30 days</option>
+                                        <option value="90d">90 days</option>
+                                    </select>
+                                </div>
+                                <div class="card-body" style="height:280px;">
+                                    <canvas id="revenue-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-xl-4">
+                            <div class="card h-100">
+                                <div class="card-header"><h3 class="card-title">Orders by status</h3></div>
+                                <div class="card-body" style="height:280px;">
+                                    <canvas id="orders-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12 col-xl-7">
+                            <div class="card h-100">
+                                <div class="card-header d-flex align-items-center justify-content-between">
+                                    <h3 class="card-title">Recent activity</h3>
+                                    <button class="btn btn-light btn-sm" id="refresh-activity"><i class="fas fa-sync-alt"></i></button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="activity-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-xl-5">
+                            <div class="card h-100">
+                                <div class="card-header"><h3 class="card-title">Quick actions</h3></div>
+                                <div class="card-body">
+                                    <div class="row g-2">
+                                        <div class="col-6"><button class="btn btn-light w-100" data-action="export-orders"><i class="fas fa-download me-1"></i>Export orders</button></div>
+                                        <div class="col-6"><button class="btn btn-light w-100" data-action="export-withdrawals"><i class="fas fa-download me-1"></i>Export withdrawals</button></div>
+                                        <div class="col-6"><button class="btn btn-light w-100" data-go="notifications"><i class="fas fa-bullhorn me-1"></i>Send notice</button></div>
+                                        <div class="col-6"><button class="btn btn-light w-100" data-go="users"><i class="fas fa-users me-1"></i>View users</button></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Performance -->
+                <section id="view-performance" class="view d-none">
+                    <div class="row g-3">
+                        <div class="col-12 col-xl-4">
+                            <div class="card h-100">
+                                <div class="card-header"><h3 class="card-title">Engagement overview</h3></div>
+                                <div class="card-body" id="perf-overview">
+                                    <div class="empty-state"><div class="empty-state-icon"><i class="fas fa-tachometer-alt"></i></div><p class="small mb-0">Loading…</p></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-xl-8">
+                            <div class="card h-100">
+                                <div class="card-header"><h3 class="card-title">Top 10 leaderboard</h3></div>
+                                <div class="card-body p-0" id="perf-top10">
+                                    <div class="empty-state"><div class="empty-state-icon"><i class="fas fa-trophy"></i></div><p class="small mb-0">No data yet.</p></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Orders -->
+                <section id="view-orders" class="view d-none">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <h3 class="card-title me-auto">Orders</h3>
+                                <select id="orders-type" class="form-select form-select-sm w-auto">
+                                    <option value="all">All types</option>
+                                    <option value="buy">Buy</option>
+                                    <option value="sell">Sell</option>
+                                </select>
+                                <select id="orders-status" class="form-select form-select-sm w-auto">
+                                    <option value="">All status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="declined">Declined</option>
+                                </select>
+                                <input type="text" id="orders-search" class="form-control form-control-sm" style="width:200px;" placeholder="Search id, user…">
+                                <button class="btn btn-outline-primary btn-sm" data-action="export-orders"><i class="fas fa-download me-1"></i>Export</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="orders-table" class="table-responsive"></div>
+                        </div>
+                        <div class="card-footer d-flex align-items-center justify-content-between">
+                            <small class="text-muted" id="orders-count">0 orders</small>
+                            <div class="btn-group btn-group-sm">
+                                <button id="orders-prev" class="btn btn-outline-secondary"><i class="fas fa-chevron-left"></i></button>
+                                <button class="btn btn-outline-secondary disabled" id="orders-page">1</button>
+                                <button id="orders-next" class="btn btn-outline-secondary"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Withdrawals -->
+                <section id="view-withdrawals" class="view d-none">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <h3 class="card-title me-auto">Withdrawals</h3>
+                                <select id="wd-status" class="form-select form-select-sm w-auto">
+                                    <option value="">All status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="declined">Declined</option>
+                                </select>
+                                <input type="text" id="wd-search" class="form-control form-control-sm" style="width:200px;" placeholder="Search user, wallet…">
+                                <button class="btn btn-outline-primary btn-sm" data-action="export-withdrawals"><i class="fas fa-download me-1"></i>Export</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="wd-table" class="table-responsive"></div>
+                        </div>
+                        <div class="card-footer d-flex align-items-center justify-content-between">
+                            <small class="text-muted" id="wd-count">0 withdrawals</small>
+                            <div class="btn-group btn-group-sm">
+                                <button id="wd-prev" class="btn btn-outline-secondary"><i class="fas fa-chevron-left"></i></button>
+                                <button class="btn btn-outline-secondary disabled" id="wd-page">1</button>
+                                <button id="wd-next" class="btn btn-outline-secondary"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Users -->
+                <section id="view-users" class="view d-none">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <h3 class="card-title me-auto">Users</h3>
+                                <select id="users-active" class="form-select form-select-sm w-auto">
+                                    <option value="0">All users</option>
+                                    <option value="15">Active (15 min)</option>
+                                    <option value="60">Active (1 hour)</option>
+                                    <option value="1440">Active (24 hours)</option>
+                                </select>
+                                <input type="text" id="users-search" class="form-control form-control-sm" style="width:200px;" placeholder="Search id, username…">
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="users-table" class="table-responsive"></div>
+                        </div>
+                        <div class="card-footer d-flex align-items-center justify-content-between">
+                            <small class="text-muted" id="users-count">0 users</small>
+                            <div class="btn-group btn-group-sm">
+                                <button id="users-prev" class="btn btn-outline-secondary"><i class="fas fa-chevron-left"></i></button>
+                                <button class="btn btn-outline-secondary disabled" id="users-page">1</button>
+                                <button id="users-next" class="btn btn-outline-secondary"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Notifications -->
+                <section id="view-notifications" class="view d-none">
+                    <div class="card" style="max-width:720px;">
+                        <div class="card-header"><h3 class="card-title">Send notification</h3></div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Title <span class="text-muted fw-normal">(optional)</span></label>
+                                <input type="text" id="notify-title" class="form-control" placeholder="Admin Notification 📢">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Audience</label>
+                                <input type="text" id="notify-target" class="form-control" placeholder="all, active, or a Telegram user ID">
+                                <div class="d-flex gap-2 mt-2">
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-set-target="all">All users</button>
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-set-target="active">Active users</button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Message</label>
+                                <textarea id="notify-message" class="form-control" rows="5" maxlength="500" placeholder="Write your message…"></textarea>
+                                <div class="form-text"><span id="notify-len">0</span>/500 characters</div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2">
+                                <button class="btn btn-outline-secondary" id="notify-clear" type="button">Clear</button>
+                                <button class="btn btn-primary" id="notify-send" type="button">
+                                    <i class="fas fa-paper-plane me-1"></i>Send
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Bots -->
+                <section id="view-bots" class="view d-none">
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">Bot simulator</h3></div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label small fw-semibold">Status</label>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span id="bot-status-badge" class="badge text-bg-secondary">Loading…</span>
+                                        <button id="bot-toggle" class="btn btn-outline-primary btn-sm" disabled>
+                                            <i class="fas fa-power-off me-1"></i>Toggle
+                                        </button>
+                                    </div>
+                                    <div class="form-text">Generates simulated user activity for the leaderboard.</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label small fw-semibold">Active bots</label>
+                                    <div class="fs-3 fw-bold" id="bot-count">0</div>
+                                    <div class="form-text">Number of simulated users.</div>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning mt-4 small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Toggling here only affects the current process. For persistence, set <code>ENABLE_BOT_SIMULATOR</code> in your deployment env.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Confirm modal -->
+    <div class="modal fade" id="confirm-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirm-title">Confirm</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirm-body" class="mb-3">Are you sure?</p>
+                    <div id="confirm-input-wrap" class="d-none">
+                        <label class="form-label small fw-semibold" for="confirm-input">Reason <span class="text-muted fw-normal">(optional)</span></label>
+                        <textarea id="confirm-input" class="form-control" rows="3" placeholder="Enter a reason…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirm-ok">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast stack -->
+    <div id="toast-container" class="admin-toast-stack"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/admin/main.js?v=7"></script>
+</body>
+</html>

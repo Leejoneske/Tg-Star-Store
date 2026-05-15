@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Restricted</title>
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7f8fa;
+            color: #1f2937;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            line-height: 1.5;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            max-width: 440px;
+            width: 100%;
+            padding: 32px;
+        }
+        .icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #fef2f2;
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .meta {
+            border-top: 1px solid #f1f3f5;
+            border-bottom: 1px solid #f1f3f5;
+            padding: 16px 0;
+            margin-bottom: 20px;
+        }
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 6px 0;
+        }
+        .meta-row span:first-child { color: #6b7280; }
+        .meta-row span:last-child {
+            color: #111827;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        p.body {
+            font-size: 14px;
+            color: #4b5563;
+            margin-bottom: 24px;
+        }
+        .actions { display: flex; gap: 8px; }
+        .btn {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            border: 1px solid transparent;
+            transition: background .15s;
+        }
+        .btn-primary { background: #111827; color: #fff; }
+        .btn-primary:hover { background: #000; }
+        .btn-secondary {
+            background: #fff;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+        .btn-secondary:hover { background: #f9fafb; }
+        @media (prefers-color-scheme: dark) {
+            body { background: #0f1115; color: #e5e7eb; }
+            .card { background: #16181d; border-color: #2a2e36; }
+            h1 { color: #f3f4f6; }
+            .subtitle, p.body { color: #9ca3af; }
+            .meta { border-color: #2a2e36; }
+            .meta-row span:last-child { color: #e5e7eb; }
+            .btn-secondary { background: transparent; color: #e5e7eb; border-color: #374151; }
+            .btn-secondary:hover { background: #1f232b; }
+            .icon { background: #2a1414; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h1>Account restricted</h1>
+        <p class="subtitle">Access to this account has been temporarily suspended.</p>
+
+        <div class="meta">
+            <div class="meta-row"><span>Case ID</span><span id="caseId">{{CASE_ID}}</span></div>
+            <div class="meta-row"><span>Appeal by</span><span id="deadline">{{APPEAL_DEADLINE}}</span></div>
+        </div>
+
+        <p class="body">If you believe this is a mistake, you can submit an appeal. Include your case ID for faster review.</p>
+
+        <div class="actions">
+            <a href="/" class="btn btn-secondary">Return home</a>
+            <button class="btn btn-primary" onclick="openAppealEmail()">Submit appeal</button>
+        </div>
+    </div>
+
+    <script>
+        if (window.Telegram?.WebApp) {
+            try { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); } catch (_) {}
+        }
+        (function fill() {
+            try {
+                var qs = new URLSearchParams(location.search);
+                var caseId = qs.get('caseId');
+                var deadline = qs.get('deadline');
+                if (deadline) { try { deadline = new Date(deadline).toLocaleDateString(); } catch (_) {} }
+                var cEl = document.getElementById('caseId');
+                var dEl = document.getElementById('deadline');
+                if (cEl) cEl.textContent = caseId || (cEl.textContent.indexOf('{{') === 0 ? 'N/A' : cEl.textContent);
+                if (dEl) dEl.textContent = deadline || (dEl.textContent.indexOf('{{') === 0 ? 'N/A' : dEl.textContent);
+            } catch (_) {}
+        })();
+        function openAppealEmail() {
+            var caseId = (document.getElementById('caseId')?.textContent || 'N/A').trim();
+            var subject = encodeURIComponent('Appeal Request - Case: ' + caseId);
+            var body = encodeURIComponent('Case ID: ' + caseId + '\n\nDear Support Team,\n\nI am writing to appeal my account restriction.\n\n[Please explain your situation]\n\nThank you.');
+            window.location.href = 'mailto:support@starstore.app?subject=' + subject + '&body=' + body;
+        }
+    </script>
+</body>
+</html>

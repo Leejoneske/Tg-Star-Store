@@ -1,0 +1,1472 @@
+
+/* Additional Dark Theme Fixes for Specific Components */
+
+/* Fix Blue Buttons in Dark Theme */
+[data-theme="dark"] #connectWallet {
+    background: var(--surface-elevated) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+
+[data-theme="dark"] #connectWallet:hover {
+    background: var(--surface-muted) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] #connectWallet.wallet-connected {
+    background: var(--surface-elevated) !important;
+    color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+
+[data-theme="dark"] #connectWallet.wallet-connected:hover {
+    background: var(--surface-muted) !important;
+}
+
+/* Fix Toggle Buttons (Stars/Premium) */
+[data-theme="dark"] .section-toggle {
+    background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .toggle-button {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: none !important;
+}
+
+[data-theme="dark"] .toggle-button.active {
+    background: var(--brand) !important;
+    color: white !important;
+}
+
+[data-theme="dark"] .toggle-button:hover {
+    background: var(--surface-muted) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .toggle-button.active:hover {
+    background: var(--brand-hover) !important;
+    color: white !important;
+}
+
+/* Fix Blue Account Info Box */
+[data-theme="dark"] .bg-blue-50 {
+    background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .border-blue-200 {
+    border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .text-blue-600 {
+    color: var(--brand) !important;
+}
+
+/* Fix Remaining Blue Buttons */
+[data-theme="dark"] .bg-indigo-600 {
+    background: var(--brand) !important;
+}
+
+[data-theme="dark"] .bg-indigo-700 {
+    background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .hover\:bg-indigo-700:hover {
+    background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .focus\:border-indigo-500:focus {
+    border-color: var(--brand) !important;
+}
+
+[data-theme="dark"] .focus\:ring-indigo-200:focus {
+    --tw-ring-color: var(--brand) !important;
+    --tw-ring-opacity: 0.2 !important;
+}
+
+/* Daily Page Calendar Fixes */
+[data-theme="dark"] .calendar-day {
+    background: var(--surface-elevated) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .calendar-day.checked {
+    background: var(--brand) !important;
+    color: white !important;
+}
+
+[data-theme="dark"] .calendar-day.today {
+    border: 2px solid var(--brand) !important;
+    background: var(--surface-elevated) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .calendar-day:hover {
+    background: var(--surface-muted) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .calendar-day.checked:hover {
+    background: var(--brand-hover) !important;
+    color: white !important;
+}
+
+/* History Page Improvements */
+[data-theme="dark"] .loading-spinner {
+    border-color: var(--surface-muted) !important;
+    border-top-color: var(--brand) !important;
+}
+
+/* Add padding between CSV buttons and bottom nav */
+#exportTransactions,
+#exportReferrals {
+    margin-bottom: 80px !important;
+}
+
+/* SweetAlert2 Dark Theme Overrides */
+[data-theme="dark"] .swal2-popup {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .swal2-title {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .swal2-content {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .swal2-confirm {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .swal2-cancel {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .swal2-input {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .swal2-input:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .swal2-html-container {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .swal2-html-container label {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .swal2-html-container input {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .swal2-html-container input:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .swal2-html-container button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .swal2-html-container .text-indigo-600 {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] .swal2-html-container .text-gray-500 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .swal2-html-container .text-gray-700 {
+	color: var(--text) !important;
+}
+
+/* User Profile Display Fixes */
+[data-theme="dark"] .user-profile {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .user-profile .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .user-profile .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .user-profile .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .user-profile .bg-gray-100 {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .user-profile .border-gray-200 {
+	border-color: var(--border) !important;
+}
+
+/* User Display Area Fixes */
+[data-theme="dark"] .user-info-container {
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
+	color: var(--text) !important;
+	box-shadow: 0 4px 16px var(--shadow-subtle) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .user-details {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .profile-image {
+	border: 3px solid var(--brand) !important;
+}
+
+[data-theme="dark"] .profile-image:hover {
+	transform: scale(1.05) !important;
+}
+
+[data-theme="dark"] #username {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #userIdText {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #copyUserIdBtn {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #copyUserIdBtn:hover {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #connectWallet {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #connectWallet:hover {
+	background: var(--brand-hover) !important;
+}
+
+/* Stars/Premium Toggle Fixes */
+[data-theme="dark"] .toggle-button {
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface)) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 6px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .toggle-button.active {
+	background: linear-gradient(135deg, var(--brand), var(--brand-hover)) !important;
+	color: white !important;
+	box-shadow: 0 4px 12px var(--shadow-medium), 0 0 0 1px var(--brand) !important;
+	transform: translateY(-1px) !important;
+}
+
+[data-theme="dark"] .section-toggle {
+	background: var(--surface-muted) !important;
+	border: 1px solid var(--border) !important;
+}
+
+/* Package Section Fixes */
+[data-theme="dark"] .stars-card {
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
+	color: var(--text) !important;
+	box-shadow: 0 4px 12px var(--shadow-subtle) !important;
+	border: 1px solid var(--border) !important;
+	transition: all 0.3s ease !important;
+}
+
+[data-theme="dark"] .premium-card {
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
+	color: var(--text) !important;
+	box-shadow: 0 4px 12px var(--shadow-subtle) !important;
+	border: 1px solid var(--border) !important;
+	transition: all 0.3s ease !important;
+}
+
+[data-theme="dark"] .stars-card .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .premium-card .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .package-option {
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface)) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 8px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .package-option:hover {
+	border-color: var(--brand) !important;
+	box-shadow: 0 8px 25px var(--shadow-medium), 0 0 0 1px var(--brand) !important;
+	transform: translateY(-2px) !important;
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface-subtle)) !important;
+}
+
+[data-theme="dark"] .package-option .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .package-option .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .package-option .bg-gray-100 {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .package-option .border-gray-200 {
+	border-color: var(--border) !important;
+}
+
+/* Sell Page Specific Fixes */
+[data-theme="dark"] .notice-modal {
+	background: rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .notice-content {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .notice-title {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .notice-text {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .notice-button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .notice-button:hover {
+	background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .text-red-700 {
+	color: #f87171 !important;
+}
+
+[data-theme="dark"] .text-blue-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .text-blue-700 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .bg-red-50 {
+	background: rgba(239, 68, 68, 0.1) !important;
+	color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .border-red-400 {
+	border-color: #f87171 !important;
+}
+
+[data-theme="dark"] .bg-blue-50 {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+/* Sell Page Rate Display Fixes */
+[data-theme="dark"] .rate-info {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-700 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .rate-info .bg-gray-50 {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .stars-counter {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .stars-input {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .counter-button {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .counter-button:hover {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+/* How It Works Section Fixes */
+[data-theme="dark"] .how-it-works {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .how-it-works .text-blue-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .how-it-works .text-blue-700 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .how-it-works .text-blue-500 {
+	color: var(--brand) !important;
+}
+
+/* Sell Page Additional Fixes */
+[data-theme="dark"] .bg-white {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .wallet-button {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .wallet-button:hover {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .wallet-button .text-sm {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-summary {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-summary .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-summary .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .transaction-info {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-info .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-info .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-info .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+/* History Page Filter Fixes */
+[data-theme="dark"] .filter-btn {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .filter-btn.filter-active {
+	background: var(--brand) !important;
+	color: white !important;
+	border-color: var(--brand) !important;
+}
+
+[data-theme="dark"] .ref-filter-btn {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .ref-filter-btn.filter-active {
+	background: var(--brand) !important;
+	color: white !important;
+	border-color: var(--brand) !important;
+}
+
+[data-theme="dark"] .status-completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .status-processing {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .status-declined {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .text-green-600 {
+	color: var(--success) !important;
+}
+
+[data-theme="dark"] .text-blue-600 {
+	color: var(--info) !important;
+}
+
+[data-theme="dark"] .text-red-600 {
+	color: var(--error) !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+/* Referral Page Fixes */
+[data-theme="dark"] .withdraw-form input {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .withdraw-form input:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .withdraw-form button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .withdraw-form button:hover {
+	background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .withdrawal-item {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .withdrawal-item:hover {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .withdrawal-item .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .withdrawal-item .text-gray-500 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .withdrawal-item .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .tab-button {
+	background: transparent !important;
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .tab-button.active {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .tab-button.text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .tab-button.text-gray-500 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .border-gray-200 {
+	border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .divide-gray-100 > * + * {
+	border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .bg-gray-100 {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .text-gray-700 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .bg-indigo-50 {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .text-indigo-600 {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] .hover\\:bg-indigo-50:hover {
+	background: var(--brand-hover) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .hover\\:underline:hover {
+	text-decoration: underline !important;
+}
+
+/* Popup and Modal Fixes */
+[data-theme="dark"] .popup {
+	background: rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .popup .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .popup .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .popup .text-gray-700 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .popup input {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .popup input:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .popup button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .popup button:hover {
+	background: var(--brand-hover) !important;
+}
+
+/* Referral Link Area Fixes */
+[data-theme="dark"] .clean-card {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .clean-card .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .clean-card .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .clean-card .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .referral-code {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .referral-code:hover {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .copy-button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .copy-button:hover {
+	background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .share-button {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .share-button:hover {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+/* Order Timeline Dark Theme Fixes */
+[data-theme="dark"] .transaction-step {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-step .step-number {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step .step-number.active {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step .step-number.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step .step-number.pending {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-step .step-title {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-step .step-description {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-step .step-date {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .transaction-step.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step.pending {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-step.processing {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step.failed {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+/* Override inline styles for timeline */
+[data-theme="dark"] .transaction-step[style*="opacity"] {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .step-number[style*="width"] {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+/* More specific timeline overrides */
+[data-theme="dark"] #transactionTimeline .transaction-step {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.active {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.pending {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-title {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-description {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-date {
+	color: var(--text-secondary) !important;
+}
+
+/* Override inline styles in timeline */
+[data-theme="dark"] #transactionTimeline .transaction-step[style*="padding-left"] {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number[style*="background: #10b981"] {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number[style*="background: #3b82f6"] {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number[style*="background: #e5e7eb"] {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium[style*="color: #10b981"] {
+	color: var(--success) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium[style*="color: #3b82f6"] {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium[style*="color: #6b7280"] {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .text-gray-500 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+/* Force override all timeline inline styles */
+[data-theme="dark"] #transactionTimeline * {
+	color: inherit !important;
+}
+
+[data-theme="dark"] #transactionTimeline .transaction-step {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.active {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .text-xs {
+	color: var(--text-muted) !important;
+}
+
+/* Transaction Details Dialog Dark Theme */
+[data-theme="dark"] .transaction-details-overlay {
+	background: rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-details-content {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel h3 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-500 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-700 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .font-mono {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .close-details {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .close-details:hover {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-white {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .border-gray-200 {
+	border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-800 {
+	color: var(--text) !important;
+}
+
+/* Transaction Details Loading State */
+[data-theme="dark"] #transaction-details-loading {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transaction-details-loading div {
+	color: var(--text-muted) !important;
+}
+
+/* Transaction Details Status Badges */
+[data-theme="dark"] .transaction-details-panel .status-completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .status-processing {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .status-pending {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .status-declined {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+/* Transaction Details Progress Bar */
+[data-theme="dark"] .transaction-details-panel .progress-bar {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .progress-bar-fill {
+	background: var(--brand) !important;
+}
+
+/* Transaction Details Buttons */
+[data-theme="dark"] .transaction-details-panel button {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel button:hover {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+/* Transaction Status Badge Dark Theme */
+[data-theme="dark"] .transaction-details-panel .bg-yellow-100 {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-yellow-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-green-100 {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-green-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-blue-100 {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-blue-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-red-100 {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-red-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-gray-100 {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-800 {
+	color: var(--text) !important;
+}
+
+/* Status badge specific overrides */
+[data-theme="dark"] #transactionStatusBadge {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-yellow-100 {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-green-100 {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-blue-100 {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-red-100 {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+/* Telegram Fullscreen Enhancements */
+.telegram-fullscreen {
+	/* Removed height and overflow restrictions that were blocking scroll */
+}
+
+.telegram-fullscreen .app-container {
+	max-width: 100% !important;
+	width: 100% !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	min-height: 100vh !important;
+}
+
+.telegram-fullscreen .main-content {
+	/* Removed padding restrictions that were affecting layout */
+}
+
+.telegram-fullscreen .container {
+	max-width: 100% !important;
+	width: 100% !important;
+	padding-left: 16px !important;
+	padding-right: 16px !important;
+}
+
+/* Immersive Mode Styles */
+.telegram-immersive {
+	/* Removed height and overflow restrictions that were blocking scroll */
+}
+
+.telegram-immersive .app-container {
+	padding-top: 0 !important;
+	padding-bottom: 0 !important;
+	margin: 0 !important;
+	border-radius: 0 !important;
+}
+
+.telegram-immersive .header {
+	position: fixed !important;
+	top: 0 !important;
+	left: 0 !important;
+	right: 0 !important;
+	z-index: 1000 !important;
+	background: var(--surface) !important;
+}
+
+.telegram-immersive .main-content {
+	padding-top: 60px !important;
+}
+
+/* Gamify Mode Styles */
+.telegram-gamify .package-card {
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+	transform: translateZ(0) !important;
+	backface-visibility: hidden !important;
+}
+
+.telegram-gamify .package-card:hover {
+	transform: translateY(-4px) scale(1.02) !important;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+}
+
+.telegram-gamify .button {
+	transition: all 0.2s ease !important;
+	transform: translateZ(0) !important;
+}
+
+.telegram-gamify .button:active {
+	transform: scale(0.95) !important;
+}
+
+.telegram-gamify .interactive {
+	cursor: pointer !important;
+	user-select: none !important;
+	-webkit-tap-highlight-color: transparent !important;
+}
+
+/* Fullscreen Navigation */
+.telegram-fullscreen .bottom-nav {
+	position: fixed !important;
+	bottom: 0 !important;
+	left: 0 !important;
+	right: 0 !important;
+	z-index: 1000 !important;
+	background: var(--surface) !important;
+	border-top: 1px solid var(--border) !important;
+}
+
+.telegram-fullscreen .main-content {
+	padding-bottom: 80px !important;
+}
+
+/* Safe Area Support */
+.telegram-fullscreen .safe-area-top {
+	padding-top: env(safe-area-inset-top) !important;
+}
+
+.telegram-fullscreen .safe-area-bottom {
+	padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+.telegram-fullscreen .safe-area-left {
+	padding-left: env(safe-area-inset-left) !important;
+}
+
+.telegram-fullscreen .safe-area-right {
+	padding-right: env(safe-area-inset-right) !important;
+}
+
+/* Immersive Animations */
+@keyframes slideInFromTop {
+	from {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes fadeInScale {
+	from {
+		transform: scale(0.9);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+.telegram-immersive .app-container {
+	animation: slideInFromTop 0.3s ease-out !important;
+}
+
+.telegram-gamify .package-card {
+	animation: fadeInScale 0.3s ease-out !important;
+}
+
+/* Dark Theme Fullscreen Enhancements */
+[data-theme="dark"] .telegram-fullscreen .app-container {
+    background: linear-gradient(135deg, var(--surface-muted), var(--surface-subtle)) !important;
+    color: var(--text) !important;
+}
+
+/* Enhanced App Container with Visual Hierarchy */
+[data-theme="dark"] .app-container {
+    background: linear-gradient(135deg, var(--surface), var(--surface-subtle)) !important;
+    color: var(--text) !important;
+    box-shadow: 0 8px 32px var(--shadow-medium) !important;
+    border: 1px solid var(--border) !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-theme="dark"] .telegram-immersive .header {
+	background: #1a1a1a !important;
+}
+
+[data-theme="dark"] .telegram-fullscreen .bottom-nav {
+	background: #1a1a1a !important;
+}
+
+/* Wallet Address Visibility Improvements */
+[data-theme="dark"] .wallet-address {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	padding: 8px 12px !important;
+	border-radius: 6px !important;
+	font-family: monospace !important;
+	font-size: 14px !important;
+}
+
+[data-theme="dark"] .wallet-address:hover {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .wallet-address-display {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	padding: 8px 12px !important;
+	border-radius: 6px !important;
+	font-family: monospace !important;
+	font-size: 14px !important;
+}
+
+[data-theme="dark"] .wallet-address-display:hover {
+	background: var(--surface) !important;
+}
+
+/* Input field wallet address */
+[data-theme="dark"] #walletDialogAddress {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #walletDialogAddress:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] #withdrawWallet {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #withdrawWallet:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Withdrawal Area Fixes */
+[data-theme="dark"] #withdrawAllBtn {
+	color: var(--brand) !important;
+	background: transparent !important;
+	border: none !important;
+}
+
+[data-theme="dark"] #withdrawAllBtn:hover {
+	color: var(--brand-hover) !important;
+	text-decoration: underline !important;
+}
+
+[data-theme="dark"] .withdraw-all-button {
+	color: var(--brand) !important;
+	background: transparent !important;
+	border: none !important;
+}
+
+[data-theme="dark"] .withdraw-all-button:hover {
+	color: var(--brand-hover) !important;
+	text-decoration: underline !important;
+}
+
+/* ===== ENHANCED VISUAL HIERARCHY AND SUBTLE EFFECTS ===== */
+
+/* Buy Buttons with Enhanced Depth */
+[data-theme="dark"] .buy-button {
+	background: linear-gradient(135deg, var(--brand), var(--brand-hover)) !important;
+	color: white !important;
+	border: 1px solid var(--brand) !important;
+	box-shadow: 0 4px 12px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .buy-button:hover {
+	background: linear-gradient(135deg, var(--brand-hover), var(--brand)) !important;
+	border-color: var(--brand-hover) !important;
+	box-shadow: 0 6px 20px var(--shadow-medium), 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+	transform: translateY(-2px) !important;
+}
+
+/* Enhanced Input Fields */
+[data-theme="dark"] input:not([type="radio"]):not([type="checkbox"]), 
+[data-theme="dark"] textarea, 
+[data-theme="dark"] select {
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: inset 0 2px 4px var(--shadow-subtle) !important;
+	transition: all 0.3s ease !important;
+}
+
+[data-theme="dark"] input:focus:not([type="radio"]):not([type="checkbox"]), 
+[data-theme="dark"] textarea:focus, 
+[data-theme="dark"] select:focus {
+	border-color: var(--brand) !important;
+	box-shadow: inset 0 2px 4px var(--shadow-subtle), 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+	outline: none !important;
+}
+
+/* Enhanced Cards and Containers */
+[data-theme="dark"] .card,
+[data-theme="dark"] .container,
+[data-theme="dark"] .content-surface,
+[data-theme="dark"] .clean-card {
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 4px 16px var(--shadow-subtle) !important;
+	transition: all 0.3s ease !important;
+}
+
+/* Subtle Hover Effects for Interactive Elements */
+[data-theme="dark"] .card:hover,
+[data-theme="dark"] .clean-card:hover {
+	box-shadow: 0 8px 24px var(--shadow-medium) !important;
+	transform: translateY(-1px) !important;
+}
+
+/* Enhanced Section Toggles */
+[data-theme="dark"] .section-toggle {
+	background: linear-gradient(135deg, var(--surface-muted), var(--surface)) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 8px var(--shadow-subtle) !important;
+	transition: all 0.3s ease !important;
+}
+
+/* Enhanced Toggle Buttons */
+[data-theme="dark"] .toggle-button {
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface)) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 6px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .toggle-button.active {
+	background: linear-gradient(135deg, var(--brand), var(--brand-hover)) !important;
+	color: white !important;
+	box-shadow: 0 4px 12px var(--shadow-medium), 0 0 0 1px var(--brand) !important;
+	transform: translateY(-1px) !important;
+}
+
+/* Enhanced Profile Elements */
+[data-theme="dark"] .profile-image {
+	border: 3px solid var(--brand) !important;
+	box-shadow: 0 4px 16px var(--shadow-subtle), 0 0 0 1px var(--border) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .profile-image:hover {
+	transform: scale(1.05) !important;
+	box-shadow: 0 8px 24px var(--shadow-medium), 0 0 0 2px var(--brand) !important;
+}
+
+/* Global Smooth Transitions */
+[data-theme="dark"] * {
+	transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease !important;
+}
+
