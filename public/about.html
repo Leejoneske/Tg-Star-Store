@@ -403,7 +403,14 @@
 
         // About Link Handler
         document.getElementById('aboutLink')?.addEventListener('click', () => {
-            window.location.href = '/blog';
+            const blogUrl = 'https://blog.starstore.app/';
+            if (window.Telegram?.WebApp?.openLink) {
+                // MiniApp: Open in external browser
+                window.Telegram.WebApp.openLink(blogUrl);
+            } else {
+                // Web: Open in new window
+                window.open(blogUrl, '_blank', 'noopener');
+            }
         });
 
         // Send Feedback Link Handler
