@@ -3030,15 +3030,20 @@ function isValidTONAddress(address) {
         return true;
     }
     
-    // Check for base64url format (48 characters)
-    const tonAddressRegex = /^[A-Za-z0-9_-]{48}$/;
+    // Check for user-friendly format.
+    // Keep this intentionally flexible: accept common prefixes and small length variance.
+    // Canonical format is usually 48 chars, but users may paste variants from wallets.
+    const tonAddressRegex = /^[A-Za-z0-9_-]{47,50}$/;
     if (tonAddressRegex.test(trimmed)) {
-        // Additional validation: check if it looks like a valid TON address
-        const validPrefixes = ['UQ', 'EQ', 'kQ', '0Q'];
+        const validPrefixes = ['UQ', 'EQ', 'kQ', '0Q', 'E', 'U', 'k', '0'];
         return validPrefixes.some(prefix => trimmed.startsWith(prefix));
     }
     
     return false;
+}
+
+function walletValidationHelpText() {
+    return `❌ Invalid wallet address twice in a row.\n\nNeed a TON/USDT (TON network) wallet format.\nVideo guide: https://t.me/StarStore_Chat/18722\n\nProcess stopped. Please run /wallet again to restart.`;
 }
 
 // ==================== BAN SYSTEM HELPERS ====================
@@ -6184,18 +6189,25 @@ bot.on('callback_query', async (query) => {
             await bot.sendMessage(chatId, `Please send the new wallet address for ${bucket.selections.size} selected item(s). If needed, you can add a memo after a comma.\n\nSome characters will be removed automatically.\n\nThis request will time out in 10 minutes.`);
             const selectionAt = Date.now();
 
+            let invalidAttempts = 0;
             const onMessage = async (msg) => {
                 if (msg.chat.id !== chatId) return;
-                bot.removeListener('message', onMessage);
                 if (Date.now() - selectionAt > 10 * 60 * 1000) {
+                    bot.removeListener('message', onMessage);
                     return bot.sendMessage(chatId, '⌛ Wallet update timed out. Please run /wallet again.');
                 }
                 const input = (msg.text || '').trim();
-                if (!input || input.length < 10) {
-                    return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
-                }
                 // Parse wallet input with special character handling
                 const { address: newAddress, memo: newMemoTag } = parseWalletInput(input);
+                if (!newAddress || !isValidTONAddress(newAddress)) {
+                    invalidAttempts += 1;
+                    if (invalidAttempts >= 2) {
+                        bot.removeListener('message', onMessage);
+                        return bot.sendMessage(chatId, walletValidationHelpText());
+                    }
+                    return bot.sendMessage(chatId, '❌ That does not look like a valid TON wallet. Please try one more time.');
+                }
+                bot.removeListener('message', onMessage);
                 
                 // Log the parsing result for debugging
                 console.log('Wallet input parsing:', {
@@ -6297,18 +6309,25 @@ bot.on('callback_query', async (query) => {
             await bot.sendMessage(chatId, `Please send the new wallet address for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}. If needed, add a memo after a comma.\n\nSome characters will be removed automatically.\n\nThis request will time out in 10 minutes.`);
 
             const startedAtSingle = Date.now();
+            let invalidAttempts = 0;
             const onMessage = async (msg) => {
                 if (msg.chat.id !== chatId) return;
-                bot.removeListener('message', onMessage);
                 if (Date.now() - startedAtSingle > 10 * 60 * 1000) {
+                    bot.removeListener('message', onMessage);
                     return bot.sendMessage(chatId, '⌛ Wallet update timed out. Please run /wallet again.');
                 }
                 const input = (msg.text || '').trim();
-                if (!input || input.length < 10) {
-                    return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
-                }
                 // Parse wallet input with special character handling
                 const { address: newAddress, memo: newMemoTag } = parseWalletInput(input);
+                if (!newAddress || !isValidTONAddress(newAddress)) {
+                    invalidAttempts += 1;
+                    if (invalidAttempts >= 2) {
+                        bot.removeListener('message', onMessage);
+                        return bot.sendMessage(chatId, walletValidationHelpText());
+                    }
+                    return bot.sendMessage(chatId, '❌ That does not look like a valid TON wallet. Please try one more time.');
+                }
+                bot.removeListener('message', onMessage);
                 
                 // Log the parsing result for debugging
                 console.log('Wallet input parsing:', {
@@ -20739,5 +20758,3 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
 });
 // Webhook fix - 1776877634
 //some harmless comment
-
-
