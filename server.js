@@ -17183,13 +17183,8 @@ bot.onText(/\/cbo$/, async (msg) => {
 
                 // Send notification to user
                 try {
-                    const userNotification = `🛍️ <b>Buy order recreated!</b>\n\n` +
-                        `Order ID: <code>${order.id}</code>\n` +
-                        `Amount: ${order.amount} USDT\n` +
-                        `Stars: ${order.stars}\n` +
-                        `Status: Pending approval\n\n` +
-                        `An admin will review and complete your order.`;
-                    const sent = await bot.sendMessage(order.telegramId, userNotification, { parse_mode: 'HTML' });
+                    const userNotification = `🎉 Order #${order.id} submitted!\n\nAmount: ${order.amount} USDT\nStars: ${order.stars || 0}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
+                    const sent = await bot.sendMessage(order.telegramId, userNotification);
                     order.userMessageId = sent?.message_id;
                     await order.save();
                 } catch (err) {
@@ -17325,13 +17320,8 @@ bot.onText(/\/cbo$/, async (msg) => {
                     
                     // Send notification to user
                     try {
-                        const userNotification = `🛍️ <b>Buy order created!</b>\n\n` +
-                            `Order ID: <code>${newOrder.id}</code>\n` +
-                            `Amount: ${data.amount} USDT\n` +
-                            `Stars: ${data.stars}\n` +
-                            `Status: Pending approval\n\n` +
-                            `An admin will review and complete your order.`;
-                        const sent = await bot.sendMessage(data.telegramId, userNotification, { parse_mode: 'HTML' });
+                        const userNotification = `🎉 Order #${newOrder.id} submitted!\n\nAmount: ${data.amount} USDT\nStars: ${data.stars}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
+                        const sent = await bot.sendMessage(data.telegramId, userNotification);
                         newOrder.userMessageId = sent?.message_id;
                         await newOrder.save();
                     } catch (err) {
