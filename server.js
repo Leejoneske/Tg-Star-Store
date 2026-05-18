@@ -17141,11 +17141,11 @@ bot.onText(/\/cbo$/, async (msg) => {
                     ]] 
                 };
 
-                let adminMessage = `🛒 BUY ORDER\n\nOrder ID: ${order.id}\nUser: @${order.username}\nAmount: ${order.amount} USDT\nStars: ${order.stars || 0}`;
-                
+                let userLocationStr = '';
                 if (order.userLocation && order.userLocation.city) {
-                    adminMessage += `\nLocation: ${order.userLocation.city}, ${order.userLocation.country || 'Unknown'}`;
+                    userLocationStr = `\nLocation: ${order.userLocation.city}, ${order.userLocation.country || 'Unknown'}`;
                 }
+                let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})${userLocationStr}\nAmount: ${order.amount} USDT\nStars: ${order.stars || 0}`;
                 
                 let adminNotificationSucceeded = false;
                 for (const adminIdTarget of adminIds) {
@@ -17276,11 +17276,11 @@ bot.onText(/\/cbo$/, async (msg) => {
                         verificationAttempts: 0
                     });
                     
-                    let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${data.username} (ID: ${data.telegramId})\nAmount: ${data.amount} USDT\nStars: ${data.stars}`;
-                    
+                    let userLocationStr = '';
                     if (data.userLocation && data.userLocation.city) {
-                        adminMessage += `\nLocation: ${data.userLocation.city}, ${data.userLocation.country || 'Unknown'}`;
+                        userLocationStr = `\nLocation: ${data.userLocation.city}, ${data.userLocation.country || 'Unknown'}`;
                     }
+                    let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${data.username} (ID: ${data.telegramId})${userLocationStr}\nAmount: ${data.amount} USDT\nStars: ${data.stars}`;
                     
                     const adminKeyboard = { 
                         inline_keyboard: [[ 
