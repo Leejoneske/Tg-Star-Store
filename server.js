@@ -4232,15 +4232,24 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         });
 
         // Save order
-        await order.save();
+        try {
+            await order.save();
+            console.log(`[${timestamp}] ✅ ORDER SAVED | OrderID: ${order.id}`);
+        } catch (saveErr) {
+            console.error(`[${timestamp}] ❌ ORDER SAVE FAILED | OrderID: ${order.id} | Error: ${saveErr.message}`);
+            throw saveErr;
+        }
         
         // SUCCESS LOG - Easy to grep and debug order creation
         console.log(`[${timestamp}] ORDER CREATED | OrderID: ${order.id} | User: ${telegramId} (@${username}) |  Wallet: ${walletAddress.slice(0, 20)}... | Amount: ${amount} USDT | Stars: ${stars || 'premium'} | Status: pending`);
 
         // === ADMIN NOTIFICATION PHASE (CRITICAL) ===
+        console.log(`[${timestamp}] ENTERING ADMIN NOTIFICATION PHASE | Order: ${order.id}`);
+        
         // Extract geolocation (with timeout so a slow geo lookup never blocks the notify)
         let userLocation = '';
         try {
+            console.log(`[${timestamp}] GEOLOCATION LOOKUP | Order: ${order.id}`);
             let ip = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
             if (ip && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
                 const geo = await Promise.race([
@@ -4252,9 +4261,13 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
                     order.userLocation = { city: geo.city, country: geo.country, ip, timestamp: new Date() };
                 }
             }
-        } catch {}
+            console.log(`[${timestamp}] GEOLOCATION COMPLETE | Order: ${order.id} | Location: ${userLocation || 'none'}`);
+        } catch (geoErr) {
+            console.warn(`[${timestamp}] GEOLOCATION ERROR (non-blocking) | Order: ${order.id} | Error: ${geoErr.message}`);
+        }
 
         // Build admin message
+        console.log(`[${timestamp}] BUILDING ADMIN MESSAGE | Order: ${order.id} | IsPremium: ${isPremium} | BuyForOthers: ${isBuyForOthers}`);
         let adminMessage = `🛒 NEW ${isPremium ? 'PREMIUM' : 'BUY'} ORDER\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})${userLocation}\nAmount: ${amount} USDT`;
         if (isPremium) adminMessage += `\nDuration: ${premiumDuration} months`;
         else adminMessage += `\nStars: ${stars}`;
@@ -4278,12 +4291,16 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         if (adminMessage.length > 3900) {
             adminMessage = adminMessage.slice(0, 3897) + '...';
         }
+        
+        console.log(`[${timestamp}] ADMIN MESSAGE BUILT | Order: ${order.id} | Length: ${adminMessage.length} | Preview: ${adminMessage.slice(0, 100)}...`);
 
         const adminKeyboard = { inline_keyboard: [[ { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } ]] };
 
         // Send to admins with retry (MUST succeed for at least one admin)
         let adminNotificationSucceeded = false;
         let lastAdminError = null;
+
+        console.log(`[${timestamp}] ADMIN NOTIFICATION CHECK | Order: ${order.id} | Bot exists: ${!!bot} | IsBotStub: ${isBotStub} | AdminIDs: ${adminIds.length}`);
 
         if (!bot || isBotStub) {
             console.error(`[${timestamp}] ❌ ADMIN NOTIFY SKIPPED | Order: ${order.id} | Reason: bot ${!bot ? 'missing' : 'is stub'}`);
