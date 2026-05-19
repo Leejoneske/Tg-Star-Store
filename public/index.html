@@ -4195,6 +4195,42 @@ async function handlePurchase(item) {
                 
                 window.__paymentPending = false;
                 return; // Exit payment flow - order is complete
+            } else if (response && response.status === 'pending') {
+                // Order creation failed after retries - show "Order Pending" UI with support option
+                if (loadingShown) {
+                    Swal.close();
+                    loadingShown = false;
+                }
+                
+                console.warn('Order creation pending - retries exhausted:', response);
+                
+                await Swal.fire({
+                    title: 'Order Pending',
+                    html: `
+                        <div class="text-center space-y-4">
+                            <div class="text-base text-gray-700">${response.message || 'Your order is being processed manually.'}</div>
+                            <div class="text-sm text-gray-600 space-y-2">
+                                <div><strong>Next step:</strong> Contact support to verify your order</div>
+                                <div class="text-xs text-gray-500 mt-3">${response.supportInfo?.description || ''}</div>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonText: 'Contact Support',
+                    cancelButtonText: 'Check Later',
+                    confirmButtonColor: '#3b82f6',
+                    customClass: {
+                        popup: 'rounded-xl shadow-lg'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed && response.supportInfo?.telegram) {
+                        window.open(`https://t.me/${response.supportInfo.telegram.replace('@', '')}`, '_blank');
+                    }
+                });
+                
+                window.__paymentPending = false;
+                return; // Exit payment flow
             } else {
                 throw new Error(response?.error || TranslationUtils.get('orderFailed'));
             }

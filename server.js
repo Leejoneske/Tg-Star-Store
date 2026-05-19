@@ -3976,7 +3976,73 @@ app.post('/api/validate-usernames', requireTelegramAuth, (req, res) => {
 app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTestnet, paymentCurrency } = req.body;
     const requestKey = transactionHash ? `tx:${transactionHash}` : `order:${telegramId}:${walletAddress}:${stars}`;
+    
+    // Wrap entire order creation with overall timeout and retry logic
+    let lastError = null;
+    const maxRetries = 3;
+    const orderCreationTimeout = 30000; // 30 second timeout
+    
+    for (let attemptNumber = 1; attemptNumber <= maxRetries; attemptNumber++) {
+        try {
+            // Wrap in timeout promise
+            const orderPromise = processOrderCreationInternal(req, res, telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTestnet, paymentCurrency, requestKey);
+            
+            const result = await Promise.race([
+                orderPromise,
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error(`Order creation timeout on attempt ${attemptNumber}/${maxRetries}`)), orderCreationTimeout)
+                )
+            ]);
+            
+            // If successful, return early
+            if (result?.completed) {
+                return;
+            }
+        } catch (err) {
+            lastError = err;
+            console.warn(`[${new Date().toISOString()}] ORDER CREATION ATTEMPT ${attemptNumber}/${maxRetries} FAILED | Error: ${err.message}`);
+            
+            if (attemptNumber < maxRetries) {
+                // Retry with exponential backoff
+                const backoffMs = Math.min(1000 * Math.pow(2, attemptNumber - 1), 5000);
+                console.log(`[${new Date().toISOString()}] Retrying order creation in ${backoffMs}ms...`);
+                await new Promise(r => setTimeout(r, backoffMs));
+                continue;
+            }
+        }
+    }
+    
+    // If we get here, all retries failed
+    processingRequests.delete(requestKey);
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] ❌ ORDER CREATION FAILED AFTER ${maxRetries} ATTEMPTS | Error: ${lastError?.message}`);
+    
+    // Auto-report critical failure to admins before returning to user
+    await sendSilentAdminErrorReport('ORDER_CREATION_FAILED_RETRY_EXHAUSTED', {
+        telegramId,
+        username,
+        amount: req.body?.totalAmount,
+        walletAddress,
+        attempts: maxRetries
+    }, {
+        message: lastError?.message,
+        finalError: lastError?.stack
+    });
+    
+    // Return "pending" state instead of error so user doesn't get confused
+    res.json({ 
+        success: false,
+        status: 'pending',
+        message: 'Your order is being processed. Please wait and check your order history.',
+        contactSupport: true,
+        supportInfo: {
+            telegram: '@StarStore_Chat',
+            description: `Order failed after ${maxRetries} attempts. Amount: ${req.body?.totalAmount} USDT`
+        }
+    });
+});
 
+async function processOrderCreationInternal(req, res, telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTestnet, paymentCurrency, requestKey) {
     try {
         const timestamp = new Date().toISOString();
         
@@ -4069,20 +4135,55 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         }
         console.log(`[${timestamp}] VALIDATION: Username OK '${username}'. Checking ban status...`);
 
-        // Check ban status using Warning schema
-        const isBanned = await checkUserBanStatus(telegramId.toString());
+        // Check ban status using Warning schema with timeout
+        let isBanned = false;
+        try {
+            isBanned = await Promise.race([
+                checkUserBanStatus(telegramId.toString()),
+                new Promise((resolve, reject) => 
+                    setTimeout(() => reject(new Error('Ban status check timeout')), 5000)
+                )
+            ]);
+        } catch (banErr) {
+            console.error(`[${timestamp}] VALIDATION: Ban status check failed (timeout or error) | ${banErr.message}`);
+            // Don't fail - treat as not banned
+            isBanned = false;
+        }
+        
         if (isBanned) {
             processingRequests.delete(requestKey);
-            const banDetails = await getBanDetails(telegramId.toString());
-            return res.status(403).json({ 
-                error: 'Your account is restricted and cannot place orders',
-                caseId: banDetails?.caseId,
-                message: "Contact support with your case ID to appeal"
-            });
+            try {
+                const banDetails = await Promise.race([
+                    getBanDetails(telegramId.toString()),
+                    new Promise((resolve) => 
+                        setTimeout(() => resolve(null), 3000)
+                    )
+                ]);
+                return res.status(403).json({ 
+                    error: 'Your account is restricted and cannot place orders',
+                    caseId: banDetails?.caseId,
+                    message: "Contact support with your case ID to appeal"
+                });
+            } catch (e) {
+                return res.status(403).json({ error: 'Your account is restricted' });
+            }
         }
 
-        // Keep legacy check for backward compatibility
-        const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
+        // Keep legacy check for backward compatibility with timeout
+        let bannedUser = null;
+        try {
+            bannedUser = await Promise.race([
+                BannedUser.findOne({ users: telegramId.toString() }),
+                new Promise((resolve, reject) => 
+                    setTimeout(() => reject(new Error('Legacy ban check timeout')), 5000)
+                )
+            ]);
+            console.log(`[${timestamp}] VALIDATION: Legacy ban check OK. bannedUser=${!!bannedUser}`);
+        } catch (legacyErr) {
+            console.error(`[${timestamp}] VALIDATION: Legacy ban check failed (timeout or error) | ${legacyErr.message}`);
+            bannedUser = null;
+        }
+        
         if (bannedUser) {
             processingRequests.delete(requestKey);
             return res.status(403).json({ error: 'You are banned from placing orders' });
@@ -4099,17 +4200,34 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             }
         }
 
-        const recentOrder = await BuyOrder.findOne({
-            telegramId,
-            dateCreated: { $gte: new Date(Date.now() - 60000) },
-            status: { $in: ['pending', 'processing'] }
-        });
+        // Check for recent duplicate orders with timeout protection
+        console.log(`[${timestamp}] VALIDATION: Checking duplicate orders (with timeout protection)...`);
+        let recentOrder = null;
+        try {
+            recentOrder = await Promise.race([
+                BuyOrder.findOne({
+                    telegramId,
+                    dateCreated: { $gte: new Date(Date.now() - 60000) },
+                    status: { $in: ['pending', 'processing'] }
+                }),
+                new Promise((resolve, reject) => 
+                    setTimeout(() => reject(new Error('Duplicate order check timeout')), 5000)
+                )
+            ]);
+            console.log(`[${timestamp}] VALIDATION: Duplicate order check complete. found=${!!recentOrder}`);
+        } catch (queryErr) {
+            console.error(`[${timestamp}] VALIDATION ERROR: Duplicate order query failed | Error: ${queryErr.message}`);
+            // Don't fail the order - just log and continue (treat as if no recent order)
+            recentOrder = null;
+        }
+        
         if (recentOrder) {
             processingRequests.delete(requestKey);
             return res.status(400).json({ error: 'Please wait before placing another order' });
         }
 
         // Wallet validation
+        console.log(`[${timestamp}] VALIDATION: Wallet validation (testnet=${isTestnet}, admin=${requesterIsAdmin})...`);
         if (isTestnet === true && !requesterIsAdmin) {
             processingRequests.delete(requestKey);
             return res.status(400).json({ error: 'Testnet is not supported' });
@@ -4404,28 +4522,15 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         // Always return success if order was saved (order exists in DB regardless of admin notification)
         processingRequests.delete(requestKey);
         res.json({ success: true, order });
+        
+        return { completed: true };
 
     } catch (err) {
-        processingRequests.delete(requestKey);
-        const timestamp = new Date().toISOString();
-        const userId = req.body?.telegramId;
-        console.error(`[${timestamp}] ❌ ORDER CREATION ERROR | User: ${userId} | Error: ${err.message} | Stack: ${err.stack ? err.stack.split('\n')[1].trim() : 'N/A'}`);
-        
-        // Report error to admins silently
-        await sendSilentAdminErrorReport('ORDER_CREATION_ERROR', {
-            telegramId: userId,
-            username: req.body?.username,
-            amount: req.body?.totalAmount,
-            walletAddress: req.body?.walletAddress
-        }, {
-            message: err.message,
-            code: err.code,
-            stack: err.stack
-        });
-        
-        res.status(500).json({ error: 'Failed to create order. Please try again.' });
+        // Re-throw so outer retry handler catches it
+        console.error(`[${new Date().toISOString()}] ❌ INTERNAL ORDER CREATION ERROR | Error: ${err.message}`);
+        throw err;
     }
-});
+}
 
 function sanitizeUsername(username) {
     if (!username) return null;
