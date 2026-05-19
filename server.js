@@ -3991,58 +3991,83 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
         // Log incoming request - IMPORTANT for troubleshooting
-        console.log(`[${timestamp}] VALIDATION COMPLETE - proceeding to amount calculation`);
-        console.log(`[${timestamp}] AMOUNT CALC START | User: ${telegramId} | Item: ${isPremium ? `${premiumDuration}mo Premium` : `${stars} stars`} | BuyForOthers: ${isBuyForOthers} | Recipients: ${totalRecipients}`);
+        console.log(`[${timestamp}] ORDER CREATE REQUEST | User: ${telegramId} (@${username}) | Wallet: ${walletAddress.slice(0, 20)}... | Item: ${isPremium ? premiumDuration + 'mo Premium' : stars + ' stars'} | Amount from frontend: ${req.body.totalAmount} USDT`);
 
-        // Log what we calculated server-side
-        const clientSubmittedAmount = req.body.totalAmount ? Number(req.body.totalAmount) : null;
-        console.log(`[AMOUNT CALC] User: ${telegramId} | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Type: ${isStandardPackage ? 'standard' : 'custom'} | Recipients: ${totalRecipients} | Base: ${basePrice} USDT | Total: ${amount} USDT | Client: ${clientSubmittedAmount}`);
-        
-        // SECURITY CHECK: Validate client amount against server calculation
-        // Use strict validation: amounts MUST match within 0.01 USDT
-        // (unless client never validated, then allow 0.03 for rate changes)
-        const STRICT_TOLERANCE = 0.01;    // For validated orders
-        const LOOSE_TOLERANCE = 0.03;     // For orders without validation
-        
-        if (clientSubmittedAmount) {
-            const diff = Math.abs(clientSubmittedAmount - amount);
+        // Prevent duplicate requests
+        if (processingRequests.has(requestKey)) {
+            return res.status(429).json({ error: 'Request already being processed. Please wait...' });
+        }
+        processingRequests.set(requestKey, Date.now());
+
+        // === SERVER-SIDE RATE LIMIT CHECK (Ultimate defense) ===
+        // Even if user clears localStorage, backend enforces the ban
+        console.log(`[RATE CHECK] User ${telegramId} attempting order`);
+        const banCheck = checkPurchaseBan(telegramId);
+        if (banCheck.isBanned) {
+            processingRequests.delete(requestKey);
+            console.warn(`[RATE CHECK] User ${telegramId} is banned (${banCheck.secondsRemaining}s remaining). Recording violation.`);
             
-            // Always use strict tolerance - client should have validated before reaching here
-            if (diff > STRICT_TOLERANCE) {
-                console.warn(`[SECURITY] AMOUNT DISCREPANCY FLAGGED`);
-                console.warn(`  User: ${telegramId} | Client: ${clientSubmittedAmount} USDT | Server: ${amount} USDT | Diff: ${diff.toFixed(4)} USDT`);
-                // Still accept but log for monitoring
-            } else if (diff > 0.001) {
-                console.log(`[AMOUNT MATCH] Within tolerance | Diff: ${diff.toFixed(4)} USDT`);
+            // If user tries to bypass ban, record additional violation to extend ban
+            recordPurchaseViolation(telegramId, username);
+            
+            return res.status(429).json({ 
+                error: 'Temporary purchase limit active',
+                banRemaining: banCheck.secondsRemaining,
+                message: `Please wait ${Math.ceil(banCheck.secondsRemaining / 60)} minutes before trying again.`
+            });
+        }
+
+        // Check for rapid-fire purchases (3-second minimum interval)
+        const userId = String(telegramId);
+        const lastPurchaseTime = userLastPurchaseTime.get(userId);
+        const now = Date.now();
+        
+        if (lastPurchaseTime && (now - lastPurchaseTime) < PURCHASE_MIN_INTERVAL_MS) {
+            processingRequests.delete(requestKey);
+            const timeTooSoon = Math.round((PURCHASE_MIN_INTERVAL_MS - (now - lastPurchaseTime)) / 1000);
+            console.warn(`[RATE CHECK] User ${userId} rapid purchase (${timeTooSoon}s too soon). Recording violation.`);
+            
+            // Record violation for rapid-fire purchase attempt
+            const violationResult = recordPurchaseViolation(telegramId, username);
+            
+            // If ban was activated by this violation, return 429
+            if (violationResult.banActivated) {
+                return res.status(429).json({ 
+                    error: 'Temporary purchase limit active',
+                    banRemaining: Math.ceil(TEMP_BAN_DURATION_MS / 1000),
+                    message: `You are rate limited. Please wait ${Math.ceil(TEMP_BAN_DURATION_MS / 60000)} minutes before trying again.`
+                });
+            } else {
+                // Still under cooldown warning
+                return res.status(429).json({ 
+                    error: 'Please slow down',
+                    message: 'You can only make one purchase every 3 seconds.'
+                });
             }
         }
 
-        console.log(`[${timestamp}] AMOUNT CALC OK | Amount: ${amount} USDT`);
+        // Strict validation
+        if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
+            processingRequests.delete(requestKey);
+            const reason = 'Missing required fields';
+            console.log(`[${timestamp}] ORDER FAILED | User: ${telegramId} | Reason: ${reason}`);
+            return res.status(400).json({ error: reason });
+        }
 
-        // Create order
-        console.log(`[${timestamp}] ORDER OBJECT CREATE | User: ${telegramId} | Amount: ${amount} | Stars: ${stars}`);
-        const order = new BuyOrder({
-            id: generateBuyOrderId(),
-            telegramId,
-            username,
-            amount,
-            stars: isPremium ? null : stars,
-            premiumDuration: isPremium ? premiumDuration : null,
-            walletAddress,
-            isPremium,
-            status: 'pending',
-            dateCreated: new Date(),
-            adminMessages: [],
-            paymentCurrency: paymentCurrency === 'USDT' ? 'USDT' : 'TON',
-            recipients: processedRecipients,
-            isBuyForOthers,
-            totalRecipients,
-            starsPerRecipient,
-            premiumDurationPerRecipient,
-            transactionHash: transactionHash || null,
-            transactionVerified: false,
-            verificationAttempts: 0
-        });
+        // Username validation
+        const isFallbackUsername = username === 'Unknown' || username === 'User' || !username.match(/^[a-zA-Z0-9_]{5,32}$/);
+        if (isFallbackUsername) {
+            processingRequests.delete(requestKey);
+            try {
+                await bot.sendMessage(telegramId, `⚠️ You must set a Telegram username to place orders.\n\nGo to Settings → Username and create one, then try again.`);
+            } catch {}
+            return res.status(400).json({ error: 'Telegram username required' });
+        }
+
+        // Check ban status using Warning schema
+        const isBanned = await checkUserBanStatus(telegramId.toString());
+        if (isBanned) {
+            processingRequests.delete(requestKey);
             const banDetails = await getBanDetails(telegramId.toString());
             return res.status(403).json({ 
                 error: 'Your account is restricted and cannot place orders',
@@ -4052,23 +4077,18 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         }
 
         // Keep legacy check for backward compatibility
-        console.log(`[${timestamp}] VALIDATION: Checking legacy banned users...`);
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             processingRequests.delete(requestKey);
-            console.log(`[${timestamp}] VALIDATION FAILED: User in legacy ban list | User: ${telegramId}`);
             return res.status(403).json({ error: 'You are banned from placing orders' });
         }
-        console.log(`[${timestamp}] VALIDATION: Ban checks OK`);
 
         // Check for recent duplicate orders
-        console.log(`[${timestamp}] VALIDATION: Checking for duplicate orders...`);
         const existingOrder = transactionHash ? await BuyOrder.findOne({ transactionHash }) : null;
         if (existingOrder) {
             const isRecent = existingOrder.dateCreated && (Date.now() - new Date(existingOrder.dateCreated).getTime()) < 600000;
             if (isRecent) {
                 processingRequests.delete(requestKey);
-                console.log(`[${timestamp}] VALIDATION FAILED: Duplicate recent transaction | User: ${telegramId} | TxHash: ${transactionHash}`);
                 return res.status(400).json({ error: 'This transaction has already been processed' });
             }
         }
@@ -4080,10 +4100,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         });
         if (recentOrder) {
             processingRequests.delete(requestKey);
-            console.log(`[${timestamp}] VALIDATION FAILED: Pending order exists | User: ${telegramId} | ExistingOrderID: ${recentOrder.id}`);
             return res.status(400).json({ error: 'Please wait before placing another order' });
         }
-        console.log(`[${timestamp}] VALIDATION: Duplicate checks OK`);
 
         // Wallet validation
         if (isTestnet === true && !requesterIsAdmin) {
