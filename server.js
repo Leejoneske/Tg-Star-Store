@@ -4046,6 +4046,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             }
         }
 
+        console.log(`[${timestamp}] CHECKPOINT: Passed rate limits, entering validation...`);
+
         // Strict validation
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             processingRequests.delete(requestKey);
