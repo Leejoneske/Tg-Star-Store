@@ -4049,12 +4049,14 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         console.log(`[${timestamp}] CHECKPOINT: Passed rate limits, entering validation...`);
 
         // Strict validation
+        console.log(`[${timestamp}] VALIDATION: Checking required fields [telegramId=${!!telegramId}, username=${!!username}, wallet=${!!walletAddress}]`);
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             processingRequests.delete(requestKey);
             const reason = 'Missing required fields';
             console.log(`[${timestamp}] ORDER FAILED | User: ${telegramId} | Reason: ${reason}`);
             return res.status(400).json({ error: reason });
         }
+        console.log(`[${timestamp}] VALIDATION: Required fields OK. Checking username format...`);
 
         // Username validation
         const isFallbackUsername = username === 'Unknown' || username === 'User' || !username.match(/^[a-zA-Z0-9_]{5,32}$/);
@@ -4065,6 +4067,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             } catch {}
             return res.status(400).json({ error: 'Telegram username required' });
         }
+        console.log(`[${timestamp}] VALIDATION: Username OK '${username}'. Checking ban status...`);
 
         // Check ban status using Warning schema
         const isBanned = await checkUserBanStatus(telegramId.toString());
@@ -4084,6 +4087,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             processingRequests.delete(requestKey);
             return res.status(403).json({ error: 'You are banned from placing orders' });
         }
+        console.log(`[${timestamp}] VALIDATION: Ban checks OK. Checking duplicate orders...`);
 
         // Check for recent duplicate orders
         const existingOrder = transactionHash ? await BuyOrder.findOne({ transactionHash }) : null;
@@ -4115,6 +4119,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             processingRequests.delete(requestKey);
             return res.status(400).json({ error: 'Invalid TON wallet address' });
         }
+        console.log(`[${timestamp}] VALIDATION: All validation checks passed! Starting order creation...`);
 
         // === ORDER CREATION PHASE ===
         // Handle recipients
@@ -4364,10 +4369,23 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             const userMsg = `🎉 Order #${order.id} submitted!\n\nAmount: ${amount} USDT${isPremium ? `\nDuration: ${premiumDuration} mo` : `\nStars: ${stars}`}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
             try { await bot.sendMessage(telegramId, userMsg); } catch {}
         } else {
-            // Admin notification failed - inform user to contact support
+            // Admin notification failed - report to admins and inform user
             const fallbackMsg = `⚠️ Order #${order.id} created but experiencing delays.\n\nAmount: ${amount} USDT\nStatus: Pending\n\n📞 Please contact @StarStore_Chat if not processed within 2 hours.`;
             try { await bot.sendMessage(telegramId, fallbackMsg); } catch {}
             console.error(`[${timestamp}] ❌ CRITICAL - Admin notification failed for Order ${order.id}. Error: ${lastAdminError?.message}. Order still created in DB.`);
+            
+            // Report admin notification failure to admins
+            await sendSilentAdminErrorReport('ADMIN_NOTIFICATION_FAILED', {
+                orderId: order.id,
+                telegramId,
+                username,
+                amount,
+                walletAddress
+            }, {
+                message: lastAdminError?.message,
+                code: lastAdminError?.response?.statusCode,
+                stack: lastAdminError?.stack
+            });
         }
 
         // Optimization: Pass existing geo object to trackUserActivity to avoid redundant lookup
@@ -4392,6 +4410,19 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const timestamp = new Date().toISOString();
         const userId = req.body?.telegramId;
         console.error(`[${timestamp}] ❌ ORDER CREATION ERROR | User: ${userId} | Error: ${err.message} | Stack: ${err.stack ? err.stack.split('\n')[1].trim() : 'N/A'}`);
+        
+        // Report error to admins silently
+        await sendSilentAdminErrorReport('ORDER_CREATION_ERROR', {
+            telegramId: userId,
+            username: req.body?.username,
+            amount: req.body?.totalAmount,
+            walletAddress: req.body?.walletAddress
+        }, {
+            message: err.message,
+            code: err.code,
+            stack: err.stack
+        });
+        
         res.status(500).json({ error: 'Failed to create order. Please try again.' });
     }
 });
@@ -5269,6 +5300,28 @@ async function syncUserData(telegramId, username, interactionType = 'unknown', r
     } catch (error) {
         console.error(`[SYNC] Error syncing user data for ${telegramId}:`, error);
         return null;
+    }
+}
+
+// Send silent error report to admins (user doesn't see this)
+// Used for order creation failures and admin notification failures
+async function sendSilentAdminErrorReport(errorType, orderInfo, errorDetails) {
+    try {
+        if (!bot || isBotStub || !Array.isArray(adminIds) || adminIds.length === 0) return;
+        
+        const timestamp = new Date().toISOString();
+        const reportMessage = `🚨 ORDER ERROR ALERT\nType: ${errorType}\nTime: ${timestamp}\n\nOrder ID: ${orderInfo?.orderId || 'N/A'}\nUser: ${orderInfo?.telegramId || 'N/A'} (@${orderInfo?.username || 'unknown'})\nAmount: ${orderInfo?.amount || 'N/A'} USDT\nWallet: ${orderInfo?.walletAddress?.slice(0, 25) || 'N/A'}...\n\nError: ${errorDetails?.message || 'Unknown error'}\n${errorDetails?.code ? `Code: ${errorDetails.code}` : ''}\n${errorDetails?.stack ? `Details: ${errorDetails.stack.split('\\n')[0].substring(0, 100)}` : ''}`;
+        
+        for (const adminId of adminIds) {
+            try {
+                await bot.sendMessage(adminId, reportMessage, { disable_notification: true });
+            } catch (e) {
+                console.error(`[ADMIN REPORT] Failed to notify admin ${adminId}: ${e.message}`);
+            }
+        }
+        console.log(`[ADMIN REPORT] ${errorType} reported to ${adminIds.length} admin(s)`);
+    } catch (err) {
+        console.error(`[ADMIN REPORT] Error sending report: ${err.message}`);
     }
 }
 

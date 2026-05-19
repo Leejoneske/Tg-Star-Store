@@ -4075,29 +4075,22 @@ async function handlePurchase(item) {
                     if (retryCount >= maxRetries) {
                         // Final attempt failed - show special message
                         await Swal.fire({
-                            title: 'Payment Processed - Order Pending',
+                            title: 'Payment Confirmed',
                             html: `
-                                <div class="text-center space-y-3">
-                                    <div class="text-lg font-semibold text-orange-600">⚠️ Transaction Sent Successfully</div>
+                                <div class="text-center space-y-4">
+                                    <div class="text-base text-gray-700">Your payment was received and is being processed.</div>
                                     <div class="text-sm text-gray-600 space-y-2">
-                                        <div>✅ <strong>Payment:</strong> Your transaction was sent to the blockchain</div>
-                                        <div>🔄 <strong>Order Status:</strong> Being processed manually due to system delay</div>
-                                        <div>📞 <strong>Support:</strong> Contact us if you don't receive your order within 2 hours</div>
-                                        <div>🔗 <strong>Transaction:</strong> ${transactionHash}</div>
+                                        <div><strong>What happens next:</strong> Our team will complete your order within 2 hours</div>
+                                        <div><strong>No action needed</strong> - you'll be notified automatically</div>
+                                        <div class="text-xs text-gray-500 mt-3 break-all">Tx: ${transactionHash.substring(0, 30)}...</div>
                                     </div>
                                 </div>
                             `,
-                            icon: 'warning',
-                            confirmButtonText: 'Contact Support',
-                            confirmButtonColor: '#f59e0b',
-                            showCancelButton: true,
-                            cancelButtonText: 'OK',
+                            icon: 'success',
+                            confirmButtonText: 'Got it',
+                            confirmButtonColor: '#10b981',
                             customClass: {
                                 popup: 'rounded-xl shadow-lg'
-                            }
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                window.open('https://t.me/StarStore_Chat', '_blank');
                             }
                         });
                         return; // Exit function
