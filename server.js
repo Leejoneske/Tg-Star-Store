@@ -2648,6 +2648,7 @@ const broadcastJobSchema = new mongoose.Schema({
     mediaFileId: String,
     messageId: Number,
     targetUserIds: [String],
+    targetGroup: { type: String, enum: ['all', 'active_30d', 'buyers_30d', 'sellers_30d', 'both_30d', 'ambassadors', 'inactive'], default: 'all' },
     totalUsers: { type: Number, default: 0 },
     status: { type: String, enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'], default: 'pending', index: true },
     sentCount: { type: Number, default: 0 },
@@ -2667,7 +2668,7 @@ const broadcastJobSchema = new mongoose.Schema({
     maxRetries: { type: Number, default: 3 },
     // Broadcast admin approval tracking
     adminMessageIds: [{ adminId: String, messageId: Number }],
-    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'awaiting_group_selection'], default: 'pending' },
     approvedBy: { adminId: String, adminUsername: String, approvedAt: Date }
 }, { timestamps: true });
 
@@ -14308,7 +14309,7 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
             const defaultKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: 'Open StarStore', web_app: { url: 'https://starstore.app/' } }]
+                        [{ text: 'Check buying price', web_app: { url: 'https://starstore.app/' } }]
                     ]
                 }
             };
@@ -14385,26 +14386,33 @@ async function processBroadcastJob(jobId) {
         if (!job.processedUserIds) {
             job.processedUserIds = [];
         }
+
+        // If targetUserIds not set, populate based on targetGroup
+        if (!job.targetUserIds || job.targetUserIds.length === 0) {
+            const targetUsers = await getTargetUsersByGroup(job.targetGroup || 'all');
+            job.targetUserIds = targetUsers.map(u => u.id.toString());
+            job.totalUsers = targetUsers.length;
+        }
         
         job.status = 'processing';
         job.startedAt = new Date();
         job.estimatedCompletionTime = new Date(Date.now() + (job.totalUsers / 50) * 2500);
         await job.save();
         
-        console.log(`🚀 Starting broadcast job ${jobId} for ${job.totalUsers} users`);
+        console.log(`Starting broadcast job ${jobId} for ${job.totalUsers} users (target group: ${job.targetGroup})`);
         
         const batchSize = job.batchSize || 50;
         let processed = job.currentIndex || 0;
         const processedUserSet = new Set(job.processedUserIds);
         
-        while (processed < job.totalUsers) {
+        while (processed < job.targetUserIds.length) {
             // Mid-flight cancellation check
             const fresh = await BroadcastJob.findOne({ jobId }, { status: 1 }).lean();
             if (fresh && fresh.status === 'cancelled') {
                 job.status = 'cancelled';
                 job.completedAt = new Date();
                 await job.save();
-                console.log(`🛑 Broadcast ${jobId} cancelled mid-flight at ${processed}/${job.totalUsers}`);
+                console.log(`Broadcast ${jobId} cancelled mid-flight at ${processed}/${job.targetUserIds.length}`);
                 try {
                     await bot.sendMessage(job.adminId,
                         `Broadcast cancelled mid-flight.\n\n` +
@@ -14414,11 +14422,14 @@ async function processBroadcastJob(jobId) {
                 } catch (_) {}
                 return;
             }
-            const batch = await User.find({}).skip(processed).limit(batchSize).lean();
+
+            // Get users from targetUserIds array instead of querying all users
+            const userIds = job.targetUserIds.slice(processed, processed + batchSize);
+            const users = await User.find({ id: { $in: userIds } }).lean();
             
-            if (batch.length === 0) break;
+            if (users.length === 0) break;
             
-            for (const user of batch) {
+            for (const user of users) {
                 try {
                     if (!user.id) {
                         job.skippedCount++;
@@ -14428,7 +14439,7 @@ async function processBroadcastJob(jobId) {
                     // DUPLICATE PREVENTION: Skip if this user already received this broadcast
                     if (processedUserSet.has(user.id.toString())) {
                         job.skippedCount++;
-                        console.log(`⏭️ Skipping user ${user.id} - already received this broadcast`);
+                        console.log(`Skipping user ${user.id} - already received this broadcast`);
                         continue;
                     }
                     
@@ -14469,11 +14480,11 @@ async function processBroadcastJob(jobId) {
                 
                 if (processed % 50 === 0) {
                     await job.save();
-                    console.log(`📊 Progress: ${processed}/${job.totalUsers} (✅${job.sentCount}, ❌${job.failedCount}, ⏭️${job.skippedCount})`);
+                    console.log(`Progress: ${processed}/${job.totalUsers} (Sent: ${job.sentCount}, Failed: ${job.failedCount}, Skipped: ${job.skippedCount})`);
                 }
             }
             
-            if (processed < job.totalUsers) {
+            if (processed < job.targetUserIds.length) {
                 await new Promise(resolve => setTimeout(resolve, job.delayBetweenBatchesMs || 1000));
             }
         }
@@ -14482,13 +14493,23 @@ async function processBroadcastJob(jobId) {
         job.completedAt = new Date();
         await job.save();
         
-        console.log(`✅ Broadcast job ${jobId} completed: ${job.sentCount} sent, ${job.failedCount} failed, ${job.skippedCount} skipped`);
+        console.log(`Broadcast job ${jobId} completed: ${job.sentCount} sent, ${job.failedCount} failed, ${job.skippedCount} skipped`);
         
         try {
             const duration = Math.round((job.completedAt - job.startedAt) / 1000);
             const successRate = ((job.sentCount / job.totalUsers) * 100).toFixed(1);
+            const groupLabel = {
+                'all': 'All Users',
+                'active_30d': 'Active (30d)',
+                'buyers_30d': 'Buyers (30d)',
+                'sellers_30d': 'Sellers (30d)',
+                'both_30d': 'Both (30d)',
+                'ambassadors': 'Ambassadors',
+                'inactive': 'Inactive (30+d)'
+            }[job.targetGroup] || job.targetGroup;
             
             const resultMsg = `Broadcast Completed\n\n` +
+                `Target Group: ${groupLabel}\n` +
                 `Sent: ${job.sentCount}/${job.totalUsers}\n` +
                 `Failed: ${job.failedCount}\n` +
                 `Skipped: ${job.skippedCount}\n` +
@@ -14624,13 +14645,29 @@ bot.on('message', async (msg) => {
             delayBetweenBatchesMs: 1000
         });
         
-        // Build default inline keyboard with Sell and Referral buttons
+        // Build group selection keyboard (shown when admin clicks "Continue Broadcasting")
+        const groupSelectionKeyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: 'All Users', callback_data: `select_group_${jobId}_all` }],
+                    [{ text: 'Active (30d)', callback_data: `select_group_${jobId}_active_30d` }],
+                    [{ text: 'Buyers (30d)', callback_data: `select_group_${jobId}_buyers_30d` }],
+                    [{ text: 'Sellers (30d)', callback_data: `select_group_${jobId}_sellers_30d` }],
+                    [{ text: 'Both (30d)', callback_data: `select_group_${jobId}_both_30d` }],
+                    [{ text: 'Ambassadors', callback_data: `select_group_${jobId}_ambassadors` }],
+                    [{ text: 'Inactive (30+d)', callback_data: `select_group_${jobId}_inactive` }],
+                    [{ text: 'Cancel', callback_data: `reject_broadcast_${jobId}` }]
+                ]
+            }
+        };
+
+        // Build default inline keyboard with group selection prompt
         const approvalKeyboard = {
             reply_markup: {
                 inline_keyboard: [
                     [{ text: 'Open StarStore', web_app: { url: 'https://starstore.app/' } }],
-                    [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
-                    [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
+                    [{ text: 'Select Target Group', callback_data: `show_groups_${jobId}` }],
+                    [{ text: 'Cancel', callback_data: `reject_broadcast_${jobId}` }]
                 ]
             }
         };
@@ -14765,30 +14802,77 @@ bot.on('callback_query', async (query) => {
         return;
     }
 
-    // Handle broadcast approval
-    if (query.data.startsWith('approve_broadcast_')) {
-        const jobId = query.data.replace('approve_broadcast_', '');
+    // Handle broadcast group selection display
+    if (query.data && query.data.startsWith('show_groups_')) {
+        const jobId = query.data.replace('show_groups_', '');
+        const userId = query.from.id.toString();
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
+        }
+        
+        try {
+            const job = await BroadcastJob.findOne({ jobId });
+            if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
+            
+            // Show group selection message
+            const groupKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'All Users', callback_data: `select_group_${jobId}_all` }],
+                        [{ text: 'Active (30d)', callback_data: `select_group_${jobId}_active_30d` }],
+                        [{ text: 'Buyers (30d)', callback_data: `select_group_${jobId}_buyers_30d` }],
+                        [{ text: 'Sellers (30d)', callback_data: `select_group_${jobId}_sellers_30d` }],
+                        [{ text: 'Both (30d)', callback_data: `select_group_${jobId}_both_30d` }],
+                        [{ text: 'Ambassadors', callback_data: `select_group_${jobId}_ambassadors` }],
+                        [{ text: 'Inactive (30+d)', callback_data: `select_group_${jobId}_inactive` }],
+                        [{ text: 'Back', callback_data: 'dummy' }]
+                    ]
+                }
+            };
+            
+            await bot.sendMessage(userId, 
+                'Select target group for broadcast:\n\n' +
+                'All Users - Everyone\n' +
+                'Active (30d) - Used app in last 30 days\n' +
+                'Buyers (30d) - Purchased stars in last 30 days\n' +
+                'Sellers (30d) - Sold stars in last 30 days\n' +
+                'Both (30d) - Both bought and sold in 30 days\n' +
+                'Ambassadors - Ambassador users\n' +
+                'Inactive (30+d) - Not active for 30+ days',
+                groupKeyboard
+            );
+            
+            await bot.answerCallbackQuery(query.id, 'Select a target group');
+        } catch (error) {
+            console.error('Show groups error:', error);
+            bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
+        }
+        return;
+    }
+
+    // Handle broadcast group selection
+    if (query.data && query.data.startsWith('select_group_')) {
+        const parts = query.data.replace('select_group_', '').split('_');
+        const jobId = parts[0];
+        const targetGroup = parts.slice(1).join('_');
         const userId = query.from.id.toString();
         const adminUsername = query.from.username || query.from.first_name;
         
         if (!adminIds.includes(userId)) {
-            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
         }
         
         try {
-            // Get the broadcast job
             const job = await BroadcastJob.findOne({ jobId });
+            if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
             
-            if (!job) {
-                return bot.answerCallbackQuery(query.id, '❌ Broadcast job not found', true);
+            if (job.approvalStatus !== 'pending' && job.approvalStatus !== 'awaiting_group_selection') {
+                return bot.answerCallbackQuery(query.id, `Already ${job.approvalStatus}`, true);
             }
             
-            // Check if already approved/rejected (one-time use)
-            if (job.approvalStatus !== 'pending') {
-                return bot.answerCallbackQuery(query.id, `⚠️ Already ${job.approvalStatus}`, true);
-            }
-            
-            // Update job with approval
+            // Set the target group
+            job.targetGroup = targetGroup;
             job.approvalStatus = 'approved';
             job.approvedBy = {
                 adminId: userId,
@@ -14797,14 +14881,24 @@ bot.on('callback_query', async (query) => {
             };
             await job.save();
             
-            // Update all admin messages - remove buttons, show approval
+            // Update all admin messages to show approval
+            const groupLabel = {
+                'all': 'All Users',
+                'active_30d': 'Active (30d)',
+                'buyers_30d': 'Buyers (30d)',
+                'sellers_30d': 'Sellers (30d)',
+                'both_30d': 'Both (30d)',
+                'ambassadors': 'Ambassadors',
+                'inactive': 'Inactive (30+d)'
+            }[targetGroup] || targetGroup;
+            
             const updatePromises = [];
             for (const msgInfo of job.adminMessageIds) {
                 updatePromises.push(
                     bot.editMessageReplyMarkup(
                         {
                             inline_keyboard: [
-                                [{ text: `✅ Approved by ${adminUsername}`, callback_data: 'dummy' }]
+                                [{ text: `Approved by ${adminUsername} - Target: ${groupLabel}`, callback_data: 'dummy' }]
                             ]
                         },
                         {
@@ -14819,26 +14913,104 @@ bot.on('callback_query', async (query) => {
             
             await Promise.allSettled(updatePromises);
             
-            // React to the approval button
-            await bot.answerCallbackQuery(query.id, '✅ Broadcast approved! Sending to all users...');
+            // Count target users for this group
+            const targetUsers = await getTargetUsersByGroup(targetGroup);
+            job.totalUsers = targetUsers.length;
+            job.targetUserIds = targetUsers.map(u => u.id.toString());
+            await job.save();
             
-            // Give the initiating admin a stop button to cancel mid-flight
+            await bot.answerCallbackQuery(query.id, `Broadcasting to ${groupLabel}...`);
+            
+            // Give the initiating admin a stop button
             try {
                 await bot.sendMessage(job.adminId,
-                    `Broadcasting to ${job.totalUsers.toLocaleString()} users started.\nYou can stop it at any time.`,
-                    { reply_markup: { inline_keyboard: [[{ text: '🛑 Stop Broadcast', callback_data: `cancel_running_${jobId}` }]] } }
+                    `Broadcasting to ${job.totalUsers.toLocaleString()} ${groupLabel} users started.\nYou can stop it at any time.`,
+                    { reply_markup: { inline_keyboard: [[{ text: 'Stop Broadcast', callback_data: `cancel_running_${jobId}` }]] } }
                 );
             } catch (e) {
                 console.error('Failed to send stop-broadcast control:', e.message);
             }
 
-            // Start the actual broadcast in background (to ALL USERS now)
+            // Start the broadcast
             processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-            console.log(`📢 Broadcast ${jobId} approved by admin ${adminUsername} - Broadcasting to ${job.totalUsers.toLocaleString()} users`);
+            console.log(`Broadcasting ${jobId} to ${groupLabel} - ${job.totalUsers.toLocaleString()} users`);
+            
+        } catch (error) {
+            console.error('Group selection error:', error);
+            bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
+        }
+        return;
+    }
+
+    // Handle broadcast approval (legacy - keeping for backwards compatibility)
+    if (query.data.startsWith('approve_broadcast_')) {
+        const jobId = query.data.replace('approve_broadcast_', '');
+        const userId = query.from.id.toString();
+        const adminUsername = query.from.username || query.from.first_name;
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
+        }
+        
+        try {
+            const job = await BroadcastJob.findOne({ jobId });
+            
+            if (!job) {
+                return bot.answerCallbackQuery(query.id, 'Broadcast job not found', true);
+            }
+            
+            if (job.approvalStatus !== 'pending') {
+                return bot.answerCallbackQuery(query.id, `Already ${job.approvalStatus}`, true);
+            }
+            
+            // Update job with approval (default to 'all' group)
+            job.targetGroup = 'all';
+            job.approvalStatus = 'approved';
+            job.approvedBy = {
+                adminId: userId,
+                adminUsername: adminUsername,
+                approvedAt: new Date()
+            };
+            await job.save();
+            
+            const updatePromises = [];
+            for (const msgInfo of job.adminMessageIds) {
+                updatePromises.push(
+                    bot.editMessageReplyMarkup(
+                        {
+                            inline_keyboard: [
+                                [{ text: `Approved by ${adminUsername}`, callback_data: 'dummy' }]
+                            ]
+                        },
+                        {
+                            chat_id: msgInfo.adminId,
+                            message_id: msgInfo.messageId
+                        }
+                    ).catch(err => {
+                        console.error(`Failed to update message for admin ${msgInfo.adminId}:`, err.message);
+                    })
+                );
+            }
+            
+            await Promise.allSettled(updatePromises);
+            
+            await bot.answerCallbackQuery(query.id, 'Approved! Sending to all users...');
+            
+            try {
+                await bot.sendMessage(job.adminId,
+                    `Broadcasting to ${job.totalUsers.toLocaleString()} users started.\nYou can stop it at any time.`,
+                    { reply_markup: { inline_keyboard: [[{ text: 'Stop Broadcast', callback_data: `cancel_running_${jobId}` }]] } }
+                );
+            } catch (e) {
+                console.error('Failed to send stop-broadcast control:', e.message);
+            }
+
+            processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
+            console.log(`Broadcast ${jobId} approved by admin ${adminUsername} - Broadcasting to ${job.totalUsers.toLocaleString()} users`);
             
         } catch (error) {
             console.error('Broadcast approval error:', error);
-            bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
+            bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
         }
         return;
     }
@@ -20416,147 +20588,177 @@ app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
 });
 
 // Enhanced notification system - sends both Telegram messages and creates database notifications
+// Helper function to get target users based on targetGroup
+async function getTargetUsersByGroup(targetGroup) {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    switch (targetGroup) {
+        case 'all':
+            return await User.find({}, { id: 1, email: 1 }).limit(50000);
+
+        case 'active_30d':
+            // Users active in past 30 days
+            return await User.find({ lastActive: { $gte: thirtyDaysAgo } }, { id: 1, email: 1 }).limit(50000);
+
+        case 'buyers_30d':
+            // Users who made purchases in past 30 days
+            const buyerIds = await Order.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            return await User.find({ id: { $in: buyerIds } }, { id: 1, email: 1 });
+
+        case 'sellers_30d':
+            // Users who made sales in past 30 days
+            const sellerIds = await Withdrawal.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            return await User.find({ id: { $in: sellerIds } }, { id: 1, email: 1 });
+
+        case 'both_30d':
+            // Users who both bought and sold in past 30 days
+            const buyerIds2 = await Order.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const sellerIds2 = await Withdrawal.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const bothIds = buyerIds2.filter(id => sellerIds2.includes(id));
+            return await User.find({ id: { $in: bothIds } }, { id: 1, email: 1 });
+
+        case 'ambassadors':
+            // Ambassadors with email
+            return await User.find({ ambassadorStatus: { $in: ['active', 'approved'] } }, { id: 1, email: 1 });
+
+        case 'inactive':
+            // Inactive for more than 30 days
+            return await User.find({ lastActive: { $lt: thirtyDaysAgo } }, { id: 1, email: 1 }).limit(50000);
+
+        default:
+            return [];
+    }
+}
+
+// Helper function to send broadcast results to all admins
+async function notifyAllAdminsOfBroadcast(results, targetGroup, adminUser) {
+    const resultMessage = `Broadcast Results from @${adminUser.username || 'Admin'}:\n` +
+        `Target Group: ${targetGroup}\n` +
+        `Total Sent: ${results.telegramSent}\n` +
+        `Failed: ${results.failed}\n` +
+        `Skipped: ${results.skipped}\n` +
+        `Success Rate: ${results.successRate}%\n` +
+        `Total Users Targeted: ${results.totalUsers}`;
+
+    for (const aId of adminIds) {
+        try {
+            await bot.sendMessage(aId, resultMessage);
+        } catch (err) {
+            console.warn(`Failed to notify admin ${aId} of broadcast results:`, err.message);
+        }
+    }
+}
+
 app.post('/api/admin/notify', requireAdmin, async (req, res) => {
     try {
-        const { target, message, title, sendTelegram = true, createDbNotification = true } = req.body || {};
+        const { target, targetGroup, message, title, sendTelegram = true, createDbNotification = true, sendEmail = false } = req.body || {};
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
             return res.status(400).json({ error: 'Message required' });
         }
 
+        let users = [];
+        let selectedGroup = target;
+
+        // Use new targetGroup system if provided
+        if (targetGroup) {
+            users = await getTargetUsersByGroup(targetGroup);
+            selectedGroup = targetGroup;
+        } else if (target) {
+            // Legacy support for old target parameter
+            if (!target || target === 'all') {
+                users = await User.find({}, { id: 1, email: 1 }).limit(50000);
+            } else if (target === 'active') {
+                const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                users = await User.find({ lastActive: { $gte: since } }, { id: 1, email: 1 }).limit(50000);
+            } else if (/^@/.test(target)) {
+                const username = target.replace(/^@/, '');
+                const user = await User.findOne({ username });
+                if (!user) return res.status(404).json({ error: 'User not found' });
+                users = [user];
+            } else if (/^\d+$/.test(target)) {
+                const user = await User.findById(target);
+                if (!user) return res.status(404).json({ error: 'User not found' });
+                users = [user];
+            }
+        } else {
+            return res.status(400).json({ error: 'Target or targetGroup required' });
+        }
+
         const telegramSent = [];
-        const dbNotificationsCreated = [];
+        const failed = [];
+        const skipped = [];
         let template = null;
 
-        // Create notification template if database notifications are requested
+        // Create notification template
         if (createDbNotification) {
-            const notificationTitle = title || 'Admin Notification 📢';
+            const notificationTitle = title || 'Admin Notification';
             template = await NotificationTemplate.create({
                 title: notificationTitle,
                 message: message,
-                audience: (!target || target === 'all' || target === 'active') ? 'global' : 'user',
-                targetUserId: (/^\d+$/.test(target)) ? target : null,
+                audience: 'global',
+                targetGroup: selectedGroup,
                 priority: 1,
                 icon: 'fa-bullhorn',
-                createdBy: `admin_api_${req.user.id}`
+                createdBy: `admin_${req.user.id}`
             });
         }
 
-        if (!target || target === 'all') {
-            const users = await User.find({}, { id: 1 }).limit(10000);
-            
-            // Send Telegram messages
-            if (sendTelegram) {
-                for (const u of users) {
-                    try { 
-                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
-                        telegramSent.push(u.id); 
-                    } catch {}
-                }
-            }
-
-            // Create database notifications
-            if (createDbNotification && template) {
-                const userNotifications = users.map(user => ({
-                    userId: user.id.toString(),
-                    templateId: template._id,
-                    read: false
-                }));
-                
-                if (userNotifications.length > 0) {
-                    await UserNotification.insertMany(userNotifications);
-                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
-                }
-            }
-        } else if (target === 'active') {
-            // Active users in last 24h
-            const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(10000);
-            
-            // Send Telegram messages
-            if (sendTelegram) {
-                for (const u of users) {
-                    try { 
-                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
-                        telegramSent.push(u.id); 
-                    } catch {}
-                }
-            }
-
-            // Create database notifications
-            if (createDbNotification && template) {
-                const userNotifications = users.map(user => ({
-                    userId: user.id.toString(),
-                    templateId: template._id,
-                    read: false
-                }));
-                
-                if (userNotifications.length > 0) {
-                    await UserNotification.insertMany(userNotifications);
-                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
-                }
-            }
-        } else if (/^@/.test(target)) {
-            const username = target.replace(/^@/, '');
-            const user = await User.findOne({ username });
-            if (!user) return res.status(404).json({ error: 'User not found' });
-            
-            // Send Telegram message
-            if (sendTelegram) {
+        // Send Telegram messages
+        if (sendTelegram) {
+            for (const user of users) {
                 try {
-                    await bot.sendMessage(user.id, `📢 Personal Admin Message:\n\n${message}`); 
+                    await bot.sendMessage(user.id, `Admin Notification:\n\n${message}`);
                     telegramSent.push(user.id);
                 } catch (err) {
-                    console.log(`Failed to send Telegram message to @${username}:`, err.message);
+                    failed.push({ userId: user.id, error: err.message });
                 }
             }
-
-            // Create database notification
-            if (createDbNotification && template) {
-                template.audience = 'user';
-                template.targetUserId = user.id.toString();
-                await template.save();
-
-                await UserNotification.create({
-                    userId: user.id.toString(),
-                    templateId: template._id,
-                    read: false
-                });
-                dbNotificationsCreated.push(user.id.toString());
-            }
-        } else if (/^\d+$/.test(target)) {
-            // Send Telegram message
-            if (sendTelegram) {
-                try {
-                    await bot.sendMessage(target, `📢 Personal Admin Message:\n\n${message}`); 
-                    telegramSent.push(target);
-                } catch (err) {
-                    console.log(`Failed to send Telegram message to ${target}:`, err.message);
-                }
-            }
-
-            // Create database notification
-            if (createDbNotification && template) {
-                template.audience = 'user';
-                template.targetUserId = target;
-                await template.save();
-
-                await UserNotification.create({
-                    userId: target,
-                    templateId: template._id,
-                    read: false
-                });
-                dbNotificationsCreated.push(target);
-            }
-        } else {
-            return res.status(400).json({ error: 'Invalid target' });
         }
-        
-        res.json({ 
-            success: true, 
+
+        // Send emails for ambassadors
+        if (sendEmail && selectedGroup === 'ambassadors') {
+            const { sendNewsletterBroadcast } = require('./services/email-service');
+            for (const user of users) {
+                if (user.email) {
+                    try {
+                        await sendNewsletterBroadcast(user.email, title || 'Admin Update', message);
+                    } catch (err) {
+                        console.warn(`Failed to send email to ${user.email}:`, err.message);
+                    }
+                }
+            }
+        }
+
+        // Create database notifications
+        if (createDbNotification && template) {
+            const userNotifications = telegramSent.map(userId => ({
+                userId: userId.toString(),
+                templateId: template._id,
+                read: false
+            }));
+
+            if (userNotifications.length > 0) {
+                await UserNotification.insertMany(userNotifications);
+            }
+        }
+
+        const successRate = users.length > 0 ? Math.round((telegramSent.length / users.length) * 100) : 0;
+        const results = {
+            success: true,
+            totalUsers: users.length,
             telegramSent: telegramSent.length,
-            dbNotificationsCreated: dbNotificationsCreated.length,
+            failed: failed.length,
+            skipped: skipped.length,
+            successRate: successRate,
+            targetGroup: selectedGroup,
             templateId: template?._id
-        });
+        };
+
+        // Notify all admins of broadcast results
+        await notifyAllAdminsOfBroadcast(results, selectedGroup, req.user);
+
+        res.json(results);
     } catch (error) {
         console.error('Admin notify error:', error);
         res.status(500).json({ error: 'Failed to send notification' });

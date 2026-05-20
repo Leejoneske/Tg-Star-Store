@@ -595,23 +595,84 @@ function perfRow(label, value) {
     </li>`;
 }
 
-// ---------------------- Notifications ----------------------
+// ---------------------- Notifications / Broadcast ----------------------
+// Broadcast state
+let broadcastState = {
+    selectedGroup: null,
+    targetGroupLabels: {
+        'all': 'All Users',
+        'active_30d': 'Active (Past 30 Days)',
+        'buyers_30d': 'Buyers (Past 30 Days)',
+        'sellers_30d': 'Sellers (Past 30 Days)',
+        'both_30d': 'Both Buyers & Sellers (Past 30 Days)',
+        'ambassadors': 'Ambassadors',
+        'inactive': 'Inactive (30+ Days)'
+    }
+};
+
 async function sendNotification() {
-    const target = $('#notify-target').value.trim() || 'all';
     const message = $('#notify-message').value.trim();
-    const title = $('#notify-title').value.trim();
     if (!message) { Toast.show('Message is required.', 'warning'); return; }
+    if (!broadcastState.selectedGroup) { Toast.show('Please select a target group.', 'warning'); return; }
+
+    const confirmed = await Confirm.open({
+        title: 'Send Broadcast',
+        body: `Send this message to: ${broadcastState.targetGroupLabels[broadcastState.selectedGroup]}?\n\nThis will notify all admins of the results.`,
+        okText: 'Send Broadcast',
+        okVariant: 'primary'
+    });
+    
+    if (!confirmed) return;
+
     const btn = $('#notify-send');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+    
     try {
-        await api('/api/admin/notify', { method: 'POST', body: JSON.stringify({ target, message, title }) });
-        Toast.show('Notification sent.', 'success');
+        const result = await api('/api/admin/notify', {
+            method: 'POST',
+            body: JSON.stringify({
+                targetGroup: broadcastState.selectedGroup,
+                message: message,
+                sendTelegram: true,
+                createDbNotification: true,
+                sendEmail: broadcastState.selectedGroup === 'ambassadors'
+            })
+        });
+        
+        Toast.show(`Broadcast sent to ${result.telegramSent} users. Results sent to all admins.`, 'success');
         $('#notify-message').value = '';
         $('#notify-len').textContent = '0';
+        broadcastState.selectedGroup = null;
+        $('#broadcast-selected').style.display = 'none';
+        btn.disabled = true;
+        updateTargetGroupButtons();
     } catch (e) {
-        Toast.show(e.message || 'Failed to send.', 'error');
+        Toast.show(e.message || 'Failed to send broadcast.', 'error');
     } finally {
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Broadcast';
+    }
+}
+
+function updateTargetGroupButtons() {
+    $$('[data-target-group]').forEach(btn => {
+        if (btn.dataset.targetGroup === broadcastState.selectedGroup) {
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-primary');
+        } else {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        }
+    });
+
+    if (broadcastState.selectedGroup) {
+        $('#broadcast-selected').style.display = 'block';
+        $('#selected-target-display').textContent = broadcastState.targetGroupLabels[broadcastState.selectedGroup];
+        $('#notify-send').disabled = false;
+    } else {
+        $('#broadcast-selected').style.display = 'none';
+        $('#notify-send').disabled = true;
     }
 }
 
@@ -701,9 +762,16 @@ function bindEvents() {
     $('#users-next')?.addEventListener('click', () => { if (usersState.page * usersState.limit < usersState.total) { usersState.page++; loadUsers(); } });
 
     $('#notify-message')?.addEventListener('input', e => { $('#notify-len').textContent = e.target.value.length; });
-    $$('[data-set-target]').forEach(b => b.addEventListener('click', () => { $('#notify-target').value = b.dataset.setTarget; }));
+    $$('[data-target-group]').forEach(b => b.addEventListener('click', () => {
+        broadcastState.selectedGroup = b.dataset.targetGroup;
+        updateTargetGroupButtons();
+    }));
     $('#notify-clear')?.addEventListener('click', () => {
-        $('#notify-message').value = ''; $('#notify-target').value = ''; $('#notify-title').value = ''; $('#notify-len').textContent = '0';
+        $('#notify-message').value = '';
+        $('#notify-len').textContent = '0';
+        broadcastState.selectedGroup = null;
+        $('#broadcast-selected').style.display = 'none';
+        updateTargetGroupButtons();
     });
     $('#notify-send')?.addEventListener('click', sendNotification);
 
