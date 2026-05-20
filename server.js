@@ -2648,6 +2648,7 @@ const broadcastJobSchema = new mongoose.Schema({
     mediaFileId: String,
     messageId: Number,
     targetUserIds: [String],
+    targetGroup: { type: String, enum: ['all', 'active_30d', 'buyers_30d', 'sellers_30d', 'both_30d', 'ambassadors', 'inactive'], default: 'all' },
     totalUsers: { type: Number, default: 0 },
     status: { type: String, enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'], default: 'pending', index: true },
     sentCount: { type: Number, default: 0 },
@@ -2667,7 +2668,7 @@ const broadcastJobSchema = new mongoose.Schema({
     maxRetries: { type: Number, default: 3 },
     // Broadcast admin approval tracking
     adminMessageIds: [{ adminId: String, messageId: Number }],
-    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'awaiting_group_selection'], default: 'pending' },
     approvedBy: { adminId: String, adminUsername: String, approvedAt: Date }
 }, { timestamps: true });
 
@@ -14385,26 +14386,33 @@ async function processBroadcastJob(jobId) {
         if (!job.processedUserIds) {
             job.processedUserIds = [];
         }
+
+        // If targetUserIds not set, populate based on targetGroup
+        if (!job.targetUserIds || job.targetUserIds.length === 0) {
+            const targetUsers = await getTargetUsersByGroup(job.targetGroup || 'all');
+            job.targetUserIds = targetUsers.map(u => u.id.toString());
+            job.totalUsers = targetUsers.length;
+        }
         
         job.status = 'processing';
         job.startedAt = new Date();
         job.estimatedCompletionTime = new Date(Date.now() + (job.totalUsers / 50) * 2500);
         await job.save();
         
-        console.log(`🚀 Starting broadcast job ${jobId} for ${job.totalUsers} users`);
+        console.log(`Starting broadcast job ${jobId} for ${job.totalUsers} users (target group: ${job.targetGroup})`);
         
         const batchSize = job.batchSize || 50;
         let processed = job.currentIndex || 0;
         const processedUserSet = new Set(job.processedUserIds);
         
-        while (processed < job.totalUsers) {
+        while (processed < job.targetUserIds.length) {
             // Mid-flight cancellation check
             const fresh = await BroadcastJob.findOne({ jobId }, { status: 1 }).lean();
             if (fresh && fresh.status === 'cancelled') {
                 job.status = 'cancelled';
                 job.completedAt = new Date();
                 await job.save();
-                console.log(`🛑 Broadcast ${jobId} cancelled mid-flight at ${processed}/${job.totalUsers}`);
+                console.log(`Broadcast ${jobId} cancelled mid-flight at ${processed}/${job.targetUserIds.length}`);
                 try {
                     await bot.sendMessage(job.adminId,
                         `Broadcast cancelled mid-flight.\n\n` +
@@ -14414,11 +14422,14 @@ async function processBroadcastJob(jobId) {
                 } catch (_) {}
                 return;
             }
-            const batch = await User.find({}).skip(processed).limit(batchSize).lean();
+
+            // Get users from targetUserIds array instead of querying all users
+            const userIds = job.targetUserIds.slice(processed, processed + batchSize);
+            const users = await User.find({ id: { $in: userIds } }).lean();
             
-            if (batch.length === 0) break;
+            if (users.length === 0) break;
             
-            for (const user of batch) {
+            for (const user of users) {
                 try {
                     if (!user.id) {
                         job.skippedCount++;
@@ -14428,7 +14439,7 @@ async function processBroadcastJob(jobId) {
                     // DUPLICATE PREVENTION: Skip if this user already received this broadcast
                     if (processedUserSet.has(user.id.toString())) {
                         job.skippedCount++;
-                        console.log(`⏭️ Skipping user ${user.id} - already received this broadcast`);
+                        console.log(`Skipping user ${user.id} - already received this broadcast`);
                         continue;
                     }
                     
@@ -14469,11 +14480,11 @@ async function processBroadcastJob(jobId) {
                 
                 if (processed % 50 === 0) {
                     await job.save();
-                    console.log(`📊 Progress: ${processed}/${job.totalUsers} (✅${job.sentCount}, ❌${job.failedCount}, ⏭️${job.skippedCount})`);
+                    console.log(`Progress: ${processed}/${job.totalUsers} (Sent: ${job.sentCount}, Failed: ${job.failedCount}, Skipped: ${job.skippedCount})`);
                 }
             }
             
-            if (processed < job.totalUsers) {
+            if (processed < job.targetUserIds.length) {
                 await new Promise(resolve => setTimeout(resolve, job.delayBetweenBatchesMs || 1000));
             }
         }
@@ -14482,13 +14493,23 @@ async function processBroadcastJob(jobId) {
         job.completedAt = new Date();
         await job.save();
         
-        console.log(`✅ Broadcast job ${jobId} completed: ${job.sentCount} sent, ${job.failedCount} failed, ${job.skippedCount} skipped`);
+        console.log(`Broadcast job ${jobId} completed: ${job.sentCount} sent, ${job.failedCount} failed, ${job.skippedCount} skipped`);
         
         try {
             const duration = Math.round((job.completedAt - job.startedAt) / 1000);
             const successRate = ((job.sentCount / job.totalUsers) * 100).toFixed(1);
+            const groupLabel = {
+                'all': 'All Users',
+                'active_30d': 'Active (30d)',
+                'buyers_30d': 'Buyers (30d)',
+                'sellers_30d': 'Sellers (30d)',
+                'both_30d': 'Both (30d)',
+                'ambassadors': 'Ambassadors',
+                'inactive': 'Inactive (30+d)'
+            }[job.targetGroup] || job.targetGroup;
             
             const resultMsg = `Broadcast Completed\n\n` +
+                `Target Group: ${groupLabel}\n` +
                 `Sent: ${job.sentCount}/${job.totalUsers}\n` +
                 `Failed: ${job.failedCount}\n` +
                 `Skipped: ${job.skippedCount}\n` +
@@ -14624,13 +14645,29 @@ bot.on('message', async (msg) => {
             delayBetweenBatchesMs: 1000
         });
         
-        // Build default inline keyboard with Sell and Referral buttons
+        // Build group selection keyboard (shown when admin clicks "Continue Broadcasting")
+        const groupSelectionKeyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: 'All Users', callback_data: `select_group_${jobId}_all` }],
+                    [{ text: 'Active (30d)', callback_data: `select_group_${jobId}_active_30d` }],
+                    [{ text: 'Buyers (30d)', callback_data: `select_group_${jobId}_buyers_30d` }],
+                    [{ text: 'Sellers (30d)', callback_data: `select_group_${jobId}_sellers_30d` }],
+                    [{ text: 'Both (30d)', callback_data: `select_group_${jobId}_both_30d` }],
+                    [{ text: 'Ambassadors', callback_data: `select_group_${jobId}_ambassadors` }],
+                    [{ text: 'Inactive (30+d)', callback_data: `select_group_${jobId}_inactive` }],
+                    [{ text: 'Cancel', callback_data: `reject_broadcast_${jobId}` }]
+                ]
+            }
+        };
+
+        // Build default inline keyboard with group selection prompt
         const approvalKeyboard = {
             reply_markup: {
                 inline_keyboard: [
                     [{ text: 'Open StarStore', web_app: { url: 'https://starstore.app/' } }],
-                    [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
-                    [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
+                    [{ text: 'Select Target Group', callback_data: `show_groups_${jobId}` }],
+                    [{ text: 'Cancel', callback_data: `reject_broadcast_${jobId}` }]
                 ]
             }
         };
@@ -14765,30 +14802,77 @@ bot.on('callback_query', async (query) => {
         return;
     }
 
-    // Handle broadcast approval
-    if (query.data.startsWith('approve_broadcast_')) {
-        const jobId = query.data.replace('approve_broadcast_', '');
+    // Handle broadcast group selection display
+    if (query.data && query.data.startsWith('show_groups_')) {
+        const jobId = query.data.replace('show_groups_', '');
+        const userId = query.from.id.toString();
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
+        }
+        
+        try {
+            const job = await BroadcastJob.findOne({ jobId });
+            if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
+            
+            // Show group selection message
+            const groupKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'All Users', callback_data: `select_group_${jobId}_all` }],
+                        [{ text: 'Active (30d)', callback_data: `select_group_${jobId}_active_30d` }],
+                        [{ text: 'Buyers (30d)', callback_data: `select_group_${jobId}_buyers_30d` }],
+                        [{ text: 'Sellers (30d)', callback_data: `select_group_${jobId}_sellers_30d` }],
+                        [{ text: 'Both (30d)', callback_data: `select_group_${jobId}_both_30d` }],
+                        [{ text: 'Ambassadors', callback_data: `select_group_${jobId}_ambassadors` }],
+                        [{ text: 'Inactive (30+d)', callback_data: `select_group_${jobId}_inactive` }],
+                        [{ text: 'Back', callback_data: 'dummy' }]
+                    ]
+                }
+            };
+            
+            await bot.sendMessage(userId, 
+                'Select target group for broadcast:\n\n' +
+                'All Users - Everyone\n' +
+                'Active (30d) - Used app in last 30 days\n' +
+                'Buyers (30d) - Purchased stars in last 30 days\n' +
+                'Sellers (30d) - Sold stars in last 30 days\n' +
+                'Both (30d) - Both bought and sold in 30 days\n' +
+                'Ambassadors - Ambassador users\n' +
+                'Inactive (30+d) - Not active for 30+ days',
+                groupKeyboard
+            );
+            
+            await bot.answerCallbackQuery(query.id, 'Select a target group');
+        } catch (error) {
+            console.error('Show groups error:', error);
+            bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
+        }
+        return;
+    }
+
+    // Handle broadcast group selection
+    if (query.data && query.data.startsWith('select_group_')) {
+        const parts = query.data.replace('select_group_', '').split('_');
+        const jobId = parts[0];
+        const targetGroup = parts.slice(1).join('_');
         const userId = query.from.id.toString();
         const adminUsername = query.from.username || query.from.first_name;
         
         if (!adminIds.includes(userId)) {
-            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
         }
         
         try {
-            // Get the broadcast job
             const job = await BroadcastJob.findOne({ jobId });
+            if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
             
-            if (!job) {
-                return bot.answerCallbackQuery(query.id, '❌ Broadcast job not found', true);
+            if (job.approvalStatus !== 'pending' && job.approvalStatus !== 'awaiting_group_selection') {
+                return bot.answerCallbackQuery(query.id, `Already ${job.approvalStatus}`, true);
             }
             
-            // Check if already approved/rejected (one-time use)
-            if (job.approvalStatus !== 'pending') {
-                return bot.answerCallbackQuery(query.id, `⚠️ Already ${job.approvalStatus}`, true);
-            }
-            
-            // Update job with approval
+            // Set the target group
+            job.targetGroup = targetGroup;
             job.approvalStatus = 'approved';
             job.approvedBy = {
                 adminId: userId,
@@ -14797,14 +14881,24 @@ bot.on('callback_query', async (query) => {
             };
             await job.save();
             
-            // Update all admin messages - remove buttons, show approval
+            // Update all admin messages to show approval
+            const groupLabel = {
+                'all': 'All Users',
+                'active_30d': 'Active (30d)',
+                'buyers_30d': 'Buyers (30d)',
+                'sellers_30d': 'Sellers (30d)',
+                'both_30d': 'Both (30d)',
+                'ambassadors': 'Ambassadors',
+                'inactive': 'Inactive (30+d)'
+            }[targetGroup] || targetGroup;
+            
             const updatePromises = [];
             for (const msgInfo of job.adminMessageIds) {
                 updatePromises.push(
                     bot.editMessageReplyMarkup(
                         {
                             inline_keyboard: [
-                                [{ text: `✅ Approved by ${adminUsername}`, callback_data: 'dummy' }]
+                                [{ text: `Approved by ${adminUsername} - Target: ${groupLabel}`, callback_data: 'dummy' }]
                             ]
                         },
                         {
@@ -14819,26 +14913,104 @@ bot.on('callback_query', async (query) => {
             
             await Promise.allSettled(updatePromises);
             
-            // React to the approval button
-            await bot.answerCallbackQuery(query.id, '✅ Broadcast approved! Sending to all users...');
+            // Count target users for this group
+            const targetUsers = await getTargetUsersByGroup(targetGroup);
+            job.totalUsers = targetUsers.length;
+            job.targetUserIds = targetUsers.map(u => u.id.toString());
+            await job.save();
             
-            // Give the initiating admin a stop button to cancel mid-flight
+            await bot.answerCallbackQuery(query.id, `Broadcasting to ${groupLabel}...`);
+            
+            // Give the initiating admin a stop button
             try {
                 await bot.sendMessage(job.adminId,
-                    `Broadcasting to ${job.totalUsers.toLocaleString()} users started.\nYou can stop it at any time.`,
-                    { reply_markup: { inline_keyboard: [[{ text: '🛑 Stop Broadcast', callback_data: `cancel_running_${jobId}` }]] } }
+                    `Broadcasting to ${job.totalUsers.toLocaleString()} ${groupLabel} users started.\nYou can stop it at any time.`,
+                    { reply_markup: { inline_keyboard: [[{ text: 'Stop Broadcast', callback_data: `cancel_running_${jobId}` }]] } }
                 );
             } catch (e) {
                 console.error('Failed to send stop-broadcast control:', e.message);
             }
 
-            // Start the actual broadcast in background (to ALL USERS now)
+            // Start the broadcast
             processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-            console.log(`📢 Broadcast ${jobId} approved by admin ${adminUsername} - Broadcasting to ${job.totalUsers.toLocaleString()} users`);
+            console.log(`Broadcasting ${jobId} to ${groupLabel} - ${job.totalUsers.toLocaleString()} users`);
+            
+        } catch (error) {
+            console.error('Group selection error:', error);
+            bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
+        }
+        return;
+    }
+
+    // Handle broadcast approval (legacy - keeping for backwards compatibility)
+    if (query.data.startsWith('approve_broadcast_')) {
+        const jobId = query.data.replace('approve_broadcast_', '');
+        const userId = query.from.id.toString();
+        const adminUsername = query.from.username || query.from.first_name;
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
+        }
+        
+        try {
+            const job = await BroadcastJob.findOne({ jobId });
+            
+            if (!job) {
+                return bot.answerCallbackQuery(query.id, 'Broadcast job not found', true);
+            }
+            
+            if (job.approvalStatus !== 'pending') {
+                return bot.answerCallbackQuery(query.id, `Already ${job.approvalStatus}`, true);
+            }
+            
+            // Update job with approval (default to 'all' group)
+            job.targetGroup = 'all';
+            job.approvalStatus = 'approved';
+            job.approvedBy = {
+                adminId: userId,
+                adminUsername: adminUsername,
+                approvedAt: new Date()
+            };
+            await job.save();
+            
+            const updatePromises = [];
+            for (const msgInfo of job.adminMessageIds) {
+                updatePromises.push(
+                    bot.editMessageReplyMarkup(
+                        {
+                            inline_keyboard: [
+                                [{ text: `Approved by ${adminUsername}`, callback_data: 'dummy' }]
+                            ]
+                        },
+                        {
+                            chat_id: msgInfo.adminId,
+                            message_id: msgInfo.messageId
+                        }
+                    ).catch(err => {
+                        console.error(`Failed to update message for admin ${msgInfo.adminId}:`, err.message);
+                    })
+                );
+            }
+            
+            await Promise.allSettled(updatePromises);
+            
+            await bot.answerCallbackQuery(query.id, 'Approved! Sending to all users...');
+            
+            try {
+                await bot.sendMessage(job.adminId,
+                    `Broadcasting to ${job.totalUsers.toLocaleString()} users started.\nYou can stop it at any time.`,
+                    { reply_markup: { inline_keyboard: [[{ text: 'Stop Broadcast', callback_data: `cancel_running_${jobId}` }]] } }
+                );
+            } catch (e) {
+                console.error('Failed to send stop-broadcast control:', e.message);
+            }
+
+            processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
+            console.log(`Broadcast ${jobId} approved by admin ${adminUsername} - Broadcasting to ${job.totalUsers.toLocaleString()} users`);
             
         } catch (error) {
             console.error('Broadcast approval error:', error);
-            bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
+            bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
         }
         return;
     }
