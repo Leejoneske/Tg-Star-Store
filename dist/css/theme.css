@@ -1335,29 +1335,9 @@ body.swal2-shown {
 	border-color: var(--brand, #4f46e5);
 }
 
-/* "Best value" badge — used inline next to a package title */
-.best-badge {
-	display: inline-block;
-	margin-left: 6px;
-	padding: 2px 7px;
-	font-size: 10px;
-	font-weight: 700;
-	letter-spacing: .03em;
-	text-transform: uppercase;
-	color: #fff;
-	background: linear-gradient(135deg, #f59e0b, #ef4444);
-	border-radius: 999px;
-	vertical-align: middle;
-	box-shadow: 0 1px 3px rgba(239,68,68,.30);
-}
 
-/* Highlighted "best" package gets a soft ring + corner ribbon glow */
-.package-option[data-best="true"] {
-	border-color: color-mix(in srgb, #f59e0b 50%, transparent);
-	box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 18%, transparent), 0 2px 8px rgba(245,158,11,.10);
-}
-.package-option[data-best="true"]:hover {
-	box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 35%, transparent), 0 6px 18px rgba(245,158,11,.18);
+/* Styling removed - best-badge and data-best attributes are no longer used */
+
 }
 
 /* Global focus ring tokens — restore visible focus on interactive elements */
