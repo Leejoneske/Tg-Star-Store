@@ -1275,9 +1275,9 @@
                                     </button>
                                 </div>
                                 <!-- Package 6: 1000 Stars (hidden) -->
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" data-best="true" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="1000">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="1000">
                                     <div style="flex: 1;">
-                                    <div style="font-size: 16px; font-weight: 600; color: #000;">1000 Stars <span class="best-badge">Best value</span></div>
+                                    <div style="font-size: 16px; font-weight: 600; color: #000;">1000 Stars</div>
                                         <div style="font-size: 13px; color: #666; margin-top: 2px;">17.90 USDT</div>
                                     </div>
                                     <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "17.90"}'>
@@ -1403,10 +1403,10 @@
                                     <span>Subscribe Now</span>
                                 </button>
                             </div>
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option premium-package" data-best="true" data-premium-duration="12" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option premium-package" data-premium-duration="12" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                                     <div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;" data-translate="12monthsPremium">12 Months Premium <span class="best-badge">Best value</span></div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;" data-translate="12monthsPremium">12 Months Premium</div>
                                         <div style="font-size: 13px; color: #666;" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
                                     </div>
                                     <div style="font-size: 16px; font-weight: 600; color: #007AFF;" class="package-price">29.99 USDT</div>
@@ -2534,12 +2534,12 @@ function updateLanguage() {
 const purchaseRateLimiter = {
     lastPurchaseTime: 0,
     isProcessing: false,
-    minInterval: 3000, // 3 seconds between normal purchases
+    minInterval: 5000, // 5 seconds between normal purchases
     rateLimitViolations: [], // Track violation timestamps
-    violationThreshold: 5, // 5 violations triggers 10-min ban
-    violationWindow: 60000, // Consider violations within last 60 seconds
+    violationThreshold: 4, // 4 violations triggers 2-min ban
+    violationWindow: 120000, // Consider violations within last 2 minutes
     temporaryBanUntil: 0, // Timestamp when temp ban expires
-    temporaryBanDuration: 600000, // 10 minutes (600 seconds)
+    temporaryBanDuration: 120000, // 2 minutes (120 seconds)
     
     // localStorage keys for persistence
     STORAGE_KEY_BAN: 'tg_purchase_ban_until',
@@ -2687,7 +2687,7 @@ function initBuyButtons() {
                 if (banActivated) {
                     // Just activated temporary ban
                     ToastNotification.show(
-                        'Clicking too fast. Please slow down. You will be able to purchase again in 10 minutes.',
+                        'Clicking too fast. Please slow down. You will be able to purchase again in 2 minutes.',
                         'error',
                         5000
                     );
@@ -3195,7 +3195,7 @@ function initCustomStars() {
             if (banActivated) {
                 // Just activated temporary ban
                 ToastNotification.show(
-                    'Clicking too fast. Please slow down. You will be able to purchase again in 10 minutes.',
+                    'Clicking too fast. Please slow down. You will be able to purchase again in 2 minutes.',
                     'error',
                     5000
                 );
