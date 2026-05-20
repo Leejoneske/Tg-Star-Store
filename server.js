@@ -14500,12 +14500,12 @@ async function processBroadcastJob(jobId) {
             const successRate = ((job.sentCount / job.totalUsers) * 100).toFixed(1);
             const groupLabel = {
                 'all': 'All Users',
-                'active_30d': 'Active (30d)',
-                'buyers_30d': 'Buyers (30d)',
-                'sellers_30d': 'Sellers (30d)',
-                'both_30d': 'Both (30d)',
-                'ambassadors': 'Ambassadors',
-                'inactive': 'Inactive (30+d)'
+                'active_30d': 'Active Users (Past 30 Days)',
+                'buyers_30d': 'Buyers (Past 30 Days)',
+                'sellers_30d': 'Sellers (Past 30 Days)',
+                'both_30d': 'Buyers & Sellers (Past 30 Days)',
+                'ambassadors': 'Ambassadors Only',
+                'inactive': 'Inactive (30+ Days)'
             }[job.targetGroup] || job.targetGroup;
             
             const resultMsg = `Broadcast Completed\n\n` +
@@ -14763,12 +14763,12 @@ bot.on('callback_query', async (query) => {
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: 'All Users', callback_data: `select_group_${jobId}_all` }],
-                        [{ text: 'Active (30d)', callback_data: `select_group_${jobId}_active_30d` }],
-                        [{ text: 'Buyers (30d)', callback_data: `select_group_${jobId}_buyers_30d` }],
-                        [{ text: 'Sellers (30d)', callback_data: `select_group_${jobId}_sellers_30d` }],
-                        [{ text: 'Both (30d)', callback_data: `select_group_${jobId}_both_30d` }],
-                        [{ text: 'Ambassadors', callback_data: `select_group_${jobId}_ambassadors` }],
-                        [{ text: 'Inactive (30+d)', callback_data: `select_group_${jobId}_inactive` }],
+                        [{ text: 'Active Users (Past 30 Days)', callback_data: `select_group_${jobId}_active_30d` }],
+                        [{ text: 'Buyers (Past 30 Days)', callback_data: `select_group_${jobId}_buyers_30d` }],
+                        [{ text: 'Sellers (Past 30 Days)', callback_data: `select_group_${jobId}_sellers_30d` }],
+                        [{ text: 'Buyers & Sellers (Past 30 Days)', callback_data: `select_group_${jobId}_both_30d` }],
+                        [{ text: 'Ambassadors Only', callback_data: `select_group_${jobId}_ambassadors` }],
+                        [{ text: 'Inactive (30+ Days)', callback_data: `select_group_${jobId}_inactive` }],
                         [{ text: 'Back', callback_data: 'dummy' }]
                     ]
                 }
@@ -14777,12 +14777,12 @@ bot.on('callback_query', async (query) => {
             await bot.sendMessage(userId, 
                 'Select target group for broadcast:\n\n' +
                 'All Users - Everyone\n' +
-                'Active (30d) - Used app in last 30 days\n' +
-                'Buyers (30d) - Purchased stars in last 30 days\n' +
-                'Sellers (30d) - Sold stars in last 30 days\n' +
-                'Both (30d) - Both bought and sold in 30 days\n' +
-                'Ambassadors - Ambassador users\n' +
-                'Inactive (30+d) - Not active for 30+ days',
+                'Active Users (Past 30 Days) - Logged in or took action in last 30 days\n' +
+                'Buyers (Past 30 Days) - Purchased stars in the last 30 days\n' +
+                'Sellers (Past 30 Days) - Sold stars in the last 30 days\n' +
+                'Buyers & Sellers (Past 30 Days) - Both purchased AND sold in last 30 days\n' +
+                'Ambassadors Only - Active/approved ambassador accounts\n' +
+                'Inactive (30+ Days) - Haven\'t been active for 30 or more days',
                 groupKeyboard
             );
             
@@ -14812,12 +14812,12 @@ bot.on('callback_query', async (query) => {
             // Get the group label
             const groupLabel = {
                 'all': 'All Users',
-                'active_30d': 'Active (30d)',
-                'buyers_30d': 'Buyers (30d)',
-                'sellers_30d': 'Sellers (30d)',
-                'both_30d': 'Both (30d)',
-                'ambassadors': 'Ambassadors',
-                'inactive': 'Inactive (30+d)'
+                'active_30d': 'Active Users (Past 30 Days)',
+                'buyers_30d': 'Buyers (Past 30 Days)',
+                'sellers_30d': 'Sellers (Past 30 Days)',
+                'both_30d': 'Buyers & Sellers (Past 30 Days)',
+                'ambassadors': 'Ambassadors Only',
+                'inactive': 'Inactive (30+ Days)'
             }[targetGroup] || targetGroup;
             
             // Update job with selected target group
@@ -14868,12 +14868,12 @@ bot.on('callback_query', async (query) => {
             // Get group details
             const groupLabel = {
                 'all': 'All Users',
-                'active_30d': 'Active (30d)',
-                'buyers_30d': 'Buyers (30d)',
-                'sellers_30d': 'Sellers (30d)',
-                'both_30d': 'Both (30d)',
-                'ambassadors': 'Ambassadors',
-                'inactive': 'Inactive (30+d)'
+                'active_30d': 'Active Users (Past 30 Days)',
+                'buyers_30d': 'Buyers (Past 30 Days)',
+                'sellers_30d': 'Sellers (Past 30 Days)',
+                'both_30d': 'Buyers & Sellers (Past 30 Days)',
+                'ambassadors': 'Ambassadors Only',
+                'inactive': 'Inactive (30+ Days)'
             }[job.targetGroup] || job.targetGroup;
             
             // Count target users for this group
@@ -14980,12 +14980,12 @@ bot.on('callback_query', async (query) => {
             
             const groupLabel = {
                 'all': 'All Users',
-                'active_30d': 'Active (30d)',
-                'buyers_30d': 'Buyers (30d)',
-                'sellers_30d': 'Sellers (30d)',
-                'both_30d': 'Both (30d)',
-                'ambassadors': 'Ambassadors',
-                'inactive': 'Inactive (30+d)'
+                'active_30d': 'Active Users (Past 30 Days)',
+                'buyers_30d': 'Buyers (Past 30 Days)',
+                'sellers_30d': 'Sellers (Past 30 Days)',
+                'both_30d': 'Buyers & Sellers (Past 30 Days)',
+                'ambassadors': 'Ambassadors Only',
+                'inactive': 'Inactive (30+ Days)'
             }[job.targetGroup] || job.targetGroup;
             
             const updatePromises = [];
