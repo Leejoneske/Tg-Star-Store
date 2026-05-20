@@ -3710,8 +3710,8 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
         const timestamp = new Date().toISOString();
 
         const priceMap = {
-            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+            regular: { 1000: 17.9, 500: 8.95, 100: 1.79, 50: 0.9, 25: 0.45, 15: 0.29 },
+            premium: { 3: 12.99, 6: 16.99, 12: 29.99 }
         };
 
         if (isPremium) {
@@ -3751,11 +3751,11 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
                 quantity 
             });
         } else {
-            // Fallback to linear rate for custom amounts: $0.02 per star
+            // Fallback to linear rate for custom amounts: $0.0179 per star
             // VALIDATE: This should not happen for standard packages, only custom amounts
-            const unitAmount = Number((starsNum * 0.02).toFixed(2));
+            const unitAmount = Number((starsNum * 0.0179).toFixed(2));
             const totalAmount = Number((unitAmount * quantity).toFixed(2));
-            console.warn(`[${timestamp}] QUOTE FALLBACK | Custom: ${starsNum} stars @ $0.02/star x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
+            console.warn(`[${timestamp}] QUOTE FALLBACK | Custom: ${starsNum} stars @ $0.0179/star x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
             return res.json({ success: true, totalAmount, unitAmount, quantity });
         }
     } catch (error) {
@@ -3775,8 +3775,8 @@ app.get('/api/quote', (req, res) => {
         const quantity = Math.max(1, Number(recipientsCount) || 0);
 
         const priceMap = {
-            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+            regular: { 1000: 17.9, 500: 8.95, 100: 1.79, 50: 0.9, 25: 0.45, 15: 0.29 },
+            premium: { 3: 12.99, 6: 16.99, 12: 29.99 }
         };
 
         if (isPremium) {
@@ -3814,7 +3814,7 @@ app.get('/api/quote', (req, res) => {
             });
         } else {
             // Fallback to linear rate for custom amounts
-            const unitAmount = Number((starsNum * 0.02).toFixed(2));
+            const unitAmount = Number((starsNum * 0.0179).toFixed(2));
             const totalAmount = Number((unitAmount * quantity).toFixed(2));
             return res.json({ success: true, totalAmount, unitAmount, quantity });
         }
@@ -4241,33 +4241,63 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             }
         }
 
-        // Check for recent duplicate orders with timeout protection
-        console.log(`[${timestamp}] VALIDATION: Checking duplicate orders (with timeout protection)...`);
+        // Check for likely duplicate replay orders with timeout protection.
+        // Important: do NOT block legitimate back-to-back orders from the same user.
+        console.log(`[${timestamp}] VALIDATION: Checking duplicate replay orders (with timeout protection)...`);
         let recentOrder = null;
+        const duplicateWindowMs = 15000;
+        const duplicateSignatureQuery = {
+            telegramId,
+            walletAddress,
+            isPremium: Boolean(isPremium),
+            status: { $in: ['pending', 'processing'] },
+            dateCreated: { $gte: new Date(Date.now() - duplicateWindowMs) }
+        };
+
+        if (isPremium) {
+            duplicateSignatureQuery.premiumDuration = premiumDuration;
+        } else {
+            duplicateSignatureQuery.stars = Number(stars);
+        }
+
+        // If transaction hash exists, require same hash for duplicate replay detection.
+        if (transactionHash) {
+            duplicateSignatureQuery.transactionHash = transactionHash;
+        }
+
         try {
             recentOrder = await Promise.race([
-                BuyOrder.findOne({
-                    telegramId,
-                    dateCreated: { $gte: new Date(Date.now() - 60000) },
-                    status: { $in: ['pending', 'processing'] }
-                }),
+                BuyOrder.findOne(duplicateSignatureQuery),
                 new Promise((resolve, reject) => 
                     setTimeout(() => reject(new Error('Duplicate order check timeout')), 5000)
                 )
             ]);
-            console.log(`[${timestamp}] VALIDATION: Duplicate order check complete. found=${!!recentOrder}`);
+            console.log(`[${timestamp}] VALIDATION: Duplicate replay check complete. found=${!!recentOrder}`);
         } catch (queryErr) {
-            console.error(`[${timestamp}] VALIDATION ERROR: Duplicate order query failed | Error: ${queryErr.message}`);
+            console.error(`[${timestamp}] VALIDATION ERROR: Duplicate replay query failed | Error: ${queryErr.message}`);
             // Don't fail the order - just log and continue (treat as if no recent order)
             recentOrder = null;
         }
         
         if (recentOrder) {
             processingRequests.delete(requestKey);
-            const err = new Error('Please wait before placing another order');
+            await sendSilentAdminErrorReport('ORDER_DUPLICATE_REPLAY_BLOCKED', {
+                telegramId,
+                username,
+                walletAddress,
+                stars: isPremium ? null : Number(stars),
+                premiumDuration: isPremium ? premiumDuration : null,
+                transactionHash: transactionHash || null,
+                duplicateOrderId: recentOrder.id,
+                duplicateOrderCreatedAt: recentOrder.dateCreated
+            }, {
+                message: 'Duplicate replay order blocked by signature check',
+                duplicateWindowMs
+            });
+            const err = new Error('Duplicate order detected. Please wait a few seconds and try again.');
             err.isValidationError = true;
             err.statusCode = 400;
-            err.responseBody = { error: 'Please wait before placing another order' };
+            err.responseBody = { error: 'Duplicate order detected. Please wait a few seconds and try again.' };
             throw err;
         }
 
@@ -4315,8 +4345,8 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         // Never trust client-submitted amounts - they can be manipulated
         let amount;
         const priceMap = {
-            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+            regular: { 1000: 17.9, 500: 8.95, 100: 1.79, 50: 0.9, 25: 0.45, 15: 0.29 },
+            premium: { 3: 12.99, 6: 16.99, 12: 29.99 }
         };
         
         // Calculate base unit price
@@ -4340,13 +4370,13 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             }
             isStandardPackage = true;
         } else {
-            // Regular stars: use map if available, otherwise calculate at $0.02/star
+            // Regular stars: use map if available, otherwise calculate at $0.0179/star
             if (priceMap.regular[stars]) {
                 basePrice = priceMap.regular[stars];
                 isStandardPackage = true;
             } else {
-                // Custom amount: use $0.02 per star as base rate
-                basePrice = Number((stars * 0.02).toFixed(4));
+                // Custom amount: use $0.0179 per star as base rate
+                basePrice = Number((stars * 0.0179).toFixed(4));
                 isStandardPackage = false;
             }
         }
@@ -9340,7 +9370,7 @@ async function repairStuckReferrals(userId) {
                 // Check if this referral should be activated
                 const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
                 
-                if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
+                if ((totalStars >= 200 || tracker.premiumActivated) && tracker.status === 'pending') {
                     // Activate the referral
                     console.log(`[REPAIR] Activating stuck referral ${referral._id} for user ${userId}: ${totalStars} stars`);
                     
@@ -11314,10 +11344,10 @@ async function trackStars(userId, stars, type) {
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
         
-        // NEW REFERRAL (instantActivation=true): activate immediately at 100+ stars
+        // NEW REFERRAL (instantActivation=true): activate immediately at 200+ stars
         // OLD REFERRAL (instantActivation=false): wait for admin confirmation
         // Only valid transactions count: processing or completed (not failed/declined/refunded)
-        if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
+        if ((totalStars >= 200 || tracker.premiumActivated) && tracker.status === 'pending') {
             if (tracker.instantActivation === true) {
                 // Instant activation for new referrals
                 await handleReferralActivation(tracker);
@@ -11330,7 +11360,7 @@ async function trackStars(userId, stars, type) {
         }
         
         // Also update the Referral status if it's still pending and conditions are met
-        if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
+        if (tracker.referral && (totalStars >= 200 || tracker.premiumActivated)) {
             const referral = await Referral.findById(tracker.referral);
             if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
                 referral.status = 'active';
@@ -12823,7 +12853,7 @@ async function handleReferralsCommand(msg) {
             const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
             
             let message = `📊 Your Referrals (ALL):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
-            message += 'New referrals activate instantly at 100+ stars!\n\n';
+            message += 'New referrals activate instantly at 200+ stars!\n\n';
             message += `🔗 Your Referral Link:\n${referralLink}`;
             
             const keyboard = {
