@@ -14309,7 +14309,7 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
             const defaultKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: 'Open StarStore', web_app: { url: 'https://starstore.app/' } }]
+                        [{ text: 'Check buying price', web_app: { url: 'https://starstore.app/' } }]
                     ]
                 }
             };
