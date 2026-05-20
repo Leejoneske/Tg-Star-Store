@@ -20416,147 +20416,177 @@ app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
 });
 
 // Enhanced notification system - sends both Telegram messages and creates database notifications
+// Helper function to get target users based on targetGroup
+async function getTargetUsersByGroup(targetGroup) {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    switch (targetGroup) {
+        case 'all':
+            return await User.find({}, { id: 1, email: 1 }).limit(50000);
+
+        case 'active_30d':
+            // Users active in past 30 days
+            return await User.find({ lastActive: { $gte: thirtyDaysAgo } }, { id: 1, email: 1 }).limit(50000);
+
+        case 'buyers_30d':
+            // Users who made purchases in past 30 days
+            const buyerIds = await Order.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            return await User.find({ id: { $in: buyerIds } }, { id: 1, email: 1 });
+
+        case 'sellers_30d':
+            // Users who made sales in past 30 days
+            const sellerIds = await Withdrawal.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            return await User.find({ id: { $in: sellerIds } }, { id: 1, email: 1 });
+
+        case 'both_30d':
+            // Users who both bought and sold in past 30 days
+            const buyerIds2 = await Order.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const sellerIds2 = await Withdrawal.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const bothIds = buyerIds2.filter(id => sellerIds2.includes(id));
+            return await User.find({ id: { $in: bothIds } }, { id: 1, email: 1 });
+
+        case 'ambassadors':
+            // Ambassadors with email
+            return await User.find({ ambassadorStatus: { $in: ['active', 'approved'] } }, { id: 1, email: 1 });
+
+        case 'inactive':
+            // Inactive for more than 30 days
+            return await User.find({ lastActive: { $lt: thirtyDaysAgo } }, { id: 1, email: 1 }).limit(50000);
+
+        default:
+            return [];
+    }
+}
+
+// Helper function to send broadcast results to all admins
+async function notifyAllAdminsOfBroadcast(results, targetGroup, adminUser) {
+    const resultMessage = `Broadcast Results from @${adminUser.username || 'Admin'}:\n` +
+        `Target Group: ${targetGroup}\n` +
+        `Total Sent: ${results.telegramSent}\n` +
+        `Failed: ${results.failed}\n` +
+        `Skipped: ${results.skipped}\n` +
+        `Success Rate: ${results.successRate}%\n` +
+        `Total Users Targeted: ${results.totalUsers}`;
+
+    for (const aId of adminIds) {
+        try {
+            await bot.sendMessage(aId, resultMessage);
+        } catch (err) {
+            console.warn(`Failed to notify admin ${aId} of broadcast results:`, err.message);
+        }
+    }
+}
+
 app.post('/api/admin/notify', requireAdmin, async (req, res) => {
     try {
-        const { target, message, title, sendTelegram = true, createDbNotification = true } = req.body || {};
+        const { target, targetGroup, message, title, sendTelegram = true, createDbNotification = true, sendEmail = false } = req.body || {};
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
             return res.status(400).json({ error: 'Message required' });
         }
 
+        let users = [];
+        let selectedGroup = target;
+
+        // Use new targetGroup system if provided
+        if (targetGroup) {
+            users = await getTargetUsersByGroup(targetGroup);
+            selectedGroup = targetGroup;
+        } else if (target) {
+            // Legacy support for old target parameter
+            if (!target || target === 'all') {
+                users = await User.find({}, { id: 1, email: 1 }).limit(50000);
+            } else if (target === 'active') {
+                const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                users = await User.find({ lastActive: { $gte: since } }, { id: 1, email: 1 }).limit(50000);
+            } else if (/^@/.test(target)) {
+                const username = target.replace(/^@/, '');
+                const user = await User.findOne({ username });
+                if (!user) return res.status(404).json({ error: 'User not found' });
+                users = [user];
+            } else if (/^\d+$/.test(target)) {
+                const user = await User.findById(target);
+                if (!user) return res.status(404).json({ error: 'User not found' });
+                users = [user];
+            }
+        } else {
+            return res.status(400).json({ error: 'Target or targetGroup required' });
+        }
+
         const telegramSent = [];
-        const dbNotificationsCreated = [];
+        const failed = [];
+        const skipped = [];
         let template = null;
 
-        // Create notification template if database notifications are requested
+        // Create notification template
         if (createDbNotification) {
-            const notificationTitle = title || 'Admin Notification 📢';
+            const notificationTitle = title || 'Admin Notification';
             template = await NotificationTemplate.create({
                 title: notificationTitle,
                 message: message,
-                audience: (!target || target === 'all' || target === 'active') ? 'global' : 'user',
-                targetUserId: (/^\d+$/.test(target)) ? target : null,
+                audience: 'global',
+                targetGroup: selectedGroup,
                 priority: 1,
                 icon: 'fa-bullhorn',
-                createdBy: `admin_api_${req.user.id}`
+                createdBy: `admin_${req.user.id}`
             });
         }
 
-        if (!target || target === 'all') {
-            const users = await User.find({}, { id: 1 }).limit(10000);
-            
-            // Send Telegram messages
-            if (sendTelegram) {
-                for (const u of users) {
-                    try { 
-                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
-                        telegramSent.push(u.id); 
-                    } catch {}
-                }
-            }
-
-            // Create database notifications
-            if (createDbNotification && template) {
-                const userNotifications = users.map(user => ({
-                    userId: user.id.toString(),
-                    templateId: template._id,
-                    read: false
-                }));
-                
-                if (userNotifications.length > 0) {
-                    await UserNotification.insertMany(userNotifications);
-                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
-                }
-            }
-        } else if (target === 'active') {
-            // Active users in last 24h
-            const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(10000);
-            
-            // Send Telegram messages
-            if (sendTelegram) {
-                for (const u of users) {
-                    try { 
-                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
-                        telegramSent.push(u.id); 
-                    } catch {}
-                }
-            }
-
-            // Create database notifications
-            if (createDbNotification && template) {
-                const userNotifications = users.map(user => ({
-                    userId: user.id.toString(),
-                    templateId: template._id,
-                    read: false
-                }));
-                
-                if (userNotifications.length > 0) {
-                    await UserNotification.insertMany(userNotifications);
-                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
-                }
-            }
-        } else if (/^@/.test(target)) {
-            const username = target.replace(/^@/, '');
-            const user = await User.findOne({ username });
-            if (!user) return res.status(404).json({ error: 'User not found' });
-            
-            // Send Telegram message
-            if (sendTelegram) {
+        // Send Telegram messages
+        if (sendTelegram) {
+            for (const user of users) {
                 try {
-                    await bot.sendMessage(user.id, `📢 Personal Admin Message:\n\n${message}`); 
+                    await bot.sendMessage(user.id, `Admin Notification:\n\n${message}`);
                     telegramSent.push(user.id);
                 } catch (err) {
-                    console.log(`Failed to send Telegram message to @${username}:`, err.message);
+                    failed.push({ userId: user.id, error: err.message });
                 }
             }
-
-            // Create database notification
-            if (createDbNotification && template) {
-                template.audience = 'user';
-                template.targetUserId = user.id.toString();
-                await template.save();
-
-                await UserNotification.create({
-                    userId: user.id.toString(),
-                    templateId: template._id,
-                    read: false
-                });
-                dbNotificationsCreated.push(user.id.toString());
-            }
-        } else if (/^\d+$/.test(target)) {
-            // Send Telegram message
-            if (sendTelegram) {
-                try {
-                    await bot.sendMessage(target, `📢 Personal Admin Message:\n\n${message}`); 
-                    telegramSent.push(target);
-                } catch (err) {
-                    console.log(`Failed to send Telegram message to ${target}:`, err.message);
-                }
-            }
-
-            // Create database notification
-            if (createDbNotification && template) {
-                template.audience = 'user';
-                template.targetUserId = target;
-                await template.save();
-
-                await UserNotification.create({
-                    userId: target,
-                    templateId: template._id,
-                    read: false
-                });
-                dbNotificationsCreated.push(target);
-            }
-        } else {
-            return res.status(400).json({ error: 'Invalid target' });
         }
-        
-        res.json({ 
-            success: true, 
+
+        // Send emails for ambassadors
+        if (sendEmail && selectedGroup === 'ambassadors') {
+            const { sendNewsletterBroadcast } = require('./services/email-service');
+            for (const user of users) {
+                if (user.email) {
+                    try {
+                        await sendNewsletterBroadcast(user.email, title || 'Admin Update', message);
+                    } catch (err) {
+                        console.warn(`Failed to send email to ${user.email}:`, err.message);
+                    }
+                }
+            }
+        }
+
+        // Create database notifications
+        if (createDbNotification && template) {
+            const userNotifications = telegramSent.map(userId => ({
+                userId: userId.toString(),
+                templateId: template._id,
+                read: false
+            }));
+
+            if (userNotifications.length > 0) {
+                await UserNotification.insertMany(userNotifications);
+            }
+        }
+
+        const successRate = users.length > 0 ? Math.round((telegramSent.length / users.length) * 100) : 0;
+        const results = {
+            success: true,
+            totalUsers: users.length,
             telegramSent: telegramSent.length,
-            dbNotificationsCreated: dbNotificationsCreated.length,
+            failed: failed.length,
+            skipped: skipped.length,
+            successRate: successRate,
+            targetGroup: selectedGroup,
             templateId: template?._id
-        });
+        };
+
+        // Notify all admins of broadcast results
+        await notifyAllAdminsOfBroadcast(results, selectedGroup, req.user);
+
+        res.json(results);
     } catch (error) {
         console.error('Admin notify error:', error);
         res.status(500).json({ error: 'Failed to send notification' });

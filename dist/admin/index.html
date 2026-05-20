@@ -209,7 +209,7 @@
                                     <div class="row g-2">
                                         <div class="col-6"><button class="btn btn-light w-100" data-action="export-orders"><i class="fas fa-download me-1"></i>Export orders</button></div>
                                         <div class="col-6"><button class="btn btn-light w-100" data-action="export-withdrawals"><i class="fas fa-download me-1"></i>Export withdrawals</button></div>
-                                        <div class="col-6"><button class="btn btn-light w-100" data-go="notifications"><i class="fas fa-bullhorn me-1"></i>Send notice</button></div>
+                                        <div class="col-6"><button class="btn btn-light w-100" data-go="notifications"><i class="fas fa-bullhorn me-1"></i>Check Prices</button></div>
                                         <div class="col-6"><button class="btn btn-light w-100" data-go="users"><i class="fas fa-users me-1"></i>View users</button></div>
                                     </div>
                                 </div>
@@ -335,32 +335,70 @@
                     </div>
                 </section>
 
-                <!-- Notifications -->
+                <!-- Notifications / Broadcast -->
                 <section id="view-notifications" class="view d-none">
-                    <div class="card" style="max-width:720px;">
-                        <div class="card-header"><h3 class="card-title">Send notification</h3></div>
+                    <div class="card" style="max-width:900px;">
+                        <div class="card-header"><h3 class="card-title">Broadcast Message</h3></div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold">Title <span class="text-muted fw-normal">(optional)</span></label>
-                                <input type="text" id="notify-title" class="form-control" placeholder="Admin Notification 📢">
+                            <div class="mb-4">
+                                <label class="form-label small fw-semibold">Message</label>
+                                <textarea id="notify-message" class="form-control" rows="4" maxlength="1000" placeholder="Write your broadcast message…"></textarea>
+                                <div class="form-text"><span id="notify-len">0</span>/1000 characters</div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold">Audience</label>
-                                <input type="text" id="notify-target" class="form-control" placeholder="all, active, or a Telegram user ID">
-                                <div class="d-flex gap-2 mt-2">
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-set-target="all">All users</button>
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-set-target="active">Active users</button>
+
+                            <div class="mb-4">
+                                <label class="form-label small fw-semibold">Target Group</label>
+                                <p class="form-text text-muted mb-3">Click a group button to select who receives this broadcast:</p>
+                                <div class="row g-2">
+                                    <div class="col-12 col-sm-6">
+                                        <button class="btn btn-outline-primary w-100" type="button" data-target-group="all">
+                                            <i class="fas fa-users me-2"></i>Send to all
+                                        </button>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <button class="btn btn-outline-primary w-100" type="button" data-target-group="active_30d">
+                                            <i class="fas fa-clock me-2"></i>Active past 30 days
+                                        </button>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <button class="btn btn-outline-primary w-100" type="button" data-target-group="buyers_30d">
+                                            <i class="fas fa-shopping-cart me-2"></i>Buyers (30 days)
+                                        </button>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <button class="btn btn-outline-primary w-100" type="button" data-target-group="sellers_30d">
+                                            <i class="fas fa-tag me-2"></i>Sellers (30 days)
+                                        </button>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <button class="btn btn-outline-primary w-100" type="button" data-target-group="both_30d">
+                                            <i class="fas fa-exchange me-2"></i>Both (30 days)
+                                        </button>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <button class="btn btn-outline-primary w-100" type="button" data-target-group="ambassadors">
+                                            <i class="fas fa-crown me-2"></i>Ambassadors
+                                        </button>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <button class="btn btn-outline-primary w-100" type="button" data-target-group="inactive">
+                                            <i class="fas fa-ban me-2"></i>Inactive (30+ days)
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold">Message</label>
-                                <textarea id="notify-message" class="form-control" rows="5" maxlength="500" placeholder="Write your message…"></textarea>
-                                <div class="form-text"><span id="notify-len">0</span>/500 characters</div>
+
+                            <div class="mb-4" id="broadcast-selected" style="display: none;">
+                                <div class="alert alert-info small mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Selected Target:</strong> <span id="selected-target-display"></span>
+                                </div>
                             </div>
+
                             <div class="d-flex justify-content-end gap-2">
                                 <button class="btn btn-outline-secondary" id="notify-clear" type="button">Clear</button>
-                                <button class="btn btn-primary" id="notify-send" type="button">
-                                    <i class="fas fa-paper-plane me-1"></i>Send
+                                <button class="btn btn-primary" id="notify-send" type="button" disabled>
+                                    <i class="fas fa-paper-plane me-1"></i>Send Broadcast
                                 </button>
                             </div>
                         </div>
