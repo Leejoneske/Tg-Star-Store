@@ -3979,6 +3979,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     
     // Wrap entire order creation with overall timeout and retry logic
     let lastError = null;
+    let lastValidationError = null;
     const maxRetries = 3;
     const orderCreationTimeout = 30000; // 30 second timeout
     
@@ -3994,11 +3995,17 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
                 )
             ]);
             
-            // If successful, return early
-            if (result?.completed) {
-                return;
+            // If successful, send success response and return
+            if (result?.completed && result?.success) {
+                return res.json({ success: true, order: result.order });
             }
         } catch (err) {
+            // Check if it's a validation error (should not retry)
+            if (err.isValidationError) {
+                lastValidationError = err;
+                break; // Don't retry validation errors
+            }
+            
             lastError = err;
             console.warn(`[${new Date().toISOString()}] ORDER CREATION ATTEMPT ${attemptNumber}/${maxRetries} FAILED | Error: ${err.message}`);
             
@@ -4010,6 +4017,12 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
                 continue;
             }
         }
+    }
+    
+    // Handle validation errors (return immediately without retry)
+    if (lastValidationError) {
+        processingRequests.delete(requestKey); // Clean up processing request
+        return res.status(lastValidationError.statusCode || 400).json(lastValidationError.responseBody);
     }
     
     // If we get here, all retries failed
@@ -4030,7 +4043,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     });
     
     // Return "pending" state instead of error so user doesn't get confused
-    res.json({ 
+    return res.json({ 
         success: false,
         status: 'pending',
         message: 'Your order is being processed. Please wait and check your order history.',
@@ -4049,7 +4062,11 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         // === SECURITY VALIDATION: Ensure user can only create orders for themselves ===
         if (String(telegramId) !== String(req.user?.id)) {
             console.warn(`[${timestamp}] SECURITY ALERT: User ${req.user?.id} attempted to create order for user ${telegramId}`);
-            return res.status(401).json({ error: 'Unauthorized: Cannot create orders for other users' });
+            const err = new Error('Unauthorized: Cannot create orders for other users');
+            err.isValidationError = true;
+            err.statusCode = 401;
+            err.responseBody = { error: 'Unauthorized: Cannot create orders for other users' };
+            throw err;
         }
         
         // === VALIDATION PHASE ===
@@ -4061,7 +4078,11 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
 
         // Prevent duplicate requests
         if (processingRequests.has(requestKey)) {
-            return res.status(429).json({ error: 'Request already being processed. Please wait...' });
+            const err = new Error('Request already being processed. Please wait...');
+            err.isValidationError = true;
+            err.statusCode = 429;
+            err.responseBody = { error: 'Request already being processed. Please wait...' };
+            throw err;
         }
         processingRequests.set(requestKey, Date.now());
 
@@ -4076,11 +4097,15 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             // If user tries to bypass ban, record additional violation to extend ban
             recordPurchaseViolation(telegramId, username);
             
-            return res.status(429).json({ 
+            const err = new Error('Temporary purchase limit active');
+            err.isValidationError = true;
+            err.statusCode = 429;
+            err.responseBody = { 
                 error: 'Temporary purchase limit active',
                 banRemaining: banCheck.secondsRemaining,
                 message: `Please wait ${Math.ceil(banCheck.secondsRemaining / 60)} minutes before trying again.`
-            });
+            };
+            throw err;
         }
 
         // Check for rapid-fire purchases (3-second minimum interval)
@@ -4098,17 +4123,25 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             
             // If ban was activated by this violation, return 429
             if (violationResult.banActivated) {
-                return res.status(429).json({ 
+                const err = new Error('Temporary purchase limit active');
+                err.isValidationError = true;
+                err.statusCode = 429;
+                err.responseBody = { 
                     error: 'Temporary purchase limit active',
                     banRemaining: Math.ceil(TEMP_BAN_DURATION_MS / 1000),
                     message: `You are rate limited. Please wait ${Math.ceil(TEMP_BAN_DURATION_MS / 60000)} minutes before trying again.`
-                });
+                };
+                throw err;
             } else {
                 // Still under cooldown warning
-                return res.status(429).json({ 
+                const err = new Error('Please slow down');
+                err.isValidationError = true;
+                err.statusCode = 429;
+                err.responseBody = { 
                     error: 'Please slow down',
                     message: 'You can only make one purchase every 3 seconds.'
-                });
+                };
+                throw err;
             }
         }
 
@@ -4120,7 +4153,11 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             processingRequests.delete(requestKey);
             const reason = 'Missing required fields';
             console.log(`[${timestamp}] ORDER FAILED | User: ${telegramId} | Reason: ${reason}`);
-            return res.status(400).json({ error: reason });
+            const err = new Error(reason);
+            err.isValidationError = true;
+            err.statusCode = 400;
+            err.responseBody = { error: reason };
+            throw err;
         }
         console.log(`[${timestamp}] VALIDATION: Required fields OK. Checking username format...`);
 
@@ -4131,7 +4168,11 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             try {
                 await bot.sendMessage(telegramId, `⚠️ You must set a Telegram username to place orders.\n\nGo to Settings → Username and create one, then try again.`);
             } catch {}
-            return res.status(400).json({ error: 'Telegram username required' });
+            const err = new Error('Telegram username required');
+            err.isValidationError = true;
+            err.statusCode = 400;
+            err.responseBody = { error: 'Telegram username required' };
+            throw err;
         }
         console.log(`[${timestamp}] VALIDATION: Username OK '${username}'. Checking ban status...`);
 
@@ -4223,19 +4264,31 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         
         if (recentOrder) {
             processingRequests.delete(requestKey);
-            return res.status(400).json({ error: 'Please wait before placing another order' });
+            const err = new Error('Please wait before placing another order');
+            err.isValidationError = true;
+            err.statusCode = 400;
+            err.responseBody = { error: 'Please wait before placing another order' };
+            throw err;
         }
 
         // Wallet validation
         console.log(`[${timestamp}] VALIDATION: Wallet validation (testnet=${isTestnet}, admin=${requesterIsAdmin})...`);
         if (isTestnet === true && !requesterIsAdmin) {
             processingRequests.delete(requestKey);
-            return res.status(400).json({ error: 'Testnet is not supported' });
+            const err = new Error('Testnet is not supported');
+            err.isValidationError = true;
+            err.statusCode = 400;
+            err.responseBody = { error: 'Testnet is not supported' };
+            throw err;
         }
 
         if (walletAddress && !requesterIsAdmin && !isValidTONAddress(walletAddress)) {
             processingRequests.delete(requestKey);
-            return res.status(400).json({ error: 'Invalid TON wallet address' });
+            const err = new Error('Invalid TON wallet address');
+            err.isValidationError = true;
+            err.statusCode = 400;
+            err.responseBody = { error: 'Invalid TON wallet address' };
+            throw err;
         }
         console.log(`[${timestamp}] VALIDATION: All validation checks passed! Starting order creation...`);
 
@@ -4276,10 +4329,14 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             if (!basePrice) {
                 processingRequests.delete(requestKey);
                 console.error(`[${timestamp}] SECURITY: Rejected invalid premium duration. User: ${telegramId} | Duration: ${premiumDuration}mo | Reason: Not in price map`);
-                return res.status(400).json({
+                const err = new Error('Invalid premium duration');
+                err.isValidationError = true;
+                err.statusCode = 400;
+                err.responseBody = {
                     error: 'Invalid premium duration',
                     details: `${premiumDuration} months not available. Choose 3, 6, or 12 months.`
-                });
+                };
+                throw err;
             }
             isStandardPackage = true;
         } else {
@@ -4521,9 +4578,9 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         
         // Always return success if order was saved (order exists in DB regardless of admin notification)
         processingRequests.delete(requestKey);
-        res.json({ success: true, order });
         
-        return { completed: true };
+        // Return result object instead of sending response (outer wrapper handles response)
+        return { completed: true, success: true, order };
 
     } catch (err) {
         // Re-throw so outer retry handler catches it
