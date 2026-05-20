@@ -14734,22 +14734,22 @@ bot.on('message', async (msg) => {
         broadcastSessions.delete(chatId);
         
         // Send summary to initiating admin
-        const summaryText = `📢 <b>Broadcast Preview Sent to All Admins</b>\n\n` +
-            `📊 Job ID: <code>${jobId}</code>\n` +
-            `👥 Will be sent to: ${totalUsers.toLocaleString()} users\n` +
-            `📝 Type: ${messageType.toUpperCase()}\n` +
-            `🔘 Includes: Sell Page & Referral buttons\n\n` +
-            `⏱️ Est. time: ${Math.ceil(totalUsers / 50 * 2.5)} minutes\n\n` +
+        const summaryText = `<b>Broadcast Preview Sent to All Admins</b>\n\n` +
+            `Job ID: <code>${jobId}</code>\n` +
+            `Will be sent to: ${totalUsers.toLocaleString()} users\n` +
+            `Type: ${messageType.toUpperCase()}\n` +
+            `Includes: Sell Page & Referral buttons\n\n` +
+            `Est. time: ${Math.ceil(totalUsers / 50 * 2.5)} minutes\n\n` +
             `<i>Message sent to all ${adminIds.length} admins for approval. Waiting for confirmation...</i>`;
         
         await bot.sendMessage(chatId, summaryText, { parse_mode: 'HTML' });
         
-        console.log(`📢 Broadcast ${jobId} preview sent to ${adminIds.length} admins - Waiting for approval`);
+        console.log(`Broadcast ${jobId} preview sent to ${adminIds.length} admins - Waiting for approval`);
         
     } catch (error) {
         console.error('Broadcast message handling error:', error);
         broadcastSessions.delete(chatId);
-        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        await bot.sendMessage(chatId, `Error: ${error.message}`);
     }
 });
 
@@ -14759,7 +14759,7 @@ bot.on('callback_query', async (query) => {
     if (query.data === 'broadcast_cancel') {
         const userId = query.from.id.toString();
         if (!adminIds.includes(userId)) {
-            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
         }
         broadcastSessions.delete(query.message.chat.id);
         try {
@@ -14777,7 +14777,7 @@ bot.on('callback_query', async (query) => {
         const userId = query.from.id.toString();
         const adminUsername = query.from.username || query.from.first_name;
         if (!adminIds.includes(userId)) {
-            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+            return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
         }
         try {
             const job = await BroadcastJob.findOne({ jobId });
@@ -14794,7 +14794,7 @@ bot.on('callback_query', async (query) => {
                     message_id: query.message.message_id
                 });
             } catch (_) {}
-            console.log(`🛑 Broadcast ${jobId} mid-flight cancel requested by ${adminUsername}`);
+            console.log(`Broadcast ${jobId} mid-flight cancel requested by ${adminUsername}`);
         } catch (error) {
             console.error('Mid-flight cancel error:', error);
             bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
