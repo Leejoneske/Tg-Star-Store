@@ -4241,33 +4241,63 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             }
         }
 
-        // Check for recent duplicate orders with timeout protection
-        console.log(`[${timestamp}] VALIDATION: Checking duplicate orders (with timeout protection)...`);
+        // Check for likely duplicate replay orders with timeout protection.
+        // Important: do NOT block legitimate back-to-back orders from the same user.
+        console.log(`[${timestamp}] VALIDATION: Checking duplicate replay orders (with timeout protection)...`);
         let recentOrder = null;
+        const duplicateWindowMs = 15000;
+        const duplicateSignatureQuery = {
+            telegramId,
+            walletAddress,
+            isPremium: Boolean(isPremium),
+            status: { $in: ['pending', 'processing'] },
+            dateCreated: { $gte: new Date(Date.now() - duplicateWindowMs) }
+        };
+
+        if (isPremium) {
+            duplicateSignatureQuery.premiumDuration = premiumDuration;
+        } else {
+            duplicateSignatureQuery.stars = Number(stars);
+        }
+
+        // If transaction hash exists, require same hash for duplicate replay detection.
+        if (transactionHash) {
+            duplicateSignatureQuery.transactionHash = transactionHash;
+        }
+
         try {
             recentOrder = await Promise.race([
-                BuyOrder.findOne({
-                    telegramId,
-                    dateCreated: { $gte: new Date(Date.now() - 60000) },
-                    status: { $in: ['pending', 'processing'] }
-                }),
+                BuyOrder.findOne(duplicateSignatureQuery),
                 new Promise((resolve, reject) => 
                     setTimeout(() => reject(new Error('Duplicate order check timeout')), 5000)
                 )
             ]);
-            console.log(`[${timestamp}] VALIDATION: Duplicate order check complete. found=${!!recentOrder}`);
+            console.log(`[${timestamp}] VALIDATION: Duplicate replay check complete. found=${!!recentOrder}`);
         } catch (queryErr) {
-            console.error(`[${timestamp}] VALIDATION ERROR: Duplicate order query failed | Error: ${queryErr.message}`);
+            console.error(`[${timestamp}] VALIDATION ERROR: Duplicate replay query failed | Error: ${queryErr.message}`);
             // Don't fail the order - just log and continue (treat as if no recent order)
             recentOrder = null;
         }
         
         if (recentOrder) {
             processingRequests.delete(requestKey);
-            const err = new Error('Please wait before placing another order');
+            await sendSilentAdminErrorReport('ORDER_DUPLICATE_REPLAY_BLOCKED', {
+                telegramId,
+                username,
+                walletAddress,
+                stars: isPremium ? null : Number(stars),
+                premiumDuration: isPremium ? premiumDuration : null,
+                transactionHash: transactionHash || null,
+                duplicateOrderId: recentOrder.id,
+                duplicateOrderCreatedAt: recentOrder.dateCreated
+            }, {
+                message: 'Duplicate replay order blocked by signature check',
+                duplicateWindowMs
+            });
+            const err = new Error('Duplicate order detected. Please wait a few seconds and try again.');
             err.isValidationError = true;
             err.statusCode = 400;
-            err.responseBody = { error: 'Please wait before placing another order' };
+            err.responseBody = { error: 'Duplicate order detected. Please wait a few seconds and try again.' };
             throw err;
         }
 
