@@ -14772,8 +14772,8 @@ bot.on('callback_query', async (query) => {
             console.log(`[BROADCAST] Job lookup result:`, job ? `Found job ${jobId}` : `Job ${jobId} NOT found`);
             if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
             
-            console.log(`[BROADCAST] Sending group selection message to user ${userId}`);
-            // Show group selection message
+            console.log(`[BROADCAST] Editing message to show group selection for user ${userId}`);
+            // Edit the original message to show group selection
             const groupKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
@@ -14783,25 +14783,45 @@ bot.on('callback_query', async (query) => {
                         [{ text: 'Sellers (Past 30 Days)', callback_data: `select_group_${jobId}_sellers_30d` }],
                         [{ text: 'Buyers & Sellers (Past 30 Days)', callback_data: `select_group_${jobId}_both_30d` }],
                         [{ text: 'Ambassadors Only', callback_data: `select_group_${jobId}_ambassadors` }],
-                        [{ text: 'Inactive (30+ Days)', callback_data: `select_group_${jobId}_inactive` }],
-                        [{ text: 'Back', callback_data: 'dummy' }]
+                        [{ text: 'Inactive (30+ Days)', callback_data: `select_group_${jobId}_inactive` }]
                     ]
                 }
             };
             
-            await bot.sendMessage(userId, 
-                'Select target group for broadcast:\n\n' +
-                'All Users - Everyone\n' +
-                'Active Users (Past 30 Days) - Logged in or took action in last 30 days\n' +
-                'Buyers (Past 30 Days) - Purchased stars in the last 30 days\n' +
-                'Sellers (Past 30 Days) - Sold stars in the last 30 days\n' +
-                'Buyers & Sellers (Past 30 Days) - Both purchased AND sold in last 30 days\n' +
-                'Ambassadors Only - Active/approved ambassador accounts\n' +
-                'Inactive (30+ Days) - Haven\'t been active for 30 or more days',
-                groupKeyboard
-            );
+            try {
+                // Try to edit the original message (works for callbacks from inline buttons)
+                await bot.editMessageText(
+                    'Select target group for broadcast:\n\n' +
+                    'All Users - Everyone\n' +
+                    'Active Users (Past 30 Days) - Logged in or took action in last 30 days\n' +
+                    'Buyers (Past 30 Days) - Purchased stars in the last 30 days\n' +
+                    'Sellers (Past 30 Days) - Sold stars in the last 30 days\n' +
+                    'Buyers & Sellers (Past 30 Days) - Both purchased AND sold in last 30 days\n' +
+                    'Ambassadors Only - Active/approved ambassador accounts\n' +
+                    'Inactive (30+ Days) - Haven\'t been active for 30 or more days',
+                    {
+                        chat_id: userId,
+                        message_id: query.message.message_id,
+                        reply_markup: groupKeyboard.reply_markup
+                    }
+                );
+                console.log(`[BROADCAST] Message edited successfully`);
+            } catch (editErr) {
+                // Fallback: send new message if edit fails
+                console.log(`[BROADCAST] Edit failed, sending new message:`, editErr.message);
+                await bot.sendMessage(userId, 
+                    'Select target group for broadcast:\n\n' +
+                    'All Users - Everyone\n' +
+                    'Active Users (Past 30 Days) - Logged in or took action in last 30 days\n' +
+                    'Buyers (Past 30 Days) - Purchased stars in the last 30 days\n' +
+                    'Sellers (Past 30 Days) - Sold stars in the last 30 days\n' +
+                    'Buyers & Sellers (Past 30 Days) - Both purchased AND sold in last 30 days\n' +
+                    'Ambassadors Only - Active/approved ambassador accounts\n' +
+                    'Inactive (30+ Days) - Haven\'t been active for 30 or more days',
+                    groupKeyboard
+                );
+            }
             
-            console.log(`[BROADCAST] Group selection message sent successfully`);
             await bot.answerCallbackQuery(query.id, 'Select a target group');
         } catch (error) {
             console.error('[BROADCAST] Show groups error:', error);
@@ -14866,7 +14886,7 @@ bot.on('callback_query', async (query) => {
             job.targetGroup = targetGroup;
             await job.save();
             
-            // Show confirmation message with only selected group
+            // Edit the original message to show confirmation
             const confirmKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
@@ -14876,13 +14896,28 @@ bot.on('callback_query', async (query) => {
                 }
             };
             
-            console.log(`[BROADCAST] Sending confirmation message to ${userId}`);
-            await bot.sendMessage(userId,
-                `Selected target group:\n\n${groupLabel}\n\nClick Continue to send preview to all admins, or Back to change selection.`,
-                confirmKeyboard
-            );
+            console.log(`[BROADCAST] Editing message to show confirmation for ${userId}`);
+            try {
+                // Edit the original message to show confirmation
+                await bot.editMessageText(
+                    `Selected target group:\n\n${groupLabel}\n\nClick Continue to send preview to all admins, or Back to change selection.`,
+                    {
+                        chat_id: userId,
+                        message_id: query.message.message_id,
+                        reply_markup: confirmKeyboard.reply_markup
+                    }
+                );
+                console.log(`[BROADCAST] Confirmation message edited successfully`);
+            } catch (editErr) {
+                // Fallback: send new message if edit fails
+                console.log(`[BROADCAST] Edit failed, sending new message:`, editErr.message);
+                await bot.sendMessage(userId,
+                    `Selected target group:\n\n${groupLabel}\n\nClick Continue to send preview to all admins, or Back to change selection.`,
+                    confirmKeyboard
+                );
+            }
             
-            console.log(`[BROADCAST] Confirmation message sent, answering callback`);
+            console.log(`[BROADCAST] Answering callback`);
             await bot.answerCallbackQuery(query.id, `Selected: ${groupLabel}`);
         } catch (error) {
             console.error('[BROADCAST] select_group_ error:', error);
@@ -14930,6 +14965,20 @@ bot.on('callback_query', async (query) => {
             job.approvalStatus = 'awaiting_group_selection';
             await job.save();
             
+            // Edit the original message to remove buttons
+            try {
+                await bot.editMessageReplyMarkup(
+                    { inline_keyboard: [[{ text: '✓ Preview being sent to admins...', callback_data: 'dummy' }]] },
+                    {
+                        chat_id: userId,
+                        message_id: query.message.message_id
+                    }
+                );
+                console.log(`[BROADCAST] Edited original message buttons for ${userId}`);
+            } catch (editErr) {
+                console.log(`[BROADCAST] Could not edit original message (OK if message is old):`, editErr.message);
+            }
+            
             // Send preview to ALL admins with this group info
             const groupSelectionKeyboard = {
                 reply_markup: {
@@ -14940,12 +14989,13 @@ bot.on('callback_query', async (query) => {
                 }
             };
             
-            const messagePromises = [];
+            // Send preview to each admin and track message IDs
+            job.adminMessageIds = [];
             for (const adminId of adminIds) {
                 try {
-                    let promise;
+                    let message;
                     if (job.messageType === 'text') {
-                        promise = bot.sendMessage(adminId, job.messageText || job.caption, {
+                        message = await bot.sendMessage(adminId, job.messageText || job.caption, {
                             parse_mode: 'HTML',
                             disable_web_page_preview: true,
                             disable_notification: false,
@@ -14958,32 +15008,41 @@ bot.on('callback_query', async (query) => {
                             disable_notification: false,
                             ...groupSelectionKeyboard
                         };
-                        if (job.messageType === 'photo')         promise = bot.sendPhoto(adminId, job.mediaFileId, mediaOpts);
-                        else if (job.messageType === 'video')    promise = bot.sendVideo(adminId, job.mediaFileId, mediaOpts);
-                        else if (job.messageType === 'audio')    promise = bot.sendAudio(adminId, job.mediaFileId, mediaOpts);
-                        else if (job.messageType === 'document') promise = bot.sendDocument(adminId, job.mediaFileId, mediaOpts);
+                        if (job.messageType === 'photo')         message = await bot.sendPhoto(adminId, job.mediaFileId, mediaOpts);
+                        else if (job.messageType === 'video')    message = await bot.sendVideo(adminId, job.mediaFileId, mediaOpts);
+                        else if (job.messageType === 'audio')    message = await bot.sendAudio(adminId, job.mediaFileId, mediaOpts);
+                        else if (job.messageType === 'document') message = await bot.sendDocument(adminId, job.mediaFileId, mediaOpts);
                         else throw new Error(`Unsupported media type: ${job.messageType}`);
                     }
-                    messagePromises.push(promise);
+                    
+                    // Store the message ID for later editing
+                    if (message && message.message_id) {
+                        job.adminMessageIds.push({
+                            adminId: adminId.toString(),
+                            messageId: message.message_id
+                        });
+                        console.log(`[BROADCAST] Stored message ${message.message_id} for admin ${adminId}`);
+                    }
                 } catch (err) {
-                    console.error(`Error preparing message for admin ${adminId}:`, err.message);
+                    console.error(`Error sending preview to admin ${adminId}:`, err.message);
                 }
             }
             
-            const settled = await Promise.allSettled(messagePromises);
-            const previewsSent = settled.filter(r => r.status === 'fulfilled').length;
+            // Save the admin message IDs to database so we can edit buttons later
+            await job.save();
             
-            if (previewsSent === 0) {
+            const totalMessagesSent = job.adminMessageIds.length;
+            if (totalMessagesSent === 0) {
                 return bot.answerCallbackQuery(query.id, 'Failed to send preview to admins', true);
             }
             
             // Send confirmation to initiating admin
             await bot.sendMessage(userId,
-                `Preview sent to ${previewsSent} admin(s)!\n\nTarget Group: ${groupLabel}\nWill reach: ${job.totalUsers.toLocaleString()} users\n\nWaiting for approval...`
+                `Preview sent to ${totalMessagesSent} admin(s)!\n\nTarget Group: ${groupLabel}\nWill reach: ${job.totalUsers.toLocaleString()} users\n\nWaiting for approval...`
             );
             
             await bot.answerCallbackQuery(query.id, 'Preview sent to admins');
-            console.log(`Broadcast ${jobId} preview sent to admins - Target: ${groupLabel} (${job.totalUsers.toLocaleString()} users)`);
+            console.log(`Broadcast ${jobId} preview sent to ${totalMessagesSent} admin(s) - Target: ${groupLabel} (${job.totalUsers.toLocaleString()} users)`);
             
         } catch (error) {
             console.error('Group confirmation error:', error);
