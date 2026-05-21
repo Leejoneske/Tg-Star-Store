@@ -14813,9 +14813,29 @@ bot.on('callback_query', async (query) => {
     // Handle broadcast group selection
     if (query.data && query.data.startsWith('select_group_')) {
         console.log(`[BROADCAST] select_group_ handler triggered with data: ${query.data}`);
-        const parts = query.data.replace('select_group_', '').split('_');
-        const jobId = parts[0];
-        const targetGroup = parts.slice(1).join('_');
+        
+        // Parse carefully: callback_data is select_group_<jobId>_<targetGroup>
+        // jobId can contain underscores, so work backwards from known group names
+        const callbackData = query.data.replace('select_group_', '');
+        const validGroups = ['all', 'active_30d', 'buyers_30d', 'sellers_30d', 'both_30d', 'ambassadors', 'inactive'];
+        
+        let jobId = '';
+        let targetGroup = '';
+        
+        // Find which group this ends with
+        for (const group of validGroups) {
+            if (callbackData.endsWith('_' + group)) {
+                targetGroup = group;
+                jobId = callbackData.substring(0, callbackData.length - group.length - 1);
+                break;
+            } else if (callbackData === group) {
+                // Edge case: just the group name (shouldn't happen)
+                targetGroup = group;
+                jobId = '';
+                break;
+            }
+        }
+        
         const userId = query.from.id.toString();
         
         console.log(`[BROADCAST] select_group_ - jobId: ${jobId}, targetGroup: ${targetGroup}, userId: ${userId}`);
