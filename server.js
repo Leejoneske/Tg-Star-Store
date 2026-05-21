@@ -20722,18 +20722,18 @@ async function getTargetUsersByGroup(targetGroup) {
 
         case 'buyers_30d':
             // Users who made purchases in past 30 days
-            const buyerIds = await BuyOrder.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const buyerIds = await BuyOrder.distinct('telegramId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
             return await User.find({ id: { $in: buyerIds } }, { id: 1, email: 1 });
 
         case 'sellers_30d':
             // Users who made sales in past 30 days
-            const sellerIds = await Withdrawal.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const sellerIds = await SellOrder.distinct('telegramId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
             return await User.find({ id: { $in: sellerIds } }, { id: 1, email: 1 });
 
         case 'both_30d':
             // Users who both bought and sold in past 30 days
-            const buyerIds2 = await BuyOrder.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
-            const sellerIds2 = await Withdrawal.distinct('userId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const buyerIds2 = await BuyOrder.distinct('telegramId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
+            const sellerIds2 = await SellOrder.distinct('telegramId', { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' });
             const bothIds = buyerIds2.filter(id => sellerIds2.includes(id));
             return await User.find({ id: { $in: bothIds } }, { id: 1, email: 1 });
 
