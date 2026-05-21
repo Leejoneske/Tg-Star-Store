@@ -3013,31 +3013,36 @@ function isValidTONAddress(address) {
     
     const trimmed = address.trim();
     
-    // Check for testnet indicators
-    if (trimmed.toLowerCase().includes('testnet') || 
-        trimmed.toLowerCase().includes('test') ||
-        trimmed.toLowerCase().includes('sandbox')) {
+    // Reject explicitly marked testnet addresses with 't' prefix
+    // (e.g., tEQxxx, tUQxxx) - these are testnet indicators
+    if (/^t[EU][^Q]/i.test(trimmed)) {
         return false;
     }
     
     // Support multiple TON address formats:
-    // 1. Base64url format: UQ, EQ, kQ, 0Q (48 characters)
-    // 2. Hex format: 0:hex (workchain:hex)
-    // 3. Raw format: -1:hex or 0:hex
+    // 1. Base64url user-friendly format (EQ..., UQ..., kQ..., 0Q...)
+    // 2. Hex format: 0:hex or -1:hex
     
-    // Check for hex format (0:hex or -1:hex)
-    const hexFormatRegex = /^[0-9-]+:[a-fA-F0-9]{64}$/;
+    // Check for hex format (0:hex or -1:hex) - 64 hex chars
+    const hexFormatRegex = /^-?\d+:[a-fA-F0-9]{64}$/;
     if (hexFormatRegex.test(trimmed)) {
         return true;
     }
     
-    // Check for user-friendly format.
-    // Keep this intentionally flexible: accept common prefixes and small length variance.
-    // Canonical format is usually 48 chars, but users may paste variants from wallets.
-    const tonAddressRegex = /^[A-Za-z0-9_-]{47,50}$/;
+    // Check for user-friendly base64url format.
+    // TonConnect and most wallets use this format (usually 48 chars).
+    // We match frontend validation: t?(EQ|UQ)[A-Za-z0-9_-]{38,}
+    // This means: optional 't' prefix, then EQ or UQ, then 38+ base64url chars = 40+ total
+    const tonAddressRegex = /^t?(EQ|UQ)[A-Za-z0-9_\-]{38,}$/;
     if (tonAddressRegex.test(trimmed)) {
-        const validPrefixes = ['UQ', 'EQ', 'kQ', '0Q', 'E', 'U', 'k', '0'];
-        return validPrefixes.some(prefix => trimmed.startsWith(prefix));
+        return true;
+    }
+    
+    // Also accept other known prefixes for compatibility (kQ, 0Q, E, U, k, 0)
+    // with more flexible length (40-56 chars total)
+    const altFormatRegex = /^[kU0EQequ][A-Za-z0-9_\-]{39,55}$/;
+    if (altFormatRegex.test(trimmed) && /^[kU0EQ]/i.test(trimmed)) {
+        return true;
     }
     
     return false;
@@ -4023,6 +4028,25 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     // Handle validation errors (return immediately without retry)
     if (lastValidationError) {
         processingRequests.delete(requestKey); // Clean up processing request
+        
+        // Report validation errors to admins (user-facing errors that indicate issues)
+        if (lastValidationError.message && (
+            lastValidationError.message.includes('Invalid TON wallet') ||
+            lastValidationError.message.includes('Testnet') ||
+            lastValidationError.message.includes('Invalid premium')
+        )) {
+            await sendSilentAdminErrorReport('ORDER_VALIDATION_ERROR', {
+                telegramId,
+                username,
+                amount: req.body?.totalAmount,
+                walletAddress: walletAddress ? `${walletAddress.slice(0, 20)}...${walletAddress.slice(-10)}` : 'N/A',
+                itemType: isPremium ? 'premium' : 'stars'
+            }, {
+                message: lastValidationError.message,
+                code: lastValidationError.statusCode
+            });
+        }
+        
         return res.status(lastValidationError.statusCode || 400).json(lastValidationError.responseBody);
     }
     
@@ -4315,6 +4339,13 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
 
         if (walletAddress && !requesterIsAdmin && !isValidTONAddress(walletAddress)) {
             processingRequests.delete(requestKey);
+            
+            // Log detailed wallet info for debugging
+            const walletLength = walletAddress?.length || 0;
+            const walletPrefix = walletAddress?.substring(0, 5) || 'N/A';
+            const walletSuffix = walletAddress?.substring(Math.max(0, walletAddress.length - 5)) || 'N/A';
+            console.error(`[${timestamp}] WALLET VALIDATION FAILED | Length: ${walletLength} | Prefix: ${walletPrefix} | Suffix: ${walletSuffix} | Full: ${walletAddress?.slice(0, 50)}${walletAddress?.length > 50 ? '...' : ''}`);
+            
             const err = new Error('Invalid TON wallet address');
             err.isValidationError = true;
             err.statusCode = 400;
@@ -17759,7 +17790,7 @@ bot.onText(/\/cbo$/, async (msg) => {
                             data.userLocation = dbUser.lastLocation;
                         }
                         await bot.sendMessage(chatId, 
-                            `✅ Found: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter amount in USDT:`,
+                            `✅ Found: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter amount in USDT (stars will auto-calculate):`,
                             { parse_mode: 'HTML' }
                         );
                         bot.once('message', handleStep2);
@@ -17771,7 +17802,7 @@ bot.onText(/\/cbo$/, async (msg) => {
                         const handleUsername = async (msg) => {
                             data.username = msg.text.trim().replace(/^@/, '');
                             await bot.sendMessage(chatId,
-                                `📝 <b>Step 4:</b> Enter amount in USDT:`,
+                                `📝 <b>Step 4:</b> Enter amount in USDT (stars will auto-calculate):`,
                                 { parse_mode: 'HTML' }
                             );
                             bot.once('message', handleStep2);
@@ -17788,19 +17819,23 @@ bot.onText(/\/cbo$/, async (msg) => {
                     }
                     data.amount = amount;
                     
-                    await bot.sendMessage(chatId, '📝 <b>Step 4:</b> Enter stars (or 0):', { parse_mode: 'HTML' });
-                    bot.once('message', handleStep3);
-                };
-                
-                const handleStep3 = async (userMsg) => {
-                    const stars = parseInt(userMsg.text.trim(), 10);
-                    if (isNaN(stars) || stars < 0) {
-                        await bot.sendMessage(chatId, '❌ Invalid stars.');
-                        return;
-                    }
-                    data.stars = stars;
+                    // Auto-calculate stars based on USDT amount using $0.0179/star rate
+                    const RATE_PER_STAR = 0.0179;
+                    const calculatedStars = Math.round(amount / RATE_PER_STAR);
+                    data.stars = calculatedStars;
                     
-                    await handleCreateOrder();
+                    // Show confirmation to admin
+                    await bot.sendMessage(chatId, 
+                        `✅ <b>Auto-calculated stars:</b>\n\n` +
+                        `Amount: ${amount} USDT\n` +
+                        `Stars: ${calculatedStars} ⭐\n` +
+                        `Rate: $${RATE_PER_STAR}/star\n\n` +
+                        `<b>Proceeding to create order...</b>`,
+                        { parse_mode: 'HTML' }
+                    );
+                    
+                    // Small delay for better UX
+                    setTimeout(() => handleCreateOrder(), 1000);
                 };
 
                 const handleCreateOrder = async () => {
