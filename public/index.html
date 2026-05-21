@@ -2373,18 +2373,33 @@ function initWalletConnection() {
 
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
+            // Extract raw address from account
+            let rawAddress = wallet.account.address;
+            
+            // Handle case where address might be an object
+            if (typeof rawAddress === 'object' && rawAddress?.address) {
+                rawAddress = rawAddress.address;
+            }
+            
+            // Convert to string if needed
+            if (rawAddress && typeof rawAddress !== 'string') {
+                rawAddress = String(rawAddress);
+            }
+            
             const normalizedAddress = (typeof TonUtils !== 'undefined' && typeof TonUtils.normalizeAddress === 'function')
-                ? TonUtils.normalizeAddress(wallet.account.address)
+                ? TonUtils.normalizeAddress(rawAddress)
                 : (typeof TonUtils !== 'undefined' && typeof TonUtils.formatAddress === 'function')
-                    ? TonUtils.formatAddress(wallet.account.address)
-                    : wallet.account.address || '';
-            if (normalizedAddress) {
+                    ? TonUtils.formatAddress(rawAddress)
+                    : (rawAddress || '');
+            
+            if (normalizedAddress && typeof normalizedAddress === 'string' && normalizedAddress.length > 0) {
                 currentWalletAddress = normalizedAddress;
                 walletConnected = true;
                 localStorage.setItem('walletConnected', 'true');
                 localStorage.setItem('walletAddress', currentWalletAddress);
+                console.log('[WALLET CONNECTED]', currentWalletAddress.slice(0, 10) + '...' + currentWalletAddress.slice(-5));
             } else {
-                console.warn('Invalid wallet address from TON Connect:', wallet.account.address);
+                console.warn('Invalid wallet address from TON Connect:', rawAddress, '-> normalized:', normalizedAddress);
                 currentWalletAddress = '';
                 walletConnected = false;
                 localStorage.removeItem('walletConnected');
@@ -4037,13 +4052,27 @@ async function handlePurchase(item) {
                 throw new Error('MISSING_USERNAME');
             }
 
+            // Validate wallet address before creating order
+            if (!currentWalletAddress || typeof currentWalletAddress !== 'string' || currentWalletAddress.trim().length === 0) {
+                throw new Error('Invalid wallet address. Please reconnect your TON wallet and try again.');
+            }
+
+            // Ensure wallet is in proper format
+            const validatedWallet = currentWalletAddress.trim();
+            if (typeof TonUtils !== 'undefined' && typeof TonUtils.isValidAddress === 'function') {
+                if (!TonUtils.isValidAddress(validatedWallet)) {
+                    console.error('Frontend wallet validation failed:', validatedWallet);
+                    throw new Error('Invalid wallet format. Please reconnect your TON wallet.');
+                }
+            }
+
             const orderData = {
                 telegramId: user.id,
                 username: user.username, // Only real username, no fallbacks
                 stars: item.isPremium ? null : Number(stars) || null,
                 isPremium: item.isPremium || false,
                 premiumDuration: item.premiumDuration || null,
-                walletAddress: currentWalletAddress,
+                walletAddress: validatedWallet,
                 transactionHash: result?.boc || result?.hash || result,
                 isTelegramUser: isTelegramEnv,
                 isTestnet: isTestnetDetected,

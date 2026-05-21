@@ -4023,6 +4023,25 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     // Handle validation errors (return immediately without retry)
     if (lastValidationError) {
         processingRequests.delete(requestKey); // Clean up processing request
+        
+        // Report validation errors to admins (user-facing errors that indicate issues)
+        if (lastValidationError.message && (
+            lastValidationError.message.includes('Invalid TON wallet') ||
+            lastValidationError.message.includes('Testnet') ||
+            lastValidationError.message.includes('Invalid premium')
+        )) {
+            await sendSilentAdminErrorReport('ORDER_VALIDATION_ERROR', {
+                telegramId,
+                username,
+                amount: req.body?.totalAmount,
+                walletAddress: walletAddress ? `${walletAddress.slice(0, 20)}...${walletAddress.slice(-10)}` : 'N/A',
+                itemType: isPremium ? 'premium' : 'stars'
+            }, {
+                message: lastValidationError.message,
+                code: lastValidationError.statusCode
+            });
+        }
+        
         return res.status(lastValidationError.statusCode || 400).json(lastValidationError.responseBody);
     }
     
@@ -4315,6 +4334,13 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
 
         if (walletAddress && !requesterIsAdmin && !isValidTONAddress(walletAddress)) {
             processingRequests.delete(requestKey);
+            
+            // Log detailed wallet info for debugging
+            const walletLength = walletAddress?.length || 0;
+            const walletPrefix = walletAddress?.substring(0, 5) || 'N/A';
+            const walletSuffix = walletAddress?.substring(Math.max(0, walletAddress.length - 5)) || 'N/A';
+            console.error(`[${timestamp}] WALLET VALIDATION FAILED | Length: ${walletLength} | Prefix: ${walletPrefix} | Suffix: ${walletSuffix} | Full: ${walletAddress?.slice(0, 50)}${walletAddress?.length > 50 ? '...' : ''}`);
+            
             const err = new Error('Invalid TON wallet address');
             err.isValidationError = true;
             err.statusCode = 400;
