@@ -8144,6 +8144,15 @@ bot.on('callback_query', async (query) => {
         
         console.log(`Callback received: ${data} from admin: ${adminId}`);
         
+        // Skip broadcast callbacks - let them be handled by the broadcast handler below
+        if (data.startsWith('show_groups_') || data.startsWith('select_group_') || 
+            data.startsWith('confirm_group_') || data.startsWith('approve_broadcast_') ||
+            data.startsWith('reject_broadcast_') || data.startsWith('cancel_running_') ||
+            data === 'broadcast_cancel') {
+            console.log(`[SKIP] Skipping broadcast callback in refund handler: ${data}`);
+            return;
+        }
+        
         // Check if this is a refund request callback
         if (data.startsWith('req_approve_') || data.startsWith('req_reject_')) {
             console.log(`Processing refund callback: ${data}`);
@@ -14747,17 +14756,23 @@ bot.on('callback_query', async (query) => {
 
     // Handle broadcast group selection display
     if (query.data && query.data.startsWith('show_groups_')) {
+        console.log(`[BROADCAST] Broadcast handler: show_groups_ detected`);
         const jobId = query.data.replace('show_groups_', '');
         const userId = query.from.id.toString();
         
+        console.log(`[BROADCAST] show_groups_ handler - jobId: ${jobId}, userId: ${userId}, adminIds: ${adminIds.join(',')}`);
+        
         if (!adminIds.includes(userId)) {
+            console.log(`[BROADCAST] Authorization failed for user ${userId}`);
             return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
         }
         
         try {
             const job = await BroadcastJob.findOne({ jobId });
+            console.log(`[BROADCAST] Job lookup result:`, job ? `Found job ${jobId}` : `Job ${jobId} NOT found`);
             if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
             
+            console.log(`[BROADCAST] Sending group selection message to user ${userId}`);
             // Show group selection message
             const groupKeyboard = {
                 reply_markup: {
@@ -14786,9 +14801,10 @@ bot.on('callback_query', async (query) => {
                 groupKeyboard
             );
             
+            console.log(`[BROADCAST] Group selection message sent successfully`);
             await bot.answerCallbackQuery(query.id, 'Select a target group');
         } catch (error) {
-            console.error('Show groups error:', error);
+            console.error('[BROADCAST] Show groups error:', error);
             bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
         }
         return;
@@ -14796,17 +14812,22 @@ bot.on('callback_query', async (query) => {
 
     // Handle broadcast group selection
     if (query.data && query.data.startsWith('select_group_')) {
+        console.log(`[BROADCAST] select_group_ handler triggered with data: ${query.data}`);
         const parts = query.data.replace('select_group_', '').split('_');
         const jobId = parts[0];
         const targetGroup = parts.slice(1).join('_');
         const userId = query.from.id.toString();
         
+        console.log(`[BROADCAST] select_group_ - jobId: ${jobId}, targetGroup: ${targetGroup}, userId: ${userId}`);
+        
         if (!adminIds.includes(userId)) {
+            console.log(`[BROADCAST] select_group_ - Auth failed for ${userId}`);
             return bot.answerCallbackQuery(query.id, 'Unauthorized', true);
         }
         
         try {
             const job = await BroadcastJob.findOne({ jobId });
+            console.log(`[BROADCAST] select_group_ - Job lookup:`, job ? `FOUND` : `NOT FOUND`);
             if (!job) return bot.answerCallbackQuery(query.id, 'Job not found', true);
             
             // Get the group label
@@ -14820,6 +14841,7 @@ bot.on('callback_query', async (query) => {
                 'inactive': 'Inactive (30+ Days)'
             }[targetGroup] || targetGroup;
             
+            console.log(`[BROADCAST] select_group_ - Updating job with targetGroup: ${targetGroup} (${groupLabel})`);
             // Update job with selected target group
             job.targetGroup = targetGroup;
             await job.save();
@@ -14834,14 +14856,16 @@ bot.on('callback_query', async (query) => {
                 }
             };
             
+            console.log(`[BROADCAST] Sending confirmation message to ${userId}`);
             await bot.sendMessage(userId,
                 `Selected target group:\n\n${groupLabel}\n\nClick Continue to send preview to all admins, or Back to change selection.`,
                 confirmKeyboard
             );
             
+            console.log(`[BROADCAST] Confirmation message sent, answering callback`);
             await bot.answerCallbackQuery(query.id, `Selected: ${groupLabel}`);
         } catch (error) {
-            console.error('Group selection error:', error);
+            console.error('[BROADCAST] select_group_ error:', error);
             bot.answerCallbackQuery(query.id, `Error: ${error.message}`, true);
         }
         return;
