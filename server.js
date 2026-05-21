@@ -3013,31 +3013,36 @@ function isValidTONAddress(address) {
     
     const trimmed = address.trim();
     
-    // Check for testnet indicators
-    if (trimmed.toLowerCase().includes('testnet') || 
-        trimmed.toLowerCase().includes('test') ||
-        trimmed.toLowerCase().includes('sandbox')) {
+    // Reject explicitly marked testnet addresses with 't' prefix
+    // (e.g., tEQxxx, tUQxxx) - these are testnet indicators
+    if (/^t[EU][^Q]/i.test(trimmed)) {
         return false;
     }
     
     // Support multiple TON address formats:
-    // 1. Base64url format: UQ, EQ, kQ, 0Q (48 characters)
-    // 2. Hex format: 0:hex (workchain:hex)
-    // 3. Raw format: -1:hex or 0:hex
+    // 1. Base64url user-friendly format (EQ..., UQ..., kQ..., 0Q...)
+    // 2. Hex format: 0:hex or -1:hex
     
-    // Check for hex format (0:hex or -1:hex)
-    const hexFormatRegex = /^[0-9-]+:[a-fA-F0-9]{64}$/;
+    // Check for hex format (0:hex or -1:hex) - 64 hex chars
+    const hexFormatRegex = /^-?\d+:[a-fA-F0-9]{64}$/;
     if (hexFormatRegex.test(trimmed)) {
         return true;
     }
     
-    // Check for user-friendly format.
-    // Keep this intentionally flexible: accept common prefixes and small length variance.
-    // Canonical format is usually 48 chars, but users may paste variants from wallets.
-    const tonAddressRegex = /^[A-Za-z0-9_-]{47,50}$/;
+    // Check for user-friendly base64url format.
+    // TonConnect and most wallets use this format (usually 48 chars).
+    // We match frontend validation: t?(EQ|UQ)[A-Za-z0-9_-]{38,}
+    // This means: optional 't' prefix, then EQ or UQ, then 38+ base64url chars = 40+ total
+    const tonAddressRegex = /^t?(EQ|UQ)[A-Za-z0-9_\-]{38,}$/;
     if (tonAddressRegex.test(trimmed)) {
-        const validPrefixes = ['UQ', 'EQ', 'kQ', '0Q', 'E', 'U', 'k', '0'];
-        return validPrefixes.some(prefix => trimmed.startsWith(prefix));
+        return true;
+    }
+    
+    // Also accept other known prefixes for compatibility (kQ, 0Q, E, U, k, 0)
+    // with more flexible length (40-56 chars total)
+    const altFormatRegex = /^[kU0EQequ][A-Za-z0-9_\-]{39,55}$/;
+    if (altFormatRegex.test(trimmed) && /^[kU0EQ]/i.test(trimmed)) {
+        return true;
     }
     
     return false;
