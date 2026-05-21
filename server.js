@@ -17790,7 +17790,7 @@ bot.onText(/\/cbo$/, async (msg) => {
                             data.userLocation = dbUser.lastLocation;
                         }
                         await bot.sendMessage(chatId, 
-                            `✅ Found: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter amount in USDT:`,
+                            `✅ Found: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter amount in USDT (stars will auto-calculate):`,
                             { parse_mode: 'HTML' }
                         );
                         bot.once('message', handleStep2);
@@ -17802,7 +17802,7 @@ bot.onText(/\/cbo$/, async (msg) => {
                         const handleUsername = async (msg) => {
                             data.username = msg.text.trim().replace(/^@/, '');
                             await bot.sendMessage(chatId,
-                                `📝 <b>Step 4:</b> Enter amount in USDT:`,
+                                `📝 <b>Step 4:</b> Enter amount in USDT (stars will auto-calculate):`,
                                 { parse_mode: 'HTML' }
                             );
                             bot.once('message', handleStep2);
@@ -17819,19 +17819,23 @@ bot.onText(/\/cbo$/, async (msg) => {
                     }
                     data.amount = amount;
                     
-                    await bot.sendMessage(chatId, '📝 <b>Step 4:</b> Enter stars (or 0):', { parse_mode: 'HTML' });
-                    bot.once('message', handleStep3);
-                };
-                
-                const handleStep3 = async (userMsg) => {
-                    const stars = parseInt(userMsg.text.trim(), 10);
-                    if (isNaN(stars) || stars < 0) {
-                        await bot.sendMessage(chatId, '❌ Invalid stars.');
-                        return;
-                    }
-                    data.stars = stars;
+                    // Auto-calculate stars based on USDT amount using $0.0179/star rate
+                    const RATE_PER_STAR = 0.0179;
+                    const calculatedStars = Math.round(amount / RATE_PER_STAR);
+                    data.stars = calculatedStars;
                     
-                    await handleCreateOrder();
+                    // Show confirmation to admin
+                    await bot.sendMessage(chatId, 
+                        `✅ <b>Auto-calculated stars:</b>\n\n` +
+                        `Amount: ${amount} USDT\n` +
+                        `Stars: ${calculatedStars} ⭐\n` +
+                        `Rate: $${RATE_PER_STAR}/star\n\n` +
+                        `<b>Proceeding to create order...</b>`,
+                        { parse_mode: 'HTML' }
+                    );
+                    
+                    // Small delay for better UX
+                    setTimeout(() => handleCreateOrder(), 1000);
                 };
 
                 const handleCreateOrder = async () => {
