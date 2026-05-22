@@ -5990,7 +5990,7 @@ bot.on("successful_payment", async (msg) => {
         `Location: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}` : 
         '';
     
-    const adminMessage = `💰 New Payment Received!\n\n` +
+    let adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
         (userLocationInfo ? `${userLocationInfo}\n` : '') +
