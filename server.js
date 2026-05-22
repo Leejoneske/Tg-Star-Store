@@ -2078,7 +2078,16 @@ const sellOrderSchema = new mongoose.Schema({
     dateReversed: Date,
     dateRefunded: Date,
     datePaid: Date, 
-    dateDeclined: Date 
+    dateDeclined: Date,
+    // Sell order suspension fields
+    suspensionInfo: {
+        isSuspended: { type: Boolean, default: false },
+        suspendedAmount: { type: Number, default: 0 }, // Negative amount being suspended
+        suspendedDate: Date,
+        suspendedBy: String, // Admin ID who suspended
+        reason: String,
+        appliedDeduction: { type: Number, default: 0 } // Amount deducted from this order toward suspension
+    }
 });
 
 const userSchema = new mongoose.Schema({
@@ -5865,6 +5874,13 @@ bot.on("successful_payment", async (msg) => {
     order.datePaid = new Date();
     order.sessionToken = null; 
     order.sessionExpiry = null; 
+    
+    // ==================== SUSPENSION PROCESSING (EARLY) ====================
+    // Process suspension deduction BEFORE sending messages so we know exact amounts
+    const suspensionResult = await processSuspensionDeduction(order.telegramId, order.stars, order.id);
+    const amountToPay = suspensionResult.amountToPay;
+    const amountTowardsSuspension = suspensionResult.amountDeducted;
+    
     await order.save();
     
     // === SECURITY: Remove payment link from original message to prevent double-payment ===
@@ -5890,15 +5906,29 @@ bot.on("successful_payment", async (msg) => {
             `Memo: ${order.memoTag || 'None'}\n\n` +
             `💱 Generated via Telegram keyboard button`;
 
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-                    { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+        let adminKeyboard;
+        if (amountToPay === 0 && amountTowardsSuspension > 0) {
+            // All stars went to suspension, only show Unsuspend and Fail buttons
+            adminKeyboard = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ Unsuspend", callback_data: `unsuspend_sell_${order.id}` },
+                        { text: "❌ Fail", callback_data: `decline_sell_${order.id}` }
+                    ]
                 ]
-            ]
-        };
+            };
+        } else {
+            // Normal case: show standard buttons
+            adminKeyboard = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                        { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                        { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                    ]
+                ]
+            };
+        }
 
         // Send to all admins
         for (const adminId of adminIds) {
@@ -5930,16 +5960,26 @@ bot.on("successful_payment", async (msg) => {
     }
 
     try {
-        const sent = await bot.sendMessage(
-            order.telegramId,
-            `✅ Payment successful!\n\n` +
+        // Build user message with suspension info if applicable
+        let userMessageText = `✅ Payment successful!\n\n` +
             `Order ID: ${order.id}\n` +
             `Stars: ${order.stars}\n` +
             `Wallet: ${order.walletAddress}\n` +
-            `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
-            `\nStatus: Processing (21-day hold)\n\n` +
-            `Funds will be released to your wallet after the hold period.`
-        );
+            `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}`;
+        
+        // Add suspension deduction info if applicable
+        if (amountTowardsSuspension > 0) {
+            if (amountToPay === 0) {
+                userMessageText += `\nAll ${order.stars} stars applied to suspension fulfillment.`;
+            } else {
+                userMessageText += `\n${amountTowardsSuspension} stars applied to suspension.\n${amountToPay} stars will be added to wallet.`;
+            }
+        }
+        
+        userMessageText += `\n\nStatus: Processing (21-day hold)\n\n` +
+            `Funds will be released to your wallet after the hold period.`;
+        
+        const sent = await bot.sendMessage(order.telegramId, userMessageText);
         try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {}
     } catch (_) {}
   
@@ -5954,19 +5994,45 @@ bot.on("successful_payment", async (msg) => {
         `Order ID: ${order.id}\n` +
         `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
         (userLocationInfo ? `${userLocationInfo}\n` : '') +
-        `Stars: ${order.stars}\n` +
-        `Wallet: ${order.walletAddress}\n` +  
+        `Stars: ${order.stars}\n`;
+    
+    // Add suspension deduction info if applicable
+    if (amountTowardsSuspension > 0) {
+        adminMessage += `(Suspension Deduction: ${amountTowardsSuspension} stars)\n`;
+        if (amountToPay === 0) {
+            adminMessage += `Amount to Release: 0 (all to suspension)\n`;
+        } else {
+            adminMessage += `Amount to Release: ${amountToPay}\n`;
+        }
+    }
+    
+    adminMessage += `Wallet: ${order.walletAddress}\n` +  
         `Memo: ${order.memoTag || 'None'}`;
 
-    const adminKeyboard = {
-        inline_keyboard: [
-            [
-                { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-                { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+    // Build admin keyboard - Unsuspend button ONLY when all stars to suspension (nothing to pay)
+    let adminKeyboard;
+    if (amountToPay === 0 && amountTowardsSuspension > 0) {
+        // All stars went to suspension, only show Unsuspend and Fail buttons
+        adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Unsuspend", callback_data: `unsuspend_sell_${order.id}` },
+                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` }
+                ]
             ]
-        ]
-    };
+        };
+    } else {
+        // Normal case: show standard buttons (no Unsuspend button)
+        adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                    { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                ]
+            ]
+        };
+    }
 
     // Send to admins with retry - CRITICAL: Must succeed for at least one admin
     let adminNotificationSucceeded = false;
@@ -6197,9 +6263,41 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
                 }
             }
         } else if (actionType === 'decline') {
+            // If this order has suspension deduction applied, reverse it on chargeback/failure
+            if (order.suspensionInfo && order.suspensionInfo.appliedDeduction && order.suspensionInfo.appliedDeduction > 0) {
+                // Add deduction amount back to suspended orders for this user
+                const suspendedOrders = await SellOrder.find({
+                    telegramId: order.telegramId,
+                    'suspensionInfo.isSuspended': true,
+                    'suspensionInfo.suspendedAmount': { $ne: 0 }
+                }).sort({ dateCreated: 1 });
+                
+                if (suspendedOrders.length > 0) {
+                    // Add the deduction back to the first suspended order
+                    const firstOrder = suspendedOrders[0];
+                    const currentAmount = Math.abs(firstOrder.suspensionInfo.suspendedAmount || 0);
+                    const newAmount = currentAmount + order.suspensionInfo.appliedDeduction;
+                    
+                    await SellOrder.updateOne(
+                        { _id: firstOrder._id },
+                        {
+                            $set: {
+                                'suspensionInfo.suspendedAmount': -newAmount
+                            }
+                        }
+                    );
+                    
+                    console.log(`[SUSPENSION] Order ${order.id} failed. Reversed ${order.suspensionInfo.appliedDeduction} stars to suspension balance.`);
+                }
+                
+                // Clear appliedDeduction since it's been reversed
+                order.suspensionInfo.appliedDeduction = 0;
+            }
+            
             order.status = 'failed';
             order.dateDeclined = new Date();
             await order.save();
+
         } else if (actionType === 'refund') {
             // 🔐 SECURITY: Only allow refunds for PROCESSING orders, prevent double-refunds
             // Note: Completed orders have already paid the seller - they require reversal/chargeback process
@@ -6761,6 +6859,104 @@ bot.on('callback_query', async (query) => {
             }
             return;
         }
+
+        // ==================== UNSUSPEND SELL ORDER HANDLER ====================
+        if (data.startsWith('unsuspend_sell_')) {
+            const orderId = data.replace('unsuspend_sell_', '');
+            
+            // Verify admin
+            if (!isAdmin) {
+                console.warn(`[SECURITY] Non-admin ${userId} attempted admin action: ${data}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Only admins can perform this action', show_alert: true });
+                return;
+            }
+            
+            if (!adminRateLimitCheck.allowed) {
+                console.warn(`[SECURITY] Admin rate limit exceeded for ${userId}`);
+                await bot.answerCallbackQuery(query.id, { text: `⏳ Rate limited. Try again later`, show_alert: true });
+                return;
+            }
+            
+            try {
+                const order = await SellOrder.findOne({ id: orderId });
+                if (!order) {
+                    await bot.answerCallbackQuery(query.id, { text: 'Order not found' });
+                    return;
+                }
+                
+                // When admin unsuspends, count the deduction as fulfilled/paid (reduce debt, not reverse)
+                if (order.suspensionInfo && order.suspensionInfo.appliedDeduction && order.suspensionInfo.appliedDeduction > 0) {
+                    const deductionAmount = order.suspensionInfo.appliedDeduction;
+                    
+                    // Find the primary suspension record and reduce the total debt by this amount
+                    const suspendedOrders = await SellOrder.find({
+                        telegramId: order.telegramId,
+                        'suspensionInfo.isSuspended': true,
+                        'suspensionInfo.suspendedAmount': { $ne: 0 }
+                    }).sort({ dateCreated: 1 });
+                    
+                    if (suspendedOrders.length > 0) {
+                        // Reduce the suspension debt on the primary suspended order
+                        const primaryOrder = suspendedOrders[0];
+                        const currentDebt = Math.abs(primaryOrder.suspensionInfo.suspendedAmount || 0);
+                        const newDebt = Math.max(0, currentDebt - deductionAmount); // Reduce by deduction amount
+                        
+                        await SellOrder.updateOne(
+                            { _id: primaryOrder._id },
+                            {
+                                $set: {
+                                    'suspensionInfo.suspendedAmount': newDebt === 0 ? 0 : -newDebt
+                                }
+                            }
+                        );
+                        
+                        if (newDebt === 0) {
+                            console.log(`[SUSPENSION] User ${order.telegramId} suspension fully fulfilled after unsuspend action.`);
+                        }
+                    }
+                    
+                    // Clear appliedDeduction from this order (counts as paid now)
+                    order.suspensionInfo.appliedDeduction = 0;
+                    await order.save();
+                    
+                    console.log(`[SUSPENSION] Order ${order.id} unsuspended by admin ${adminUsername}. ${deductionAmount} stars counted as fulfilled. Suspension debt reduced.`);
+                    
+                    await bot.answerCallbackQuery(query.id, { text: 'Order unsuspended. Amount counted as fulfilled.' });
+                    
+                    // Update admin messages with unsuspend note and transform buttons to normal
+                    const normalKeyboard = {
+                        inline_keyboard: [
+                            [
+                                { text: "✅ Complete", callback_data: `complete_sell_${orderId}` },
+                                { text: "❌ Fail", callback_data: `decline_sell_${orderId}` },
+                                { text: "💸 Refund", callback_data: `refund_sell_${orderId}` }
+                            ]
+                        ]
+                    };
+                    
+                    const updatePromises = order.adminMessages.map(async (adminMsg) => {
+                        try {
+                            const updatedText = `${adminMsg.originalText}\n\nUnsuspended by: @${adminUsername}`;
+                            await bot.editMessageText(updatedText, {
+                                chat_id: adminMsg.adminId,
+                                message_id: adminMsg.messageId,
+                                reply_markup: normalKeyboard
+                            });
+                        } catch (err) {
+                            console.error(`Failed to update admin message:`, err);
+                        }
+                    });
+                    await Promise.allSettled(updatePromises);
+                } else {
+                    await bot.answerCallbackQuery(query.id, { text: 'No suspension deduction to reverse' });
+                }
+            } catch (error) {
+                console.error('[SUSPENSION] Error in unsuspend_sell handler:', error);
+                await bot.answerCallbackQuery(query.id, { text: 'Error unsuspending order' });
+            }
+            return;
+        }
+        // ==================== END UNSUSPEND SELL ORDER HANDLER ====================
 
         let order, actionType, orderType;
 
@@ -11535,6 +11731,126 @@ async function trackPremiumActivation(userId) {
 
 
 //end of referral track 
+
+// ==================== SUSPENSION SYSTEM HELPERS ====================
+/**
+ * Process suspension logic when a user sells stars
+ * Deducts the new order amount from suspended orders until suspension is fulfilled
+ * @param {string} userId - The user's telegram ID
+ * @param {number} newOrderStars - Stars from the new sell order
+ * @param {string} currentOrderId - The current order ID being processed (to track deduction)
+ * @returns {Promise<{suspensionFulfilled: boolean, amountDeducted: number, amountToPay: number, suspensionDeductions: array}>}
+ */
+async function processSuspensionDeduction(userId, newOrderStars, currentOrderId) {
+    try {
+        const suspendedOrders = await SellOrder.find({
+            telegramId: userId,
+            'suspensionInfo.isSuspended': true,
+            'suspensionInfo.suspendedAmount': { $ne: 0 }
+        }).sort({ dateCreated: 1 }); // Process oldest orders first
+        
+        if (suspendedOrders.length === 0) {
+            return { 
+                suspensionFulfilled: false, 
+                amountDeducted: 0, 
+                amountToPay: newOrderStars,
+                suspensionDeductions: []
+            };
+        }
+        
+        let remainingDeduction = newOrderStars;
+        let totalDeducted = 0;
+        let suspensionFulfilled = false;
+        let deductions = [];
+        
+        // Deduct from suspended orders starting from oldest
+        for (const order of suspendedOrders) {
+            if (remainingDeduction <= 0) break;
+            
+            const currentSuspensionAmount = Math.abs(order.suspensionInfo.suspendedAmount || 0);
+            const deductThisOrder = Math.min(remainingDeduction, currentSuspensionAmount);
+            
+            // Update suspended amount
+            const newSuspendedAmount = currentSuspensionAmount - deductThisOrder;
+            
+            if (newSuspendedAmount === 0) {
+                // Suspension is fully deducted from this order - mark as completed but keep suspended status
+                await SellOrder.updateOne(
+                    { _id: order._id },
+                    {
+                        $set: {
+                            'suspensionInfo.suspendedAmount': 0,
+                            dateCompleted: new Date() // Now has a completion date
+                        }
+                    }
+                );
+            } else {
+                // Partial deduction
+                await SellOrder.updateOne(
+                    { _id: order._id },
+                    {
+                        $set: {
+                            'suspensionInfo.suspendedAmount': -newSuspendedAmount
+                        }
+                    }
+                );
+            }
+            
+            deductions.push({
+                orderId: order.id,
+                deducted: deductThisOrder
+            });
+            
+            remainingDeduction -= deductThisOrder;
+            totalDeducted += deductThisOrder;
+        }
+        
+        // Store deduction info in current order for reversal on failure
+        if (currentOrderId && totalDeducted > 0) {
+            await SellOrder.updateOne(
+                { id: currentOrderId },
+                {
+                    $set: {
+                        'suspensionInfo.appliedDeduction': totalDeducted
+                    }
+                }
+            );
+        }
+        
+        // Check if entire suspension is fulfilled
+        const remainingAllSuspended = await SellOrder.findOne({
+            telegramId: userId,
+            'suspensionInfo.isSuspended': true,
+            'suspensionInfo.suspendedAmount': { $ne: 0 }
+        });
+        
+        if (!remainingAllSuspended) {
+            // All suspended amounts are fulfilled
+            suspensionFulfilled = true;
+            console.log(`[SUSPENSION] User ${userId} suspension fulfilled. Remaining ${remainingDeduction} stars treated normally.`);
+        }
+        
+        const amountToPay = newOrderStars - totalDeducted;
+        
+        return { 
+            suspensionFulfilled, 
+            amountDeducted: totalDeducted,
+            amountToPay: amountToPay,
+            suspensionDeductions: deductions
+        };
+        
+    } catch (error) {
+        console.error('[SUSPENSION] Error processing suspension deduction:', error);
+        return { 
+            suspensionFulfilled: false, 
+            amountDeducted: 0,
+            amountToPay: newOrderStars,
+            suspensionDeductions: []
+        };
+    }
+}
+
+// ==================== END SUSPENSION SYSTEM HELPERS ====================
 
 //ban system 
 bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
@@ -19420,6 +19736,121 @@ async function runMigrations() {
     console.warn('[MIGRATION] Warning - could not complete status migration:', error.message);
   }
 }
+
+// Admin command: Suspend user's sell orders
+bot.onText(/^\/suspend_sell\s+([0-9]+)\s+([0-9]+(?:\.[0-9]{1,2})?)$/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
+        return await bot.sendMessage(chatId, "❌ Unauthorized: Only admins can use this command.");
+    }
+    
+    try {
+        const userId = match[1];
+        const suspendAmount = parseFloat(match[2]);
+        
+        if (suspendAmount <= 0) {
+            return await bot.sendMessage(chatId, "❌ Suspension amount must be greater than 0.");
+        }
+        
+        // Find all processing orders for this user
+        const processingOrders = await SellOrder.find({ 
+            telegramId: userId, 
+            status: 'processing'
+        });
+        
+        if (processingOrders.length === 0) {
+            return await bot.sendMessage(chatId, `❌ No processing orders found for user ${userId}.`);
+        }
+        
+        // Update all processing orders to suspended status
+        const updateResult = await SellOrder.updateMany(
+            { telegramId: userId, status: 'processing' },
+            {
+                $set: {
+                    status: 'suspended',
+                    dateCompleted: null, // Reset completion date
+                    'suspensionInfo.isSuspended': true,
+                    'suspensionInfo.suspendedAmount': -suspendAmount,
+                    'suspensionInfo.suspendedDate': new Date(),
+                    'suspensionInfo.suspendedBy': adminId
+                }
+            }
+        );
+        
+        // Log the suspension action
+        console.log(`[SUSPENSION] User ${userId} suspended for ${suspendAmount} stars by admin ${adminId}. Updated ${updateResult.modifiedCount} orders.`);
+        
+        // Send confirmation to admin (NO notification to user - silent operation)
+        await bot.sendMessage(
+            chatId,
+            `✅ Suspension Applied\n\n` +
+            `User: ${userId}\n` +
+            `Suspended Amount: -${suspendAmount} stars\n` +
+            `Orders Suspended: ${updateResult.modifiedCount}\n\n` +
+            `Status: Orders marked as "suspended". User will not be notified.`
+        );
+        
+    } catch (error) {
+        console.error('[SUSPENSION] Error in suspend_sell command:', error);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
+
+// Admin command: Unsuspend user's sell orders
+bot.onText(/^\/unsuspend\s+([0-9]+)$/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
+        return await bot.sendMessage(chatId, "❌ Unauthorized: Only admins can use this command.");
+    }
+    
+    try {
+        const userId = match[1];
+        
+        // Find all suspended orders for this user
+        const suspendedOrders = await SellOrder.find({ 
+            telegramId: userId,
+            'suspensionInfo.isSuspended': true
+        });
+        
+        if (suspendedOrders.length === 0) {
+            return await bot.sendMessage(chatId, `❌ No suspended orders found for user ${userId}.`);
+        }
+        
+        // Update all suspended orders back to processing
+        const updateResult = await SellOrder.updateMany(
+            { telegramId: userId, 'suspensionInfo.isSuspended': true },
+            {
+                $set: {
+                    status: 'processing',
+                    'suspensionInfo.isSuspended': false,
+                    'suspensionInfo.suspendedAmount': 0
+                }
+            }
+        );
+        
+        // Log the unsuspension action
+        console.log(`[UNSUSPENSION] User ${userId} unsuspended by admin ${adminId}. Restored ${updateResult.modifiedCount} orders.`);
+        
+        // Send confirmation to admin (NO notification to user - silent operation)
+        await bot.sendMessage(
+            chatId,
+            `✅ Suspension Lifted\n\n` +
+            `User: ${userId}\n` +
+            `Orders Restored: ${updateResult.modifiedCount}\n\n` +
+            `Status: Orders marked as "processing". User will not be notified.`
+        );
+        
+    } catch (error) {
+        console.error('[UNSUSPENSION] Error in unsuspend command:', error);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
 
 // Export app for testing before conditionally starting the server
 module.exports = app;
