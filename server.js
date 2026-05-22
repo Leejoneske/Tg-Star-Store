@@ -17518,13 +17518,24 @@ bot.onText(/\/cso$/, async (msg) => {
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
+    // Track errors for this session
+    let errorCount = 0;
+    const MAX_CONSECUTIVE_ERRORS = 2;
+
     // Step 1: Get Order ID
     await bot.sendMessage(chatId, '📝 <b>Step 1:</b> Enter the order ID to recreate:', { parse_mode: 'HTML' });
     
     const handleOrderId = async (orderIdMsg) => {
         const orderId = orderIdMsg.text.trim();
         if (!orderId) {
-            return await bot.sendMessage(chatId, '❌ Order ID cannot be empty. Try /cso');
+            errorCount++;
+            if (errorCount >= MAX_CONSECUTIVE_ERRORS) {
+                await bot.sendMessage(chatId, `❌ Session ended: Too many errors (${errorCount}). Please run /cso again to start over.`);
+                return;
+            }
+            await bot.sendMessage(chatId, `❌ Order ID cannot be empty (Error ${errorCount}/${MAX_CONSECUTIVE_ERRORS}). Try /cso`);
+            bot.once('message', handleOrderId);
+            return;
         }
 
         try {
@@ -17702,12 +17713,22 @@ bot.onText(/\/cbo$/, async (msg) => {
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
+    // Track errors for this session
+    let errorCount = 0;
+    const MAX_CONSECUTIVE_ERRORS = 2;
+
     await bot.sendMessage(chatId, '📝 <b>Step 1:</b> Enter the order ID:', { parse_mode: 'HTML' });
     
     const handleOrderId = async (orderIdMsg) => {
         const orderId = orderIdMsg.text.trim();
         if (!orderId) {
-            await bot.sendMessage(chatId, '❌ Order ID cannot be empty. Try /cbo');
+            errorCount++;
+            if (errorCount >= MAX_CONSECUTIVE_ERRORS) {
+                await bot.sendMessage(chatId, `❌ Session ended: Too many errors (${errorCount}). Please run /cbo again to start over.`);
+                return;
+            }
+            await bot.sendMessage(chatId, `❌ Order ID cannot be empty (Error ${errorCount}/${MAX_CONSECUTIVE_ERRORS}). Try /cbo`);
+            bot.once('message', handleOrderId);
             return;
         }
 
@@ -17771,16 +17792,25 @@ bot.onText(/\/cbo$/, async (msg) => {
             } else {
                 // Create new order - start dialogue
                 const data = {};
+                let stepErrorCount = {}; // Track errors per step
                 
                 await bot.sendMessage(chatId, '📝 <b>Step 2:</b> Enter user\'s Telegram ID:', { parse_mode: 'HTML' });
                 
                 const handleStep1 = async (userMsg) => {
                     const telegramId = userMsg.text.trim();
+                    stepErrorCount.step1 = (stepErrorCount.step1 || 0) + 1;
+                    
                     if (!telegramId || isNaN(telegramId)) {
-                        await bot.sendMessage(chatId, '❌ Invalid ID. Try /cbo');
+                        if (stepErrorCount.step1 >= MAX_CONSECUTIVE_ERRORS) {
+                            await bot.sendMessage(chatId, `❌ Session ended: Too many errors (${stepErrorCount.step1}). Please run /cbo again to start over.`);
+                            return;
+                        }
+                        await bot.sendMessage(chatId, `❌ Invalid ID (Error ${stepErrorCount.step1}/${MAX_CONSECUTIVE_ERRORS}). Try /cbo`);
+                        bot.once('message', handleStep1);
                         return;
                     }
                     data.telegramId = telegramId;
+                    stepErrorCount.step1 = 0; // Reset on success
                     
                     let dbUser = await User.findOne({ id: telegramId });
                     if (dbUser && dbUser.username) {
@@ -17800,7 +17830,21 @@ bot.onText(/\/cbo$/, async (msg) => {
                             { parse_mode: 'HTML' }
                         );
                         const handleUsername = async (msg) => {
-                            data.username = msg.text.trim().replace(/^@/, '');
+                            const username = msg.text.trim().replace(/^@/, '');
+                            stepErrorCount.username = (stepErrorCount.username || 0) + 1;
+                            
+                            if (!username) {
+                                if (stepErrorCount.username >= MAX_CONSECUTIVE_ERRORS) {
+                                    await bot.sendMessage(chatId, `❌ Session ended: Too many errors (${stepErrorCount.username}). Please run /cbo again to start over.`);
+                                    return;
+                                }
+                                await bot.sendMessage(chatId, `❌ Username cannot be empty (Error ${stepErrorCount.username}/${MAX_CONSECUTIVE_ERRORS}). Please try again:`);
+                                bot.once('message', handleUsername);
+                                return;
+                            }
+                            data.username = username;
+                            stepErrorCount.username = 0; // Reset on success
+                            
                             await bot.sendMessage(chatId,
                                 `📝 <b>Step 4:</b> Enter amount in USDT (stars will auto-calculate):`,
                                 { parse_mode: 'HTML' }
@@ -17813,11 +17857,19 @@ bot.onText(/\/cbo$/, async (msg) => {
                 
                 const handleStep2 = async (userMsg) => {
                     const amount = parseFloat(userMsg.text.trim());
+                    stepErrorCount.step2 = (stepErrorCount.step2 || 0) + 1;
+                    
                     if (isNaN(amount) || amount <= 0) {
-                        await bot.sendMessage(chatId, '❌ Invalid amount (must be greater than 0).');
+                        if (stepErrorCount.step2 >= MAX_CONSECUTIVE_ERRORS) {
+                            await bot.sendMessage(chatId, `❌ Session ended: Too many errors (${stepErrorCount.step2}). Please run /cbo again to start over.`);
+                            return;
+                        }
+                        await bot.sendMessage(chatId, `❌ Invalid amount (must be greater than 0). (Error ${stepErrorCount.step2}/${MAX_CONSECUTIVE_ERRORS}). Please try again:`);
+                        bot.once('message', handleStep2);
                         return;
                     }
                     data.amount = amount;
+                    stepErrorCount.step2 = 0; // Reset on success
                     
                     // Auto-calculate stars based on USDT amount using $0.0179/star rate
                     const RATE_PER_STAR = 0.0179;
