@@ -5906,15 +5906,29 @@ bot.on("successful_payment", async (msg) => {
             `Memo: ${order.memoTag || 'None'}\n\n` +
             `💱 Generated via Telegram keyboard button`;
 
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-                    { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+        let adminKeyboard;
+        if (amountToPay === 0 && amountTowardsSuspension > 0) {
+            // All stars went to suspension, only show Unsuspend and Fail buttons
+            adminKeyboard = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ Unsuspend", callback_data: `unsuspend_sell_${order.id}` },
+                        { text: "❌ Fail", callback_data: `decline_sell_${order.id}` }
+                    ]
                 ]
-            ]
-        };
+            };
+        } else {
+            // Normal case: show standard buttons
+            adminKeyboard = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                        { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                        { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                    ]
+                ]
+            };
+        }
 
         // Send to all admins
         for (const adminId of adminIds) {
@@ -5995,7 +6009,7 @@ bot.on("successful_payment", async (msg) => {
     adminMessage += `Wallet: ${order.walletAddress}\n` +  
         `Memo: ${order.memoTag || 'None'}`;
 
-    // Build admin keyboard - only show Complete/Refund/Fail buttons if there's amount to pay
+    // Build admin keyboard - Unsuspend button ONLY when all stars to suspension (nothing to pay)
     let adminKeyboard;
     if (amountToPay === 0 && amountTowardsSuspension > 0) {
         // All stars went to suspension, only show Unsuspend and Fail buttons
@@ -6008,19 +6022,15 @@ bot.on("successful_payment", async (msg) => {
             ]
         };
     } else {
-        // Normal case: show all buttons including Unsuspend if there's suspension
-        const buttons = [
-            { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-            { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-            { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
-        ];
-        
-        if (amountTowardsSuspension > 0) {
-            buttons.push({ text: "✅ Unsuspend", callback_data: `unsuspend_sell_${order.id}` });
-        }
-        
+        // Normal case: show standard buttons (no Unsuspend button)
         adminKeyboard = {
-            inline_keyboard: [buttons]
+            inline_keyboard: [
+                [
+                    { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                    { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                ]
+            ]
         };
     }
 
