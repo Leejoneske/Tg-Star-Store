@@ -6919,13 +6919,24 @@ bot.on('callback_query', async (query) => {
                     
                     await bot.answerCallbackQuery(query.id, { text: 'Order unsuspended. Deduction reversed.' });
                     
-                    // Update admin message
+                    // Update admin messages with unsuspend note and transform buttons to normal
+                    const normalKeyboard = {
+                        inline_keyboard: [
+                            [
+                                { text: "✅ Complete", callback_data: `complete_sell_${orderId}` },
+                                { text: "❌ Fail", callback_data: `decline_sell_${orderId}` },
+                                { text: "💸 Refund", callback_data: `refund_sell_${orderId}` }
+                            ]
+                        ]
+                    };
+                    
                     const updatePromises = order.adminMessages.map(async (adminMsg) => {
                         try {
                             const updatedText = `${adminMsg.originalText}\n\nUnsuspended by: @${adminUsername}`;
                             await bot.editMessageText(updatedText, {
                                 chat_id: adminMsg.adminId,
-                                message_id: adminMsg.messageId
+                                message_id: adminMsg.messageId,
+                                reply_markup: normalKeyboard
                             });
                         } catch (err) {
                             console.error(`Failed to update admin message:`, err);
