@@ -6884,11 +6884,11 @@ bot.on('callback_query', async (query) => {
                     return;
                 }
                 
-                // Reverse the suspension deduction for this order
+                // When admin unsuspends, count the deduction as fulfilled/paid (reduce debt, not reverse)
                 if (order.suspensionInfo && order.suspensionInfo.appliedDeduction && order.suspensionInfo.appliedDeduction > 0) {
                     const deductionAmount = order.suspensionInfo.appliedDeduction;
                     
-                    // Add deduction amount back to suspended orders
+                    // Find the primary suspension record and reduce the total debt by this amount
                     const suspendedOrders = await SellOrder.find({
                         telegramId: order.telegramId,
                         'suspensionInfo.isSuspended': true,
@@ -6896,28 +6896,32 @@ bot.on('callback_query', async (query) => {
                     }).sort({ dateCreated: 1 });
                     
                     if (suspendedOrders.length > 0) {
-                        // Add the deduction back to the first suspended order
-                        const firstOrder = suspendedOrders[0];
-                        const currentAmount = Math.abs(firstOrder.suspensionInfo.suspendedAmount || 0);
-                        const newAmount = currentAmount + deductionAmount;
+                        // Reduce the suspension debt on the primary suspended order
+                        const primaryOrder = suspendedOrders[0];
+                        const currentDebt = Math.abs(primaryOrder.suspensionInfo.suspendedAmount || 0);
+                        const newDebt = Math.max(0, currentDebt - deductionAmount); // Reduce by deduction amount
                         
                         await SellOrder.updateOne(
-                            { _id: firstOrder._id },
+                            { _id: primaryOrder._id },
                             {
                                 $set: {
-                                    'suspensionInfo.suspendedAmount': -newAmount
+                                    'suspensionInfo.suspendedAmount': newDebt === 0 ? 0 : -newDebt
                                 }
                             }
                         );
+                        
+                        if (newDebt === 0) {
+                            console.log(`[SUSPENSION] User ${order.telegramId} suspension fully fulfilled after unsuspend action.`);
+                        }
                     }
                     
-                    // Clear appliedDeduction from this order
+                    // Clear appliedDeduction from this order (counts as paid now)
                     order.suspensionInfo.appliedDeduction = 0;
                     await order.save();
                     
-                    console.log(`[SUSPENSION] Order ${order.id} unsuspended by admin ${adminUsername}. ${deductionAmount} stars restored to suspension balance.`);
+                    console.log(`[SUSPENSION] Order ${order.id} unsuspended by admin ${adminUsername}. ${deductionAmount} stars counted as fulfilled. Suspension debt reduced.`);
                     
-                    await bot.answerCallbackQuery(query.id, { text: 'Order unsuspended. Deduction reversed.' });
+                    await bot.answerCallbackQuery(query.id, { text: 'Order unsuspended. Amount counted as fulfilled.' });
                     
                     // Update admin messages with unsuspend note and transform buttons to normal
                     const normalKeyboard = {
