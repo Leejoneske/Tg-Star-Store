@@ -5990,7 +5990,7 @@ bot.on("successful_payment", async (msg) => {
         `Location: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}` : 
         '';
     
-    const adminMessage = `💰 New Payment Received!\n\n` +
+    let adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
         (userLocationInfo ? `${userLocationInfo}\n` : '') +
@@ -9541,6 +9541,44 @@ app.get("/api/sell-orders", async (req, res) => {
     } catch (err) {
         console.error("Error fetching transactions:", err);
         res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+});
+
+// Get user's orders with optional status filtering
+app.get("/api/orders", requireTelegramAuth, async (req, res) => {
+    try {
+        const telegramId = req.headers['x-telegram-id'];
+        const { status } = req.query;
+
+        if (!telegramId) {
+            return res.status(400).json({ error: "Missing telegramId" });
+        }
+
+        // Build query
+        const query = { telegramId };
+        if (status) {
+            query.status = status;
+        }
+
+        // Fetch sell orders with the query
+        const orders = await SellOrder.find(query)
+            .sort({ createdAt: -1 }) 
+            .lean();
+
+        // Format the response to include all order details
+        const formattedOrders = orders.map(order => ({
+            _id: order._id,
+            stars: order.stars,
+            status: order.status,
+            createdAt: order.dateCreated,
+            date: order.dateCreated,
+            suspensionInfo: order.suspensionInfo
+        }));
+
+        res.json(formattedOrders);
+    } catch (err) {
+        console.error("[Orders API] Error fetching orders:", err);
+        res.status(500).json({ error: "Failed to fetch orders" });
     }
 });
 
@@ -19815,34 +19853,50 @@ bot.onText(/^\/unsuspend\s+([0-9]+)$/i, async (msg, match) => {
         // Find all suspended orders for this user
         const suspendedOrders = await SellOrder.find({ 
             telegramId: userId,
-            'suspensionInfo.isSuspended': true
+            status: 'suspended'
         });
         
         if (suspendedOrders.length === 0) {
             return await bot.sendMessage(chatId, `❌ No suspended orders found for user ${userId}.`);
         }
         
-        // Update all suspended orders back to processing
+        // Calculate total debt before clearing
+        let totalDebtBeforeClear = 0;
+        let totalFulfilled = 0;
+        for (const order of suspendedOrders) {
+            if (order.suspensionInfo.suspendedAmount) {
+                totalDebtBeforeClear += Math.abs(order.suspensionInfo.suspendedAmount);
+            }
+            if (order.suspensionInfo.appliedDeduction) {
+                totalFulfilled += order.suspensionInfo.appliedDeduction;
+            }
+        }
+        
+        // Update all suspended orders back to processing (clear suspension flags)
         const updateResult = await SellOrder.updateMany(
-            { telegramId: userId, 'suspensionInfo.isSuspended': true },
+            { telegramId: userId, status: 'suspended' },
             {
                 $set: {
                     status: 'processing',
                     'suspensionInfo.isSuspended': false,
-                    'suspensionInfo.suspendedAmount': 0
+                    'suspensionInfo.suspendedAmount': 0,
+                    'suspensionInfo.appliedDeduction': 0
                 }
             }
         );
         
-        // Log the unsuspension action
-        console.log(`[UNSUSPENSION] User ${userId} unsuspended by admin ${adminId}. Restored ${updateResult.modifiedCount} orders.`);
+        // Log the unsuspension action with debt details
+        const remainingDebt = Math.max(0, totalDebtBeforeClear - totalFulfilled);
+        console.log(`[UNSUSPENSION] User ${userId} suspension lifted by admin ${adminId}. Restored ${updateResult.modifiedCount} orders. Total debt was: ${totalDebtBeforeClear}, Fulfilled: ${totalFulfilled}, Remaining: ${remainingDebt}`);
         
         // Send confirmation to admin (NO notification to user - silent operation)
         await bot.sendMessage(
             chatId,
             `✅ Suspension Lifted\n\n` +
             `User: ${userId}\n` +
-            `Orders Restored: ${updateResult.modifiedCount}\n\n` +
+            `Orders Restored: ${updateResult.modifiedCount}\n` +
+            `Debt Fulfilled: ${totalFulfilled} stars\n` +
+            `Remaining Debt: ${remainingDebt} stars\n\n` +
             `Status: Orders marked as "processing". User will not be notified.`
         );
         
