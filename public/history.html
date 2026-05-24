@@ -189,6 +189,15 @@
             }
         }
 
+        .status-suspended {
+            color: #ea580c;
+        }
+        @media (prefers-color-scheme: dark) {
+            .status-suspended {
+                color: #fb923c;
+            }
+        }
+
         .status-declined {
             color: #dc2626;
         }
@@ -557,9 +566,6 @@
                 <button id="transactionsTab" class="tab-btn tab-active" data-translate="transactions">
                     📊 Transactions
                 </button>
-                <button id="suspendedTab" class="tab-btn" data-translate="suspended">
-                    ⏸ Suspended
-                </button>
                 <button id="referralsTab" class="tab-btn" data-translate="referrals">
                     👥 Referrals
                 </button>
@@ -578,6 +584,7 @@
                     <button class="filter-btn filter-btn filter-active" data-filter="all" data-translate="all">All</button>
                     <button class="filter-btn" data-filter="completed" data-translate="completed">Completed</button>
                     <button class="filter-btn" data-filter="processing" data-translate="processing">Processing</button>
+                    <button class="filter-btn" data-filter="suspended" data-translate="suspended">Suspended</button>
                     <button class="filter-btn" data-filter="declined" data-translate="declined">Declined</button>
                     <button class="filter-btn" data-filter="failed" data-translate="failed">Failed</button>
                     <button class="filter-btn" data-filter="expired" data-translate="expired">Expired</button>
@@ -632,34 +639,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
-            
-            <div id="suspendedContent" class="tab-content">
-                <div class="search-wrapper">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input type="text" id="searchSuspended" class="search-input" placeholder="Search suspended orders..." data-translate-placeholder="searchSuspended">
-                </div>
-                
-                <div id="suspendedLoading" class="space-y-3 mb-6"></div>
-                
-                <div id="suspendedList" class="space-y-3 mb-6" style="display:none"></div>
-                
-                <div id="suspendedEmpty" class="empty-state" style="display:none">
-                    <div class="empty-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="6" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                    </div>
-                    <h3 data-translate="noSuspendedTitle">No suspended orders</h3>
-                    <p data-translate="noSuspendedDesc">Your suspended orders will appear here.</p>
-                </div>
-                
-                <div id="suspendedPagination" class="flex justify-center items-center gap-2 mb-4"></div>
             </div>
             
             <div id="referralsContent" class="tab-content">
@@ -818,15 +797,15 @@ const BASE_API_URL = window.location.origin + '/api';
 
 let transactionHistory = [];
 let referralHistory = [];
-let suspendedOrders = [];
+
 let currentTransactionPage = 1;
 let currentReferralPage = 1;
-let currentSuspendedPage = 1;
+
 let currentTransactionFilter = 'all';
 let currentReferralFilter = 'all';
 let currentTransactionSearch = '';
 let currentReferralSearch = '';
-let currentSuspendedSearch = '';
+
 const itemsPerPage = 5;
 let currentLanguage = TranslationUtils.getCurrentLanguage();
 let authError = false;
@@ -902,7 +881,6 @@ function showAuthenticationError() {
 
 function setupEventListeners() {
     document.getElementById('transactionsTab').addEventListener('click', () => switchTab('transactions'));
-    document.getElementById('suspendedTab').addEventListener('click', () => switchTab('suspended'));
     document.getElementById('referralsTab').addEventListener('click', () => switchTab('referrals'));
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -929,11 +907,7 @@ function setupEventListeners() {
         currentTransactionPage = 1;
         updateTransactionList();
     });
-    document.getElementById('searchSuspended').addEventListener('input', (e) => {
-        currentSuspendedSearch = e.target.value.trim();
-        currentSuspendedPage = 1;
-        updateSuspendedList();
-    });
+
     document.getElementById('searchReferrals').addEventListener('input', (e) => {
         currentReferralSearch = e.target.value.trim();
         currentReferralPage = 1;
@@ -946,25 +920,13 @@ function setupEventListeners() {
 function switchTab(tab) {
     if (tab === 'transactions') {
         document.getElementById('transactionsTab').classList.add('tab-active');
-        document.getElementById('suspendedTab').classList.remove('tab-active');
         document.getElementById('referralsTab').classList.remove('tab-active');
         document.getElementById('transactionsContent').classList.add('active');
-        document.getElementById('suspendedContent').classList.remove('active');
         document.getElementById('referralsContent').classList.remove('active');
-    } else if (tab === 'suspended') {
-        document.getElementById('transactionsTab').classList.remove('tab-active');
-        document.getElementById('suspendedTab').classList.add('tab-active');
-        document.getElementById('referralsTab').classList.remove('tab-active');
-        document.getElementById('transactionsContent').classList.remove('active');
-        document.getElementById('suspendedContent').classList.add('active');
-        document.getElementById('referralsContent').classList.remove('active');
-        loadSuspendedOrders();
     } else {
         document.getElementById('transactionsTab').classList.remove('tab-active');
-        document.getElementById('suspendedTab').classList.remove('tab-active');
         document.getElementById('referralsTab').classList.add('tab-active');
         document.getElementById('transactionsContent').classList.remove('active');
-        document.getElementById('suspendedContent').classList.remove('active');
         document.getElementById('referralsContent').classList.add('active');
     }
 }
@@ -1002,41 +964,49 @@ function loadTransactionHistory() {
         headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
     }
 
-    fetch(`${BASE_API_URL}/transactions/${userId}`, {
-        headers: headers
-    })
-    .then(response => {
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 404) {
-                console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
-                authError = true;
-            }
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('📊 [Frontend] API Response:', data);
-        // Handle both direct array and wrapped response
-        const transactions = data.transactions || data;
+    Promise.all([
+        fetch(`${BASE_API_URL}/transactions/${userId}`, { headers: headers }).then(r => r.json()).catch(() => []),
+        fetch(`${BASE_API_URL}/orders?status=suspended`, { headers: headers }).then(r => r.json()).catch(() => [])
+    ])
+    .then(([transactionsData, suspendedData]) => {
+        console.log('📊 [Frontend] Transaction API Response:', transactionsData);
+        console.log('📊 [Frontend] Suspended orders API Response:', suspendedData);
         
-        if (!Array.isArray(transactions)) {
-            console.error('❌ Transactions is not an array:', transactions);
+        // Handle both direct array and wrapped response
+        const transactions = Array.isArray(transactionsData) ? transactionsData : (transactionsData.transactions || []);
+        const suspendedOrders = Array.isArray(suspendedData) ? suspendedData : (suspendedData.data || []);
+        
+        // Convert suspended orders to transaction format
+        const suspendedAsTransactions = suspendedOrders.map(order => ({
+            id: order._id || order.id,
+            type: 'Sell Stars',
+            amount: order.stars || 0,
+            status: 'suspended',
+            date: order.createdAt || order.date || new Date(),
+            details: `Suspended sell order`
+        }));
+        
+        // Combine arrays
+        const allTransactions = [...transactions, ...suspendedAsTransactions];
+        
+        if (!Array.isArray(allTransactions)) {
+            console.error('❌ Combined transactions is not an array:', allTransactions);
             transactionHistory = [];
             updateTransactionList();
             return;
         }
         
-        console.log(`📊 [Frontend] Processing ${transactions.length} transactions`);
-        transactionHistory = transactions.map(item => {
+        console.log(`📊 [Frontend] Processing ${allTransactions.length} total transactions (including ${suspendedOrders.length} suspended)`);
+        transactionHistory = allTransactions.map(item => {
             return {
                 ...item,
-                status: mapOrderStatus(item.status),
+                status: item.status === 'suspended' ? 'suspended' : mapOrderStatus(item.status),
                 date: new Date(item.date)
             };
         });
         
         console.log('📊 [Frontend] Transaction history updated:', transactionHistory);
+        LoadingComponent.hide('transactionsLoading');
         updateTransactionList();
     })
     .catch(error => {
@@ -1108,65 +1078,7 @@ function loadReferralHistory() {
     });
 }
 
-function loadSuspendedOrders() {
-    LoadingComponent.show('suspendedLoading', 'cards', { count: 3 });
-    safeSetDisplay('suspendedList', 'none');
-    safeSetDisplay('suspendedEmpty', 'none');
 
-    if (!userId) {
-        console.error('❌ Cannot load suspended orders: No valid user ID');
-        LoadingComponent.hide('suspendedLoading');
-        safeSetDisplay('suspendedEmpty', 'flex');
-        authError = true;
-        return;
-    }
-
-    const headers = {
-        'x-telegram-id': userId,
-        'Content-Type': 'application/json'
-    };
-    
-    // Add init data if available
-    if (window.Telegram?.WebApp?.initData) {
-        headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-    }
-
-    fetch(`${BASE_API_URL}/orders?status=suspended`, {
-        headers: headers
-    })
-    .then(response => {
-        console.log(`✅ Suspended orders API response status: ${response.status}`);
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 404) {
-                console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
-                authError = true;
-            }
-            throw new Error(`Network response ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('✅ Suspended orders data received:', data);
-        // Handle both direct array response and paginated response
-        const suspendedData = Array.isArray(data) ? data : (data.data || []);
-        console.log('📊 Formatted suspended orders:', suspendedData);
-        suspendedOrders = suspendedData.map(order => {
-            return {
-                ...order,
-                date: new Date(order.createdAt || order.date)
-            };
-        });
-        
-        console.log('📝 Suspended orders loaded:', suspendedOrders);
-        LoadingComponent.hide('suspendedLoading');
-        updateSuspendedList();
-    })
-    .catch(error => {
-        console.error('❌ [Frontend] Error loading suspended orders:', error);
-        LoadingComponent.hide('suspendedLoading');
-        safeSetDisplay('suspendedEmpty', 'flex');
-    });
-}
 
 function mapOrderStatus(status) {
     // Don't map statuses - use them as-is
@@ -1248,6 +1160,10 @@ function updateTransactionList() {
                 case 'processing':
                     statusClass = 'status-processing';
                     statusText = TranslationUtils.get('processing');
+                    break;
+                case 'suspended':
+                    statusClass = 'status-suspended';
+                    statusText = TranslationUtils.get('suspended');
                     break;
                 case 'declined':
                     statusClass = 'status-declined';
@@ -1367,81 +1283,7 @@ function updateReferralList() {
     });
 }
 
-function updateSuspendedList() {
-    let filteredSuspended = suspendedOrders.filter(order => {
-        if (currentSuspendedSearch) {
-            const searchLower = currentSuspendedSearch.toLowerCase();
-            return (
-                (order._id || '').toString().toLowerCase().includes(searchLower) ||
-                (order.stars ?? '').toString().toLowerCase().includes(searchLower) ||
-                (order.suspensionInfo?.suspendedAmount ?? '').toString().toLowerCase().includes(searchLower)
-            );
-        }
-        return true;
-    });
-    
-    const totalPages = Math.ceil(filteredSuspended.length / itemsPerPage);
-    const startIndex = (currentSuspendedPage - 1) * itemsPerPage;
-    const paginatedSuspended = filteredSuspended.slice(startIndex, startIndex + itemsPerPage);
-    
-    LoadingComponent.hide('suspendedLoading');
-    
-    if (paginatedSuspended.length === 0) {
-        safeSetDisplay('suspendedList', 'none');
-        safeSetDisplay('suspendedEmpty', 'flex');
-    } else {
-        safeSetDisplay('suspendedList', 'block');
-        safeSetDisplay('suspendedEmpty', 'none');
-        
-        const suspendedList = safeGetElement('suspendedList');
-        if (suspendedList) {
-            suspendedList.innerHTML = '';
-        
-        paginatedSuspended.forEach(order => {
-            const suspendCard = document.createElement('div');
-            suspendCard.className = 'transaction-card bg-white p-3 border-l-4 border-orange-500';
-            const dateStr = formatDate(order.date);
-            
-            const debt = Math.abs(order.suspensionInfo?.suspendedAmount || 0);
-            const fulfilled = order.suspensionInfo?.appliedDeduction || 0;
-            const remaining = Math.max(0, debt - fulfilled);
-            
-            suspendCard.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <div class="font-medium text-orange-600">⏸ Suspended Order</div>
-                        <div class="text-xs text-gray-500 mt-1">${order._id}</div>
-                    </div>
-                    <div class="text-sm text-gray-500">${dateStr}</div>
-                </div>
-                <div class="grid grid-cols-3 gap-2 mt-3 text-xs">
-                    <div class="bg-gray-50 p-2 rounded">
-                        <div class="text-gray-600">Order Amount</div>
-                        <div class="font-semibold text-gray-900">${order.stars}⭐</div>
-                    </div>
-                    <div class="bg-gray-50 p-2 rounded">
-                        <div class="text-gray-600">Fulfilled</div>
-                        <div class="font-semibold text-green-600">${fulfilled}⭐</div>
-                    </div>
-                    <div class="bg-gray-50 p-2 rounded">
-                        <div class="text-gray-600">Remaining</div>
-                        <div class="font-semibold text-orange-600">${remaining}⭐</div>
-                    </div>
-                </div>
-                <div class="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-800">
-                    <strong>Debt:</strong> ${debt}⭐ | <strong>Status:</strong> Suspended until fulfilled
-                </div>
-            `;
-            suspendedList.appendChild(suspendCard);
-        });
-        }
-    }
-    
-    updatePagination('suspendedPagination', currentSuspendedPage, totalPages, (page) => {
-        currentSuspendedPage = page;
-        updateSuspendedList();
-    });
-}
+
 
 function updateTransactionCounts(transactions) {
     const completedCountEl = document.getElementById('completedCount');
