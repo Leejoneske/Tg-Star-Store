@@ -19837,7 +19837,7 @@ bot.onText(/^\/suspend_sell\s+([0-9]+)\s+([0-9]+(?:\.[0-9]{1,2})?)$/i, async (ms
     }
 });
 
-// Admin command: Unsuspend user's sell orders
+// Admin command: Unsuspend user's sell orders (complete reset - wipes all suspension data)
 bot.onText(/^\/unsuspend\s+([0-9]+)$/i, async (msg, match) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
@@ -19860,44 +19860,40 @@ bot.onText(/^\/unsuspend\s+([0-9]+)$/i, async (msg, match) => {
             return await bot.sendMessage(chatId, `❌ No suspended orders found for user ${userId}.`);
         }
         
-        // Calculate total debt before clearing
-        let totalDebtBeforeClear = 0;
-        let totalFulfilled = 0;
-        for (const order of suspendedOrders) {
-            if (order.suspensionInfo.suspendedAmount) {
-                totalDebtBeforeClear += Math.abs(order.suspensionInfo.suspendedAmount);
-            }
-            if (order.suspensionInfo.appliedDeduction) {
-                totalFulfilled += order.suspensionInfo.appliedDeduction;
-            }
-        }
+        // Count suspended orders before reset
+        const suspendedCount = suspendedOrders.length;
         
-        // Update all suspended orders back to processing (clear suspension flags)
+        // COMPLETE RESET: Wipe all suspension data entirely
+        // This is like deleting the suspension action completely
         const updateResult = await SellOrder.updateMany(
             { telegramId: userId, status: 'suspended' },
             {
                 $set: {
-                    status: 'processing',
-                    'suspensionInfo.isSuspended': false,
-                    'suspensionInfo.suspendedAmount': 0,
-                    'suspensionInfo.appliedDeduction': 0
+                    status: 'processing',  // Return to processing
+                    suspensionInfo: {       // Completely reset suspension info
+                        isSuspended: false,
+                        suspendedAmount: 0,
+                        suspendedDate: null,
+                        suspendedBy: null,
+                        reason: '',
+                        appliedDeduction: 0
+                    }
                 }
             }
         );
         
-        // Log the unsuspension action with debt details
-        const remainingDebt = Math.max(0, totalDebtBeforeClear - totalFulfilled);
-        console.log(`[UNSUSPENSION] User ${userId} suspension lifted by admin ${adminId}. Restored ${updateResult.modifiedCount} orders. Total debt was: ${totalDebtBeforeClear}, Fulfilled: ${totalFulfilled}, Remaining: ${remainingDebt}`);
+        // Log the complete reset
+        console.log(`[UNSUSPENSION] User ${userId} suspension completely reset by admin ${adminId}. Fresh start - ${updateResult.modifiedCount} orders restored to processing.`);
         
         // Send confirmation to admin (NO notification to user - silent operation)
         await bot.sendMessage(
             chatId,
-            `✅ Suspension Lifted\n\n` +
+            `✅ Suspension Completely Reset\n\n` +
             `User: ${userId}\n` +
-            `Orders Restored: ${updateResult.modifiedCount}\n` +
-            `Debt Fulfilled: ${totalFulfilled} stars\n` +
-            `Remaining Debt: ${remainingDebt} stars\n\n` +
-            `Status: Orders marked as "processing". User will not be notified.`
+            `Orders Reset: ${updateResult.modifiedCount}\n` +
+            `All Debt: CLEARED\n` +
+            `Status: Fresh start - orders marked as "processing"\n\n` +
+            `Note: To re-suspend this user, use /suspend_sell command again.`
         );
         
     } catch (error) {
