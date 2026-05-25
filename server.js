@@ -7067,6 +7067,36 @@ bot.on('callback_query', async (query) => {
                     console.log(`[BUY ORDER LOGIN] All message updates completed`);
                 } else {
                     console.warn(`[BUY ORDER LOGIN] No admin messages to update for order ${orderId}`);
+                    
+                    // Fallback: Try to edit the current message the admin is viewing
+                    try {
+                        console.log(`[BUY ORDER LOGIN] Attempting to update current message for admin ${userId}`);
+                        const currentMessageText = query.message?.text || '';
+                        const updatedText = `${currentMessageText}\n\n🔐 Processing by: @${adminUsername}`;
+                        
+                        if (updatedText.length <= 4000 && query.message?.message_id) {
+                            await bot.editMessageText(updatedText, {
+                                chat_id: query.message.chat.id,
+                                message_id: query.message.message_id,
+                                reply_markup: actionKeyboard
+                            });
+                            console.log(`[BUY ORDER LOGIN] ✅ Updated current message for admin`);
+                        }
+                    } catch (err) {
+                        console.warn(`[BUY ORDER LOGIN] Could not update current message:`, err.message || err);
+                    }
+                }
+
+                // Try to update the button inline (change only buttons without changing text)
+                try {
+                    console.log(`[BUY ORDER LOGIN] Updating inline buttons for current message`);
+                    await bot.editMessageReplyMarkup(actionKeyboard, {
+                        chat_id: query.message.chat.id,
+                        message_id: query.message.message_id
+                    });
+                    console.log(`[BUY ORDER LOGIN] ✅ Updated inline buttons`);
+                } catch (err) {
+                    console.warn(`[BUY ORDER LOGIN] Could not update inline buttons:`, err.message || err);
                 }
 
                 await bot.answerCallbackQuery(query.id, { text: `✅ You're now processing this order` });
