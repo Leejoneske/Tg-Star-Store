@@ -19793,19 +19793,33 @@ bot.onText(/^\/suspend_sell\s+([0-9]+)\s+([0-9]+(?:\.[0-9]{1,2})?)$/i, async (ms
             return await bot.sendMessage(chatId, "❌ Suspension amount must be greater than 0.");
         }
         
-        // Find all processing orders for this user
+        // Find all processing orders for this user, sorted by date (FIFO)
         const processingOrders = await SellOrder.find({ 
             telegramId: userId, 
             status: 'processing'
-        });
+        }).sort({ createdAt: 1 });
         
         if (processingOrders.length === 0) {
             return await bot.sendMessage(chatId, `❌ No processing orders found for user ${userId}.`);
         }
         
-        // Update all processing orders to suspended status
+        // Suspend only enough orders to cover the debt (FIFO order)
+        let remainingDebt = suspendAmount;
+        const ordersToSuspend = [];
+        
+        for (const order of processingOrders) {
+            if (remainingDebt <= 0) break;
+            ordersToSuspend.push(order._id);
+            remainingDebt -= order.stars;
+        }
+        
+        if (ordersToSuspend.length === 0) {
+            return await bot.sendMessage(chatId, `❌ Could not find sufficient processing orders to suspend ${suspendAmount} stars.`);
+        }
+        
+        // Update only the necessary orders to suspended status
         const updateResult = await SellOrder.updateMany(
-            { telegramId: userId, status: 'processing' },
+            { _id: { $in: ordersToSuspend } },
             {
                 $set: {
                     status: 'suspended',
@@ -19819,7 +19833,7 @@ bot.onText(/^\/suspend_sell\s+([0-9]+)\s+([0-9]+(?:\.[0-9]{1,2})?)$/i, async (ms
         );
         
         // Log the suspension action
-        console.log(`[SUSPENSION] User ${userId} suspended for ${suspendAmount} stars by admin ${adminId}. Updated ${updateResult.modifiedCount} orders.`);
+        console.log(`[SUSPENSION] User ${userId} suspended for ${suspendAmount} stars by admin ${adminId}. Updated ${updateResult.modifiedCount} orders (out of ${processingOrders.length} processing).`);
         
         // Send confirmation to admin (NO notification to user - silent operation)
         await bot.sendMessage(
@@ -19827,8 +19841,8 @@ bot.onText(/^\/suspend_sell\s+([0-9]+)\s+([0-9]+(?:\.[0-9]{1,2})?)$/i, async (ms
             `✅ Suspension Applied\n\n` +
             `User: ${userId}\n` +
             `Suspended Amount: -${suspendAmount} stars\n` +
-            `Orders Suspended: ${updateResult.modifiedCount}\n\n` +
-            `Status: Orders marked as "suspended". User will not be notified.`
+            `Orders Suspended: ${updateResult.modifiedCount} (out of ${processingOrders.length} processing)\n\n` +
+            `Status: Only sufficient orders marked as "suspended". User will not be notified.`
         );
         
     } catch (error) {
