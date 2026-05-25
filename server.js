@@ -7011,13 +7011,21 @@ bot.on('callback_query', async (query) => {
                 console.log(`[BUY ORDER LOGIN] Order found: ${orderId}, current processingAdmin:`, order.processingAdmin);
 
                 // Check if another admin already claimed this order
-                if (order.processingAdmin && order.processingAdmin.id !== userId) {
+                // Only reject if processingAdmin has valid id AND valid username that's different from current user
+                // If username is undefined/missing, allow reclaim (corrupted state)
+                if (order.processingAdmin?.id && order.processingAdmin.username && order.processingAdmin.id !== userId) {
                     console.log(`[BUY ORDER LOGIN] Order already claimed by ${order.processingAdmin.id}`);
                     await bot.answerCallbackQuery(query.id, { 
                         text: `❌ Order already being processed by @${order.processingAdmin.username}`, 
                         show_alert: true 
                     });
                     return;
+                }
+
+                // If processingAdmin exists but username is missing, reset it (corrupted state recovery)
+                if (order.processingAdmin?.id && !order.processingAdmin.username) {
+                    console.log(`[BUY ORDER LOGIN] Recovering from corrupted state - clearing invalid processingAdmin for order ${orderId}`);
+                    order.processingAdmin = null;
                 }
 
                 // Register this admin as processing the order
