@@ -5903,8 +5903,10 @@ bot.on("successful_payment", async (msg) => {
             (userLocationInfo ? `${userLocationInfo}\n` : '') +
             `Stars: ${order.stars}\n` +
             `Wallet: ${order.walletAddress}\n` +
-            `Memo: ${order.memoTag || 'None'}\n\n` +
-            `💱 Generated via Telegram keyboard button`;
+            `Memo: ${order.memoTag || 'None'}\n` +
+            (amountTowardsSuspension > 0 ? `\n⚠️ Suspension Deduction: ${amountTowardsSuspension} stars` : '') +
+            (amountToPay > 0 && amountTowardsSuspension > 0 ? `\nAmount to Pay: ${amountToPay} stars` : '') +
+            `\n\n💱 Generated via Telegram keyboard button`;
 
         let adminKeyboard;
         if (amountToPay === 0 && amountTowardsSuspension > 0) {
@@ -11812,18 +11814,20 @@ async function processSuspensionDeduction(userId, newOrderStars, currentOrderId)
             const newSuspendedAmount = currentSuspensionAmount - deductThisOrder;
             
             if (newSuspendedAmount === 0) {
-                // Suspension is fully deducted from this order - mark as completed but keep suspended status
+                // Suspension is fully deducted from this order - transition back to processing
                 await SellOrder.updateOne(
                     { _id: order._id },
                     {
                         $set: {
+                            status: 'processing', // Restore to processing so it can be completed
                             'suspensionInfo.suspendedAmount': 0,
-                            dateCompleted: new Date() // Now has a completion date
+                            dateCompleted: null // Clear so admin can complete fresh
                         }
                     }
                 );
+                console.log(`[SUSPENSION] Order ${order._id} transitioned back to processing (debt fully deducted).`);
             } else {
-                // Partial deduction
+                // Partial deduction - keep suspended status until fully paid
                 await SellOrder.updateOne(
                     { _id: order._id },
                     {
