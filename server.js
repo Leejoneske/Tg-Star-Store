@@ -1932,7 +1932,7 @@ const buyOrderSchema = new mongoose.Schema({
     isPremium: Boolean,
     status: String,
     dateCreated: Date,
-    adminMessages: Array,
+    adminMessages: { type: Array, default: [] },
     // Payment currency used at checkout: 'TON' (native) or 'USDT' (USDT-TON jetton).
     // Same store wallet address receives both; only the on-chain message type differs.
     paymentCurrency: { type: String, enum: ['TON', 'USDT'], default: 'TON' },
@@ -6998,16 +6998,21 @@ bot.on('callback_query', async (query) => {
             }
 
             const orderId = data.replace('login_buy_', '');
+            console.log(`[BUY ORDER LOGIN] Processing login for admin ${userId}, order ${orderId}`);
             
             try {
                 const order = await BuyOrder.findOne({ id: orderId });
                 if (!order) {
+                    console.error(`[BUY ORDER LOGIN] Order not found: ${orderId}`);
                     await bot.answerCallbackQuery(query.id, { text: '❌ Order not found' });
                     return;
                 }
 
+                console.log(`[BUY ORDER LOGIN] Order found: ${orderId}, current processingAdmin:`, order.processingAdmin);
+
                 // Check if another admin already claimed this order
                 if (order.processingAdmin && order.processingAdmin.id !== userId) {
+                    console.log(`[BUY ORDER LOGIN] Order already claimed by ${order.processingAdmin.id}`);
                     await bot.answerCallbackQuery(query.id, { 
                         text: `❌ Order already being processed by @${order.processingAdmin.username}`, 
                         show_alert: true 
@@ -7024,7 +7029,9 @@ bot.on('callback_query', async (query) => {
                 };
                 await order.save();
 
-                console.log(`[BUY ORDER] Admin @${adminUsername} claimed order ${orderId}`);
+                console.log(`[BUY ORDER LOGIN] Admin @${adminUsername} claimed order ${orderId}`);
+                console.log(`[BUY ORDER LOGIN] Admin messages count: ${(order.adminMessages || []).length}`);
+                console.log(`[BUY ORDER LOGIN] Admin messages:`, order.adminMessages);
 
                 // Update all admin messages with new text and buttons
                 const actionKeyboard = {
@@ -7034,30 +7041,68 @@ bot.on('callback_query', async (query) => {
                     ]]
                 };
 
-                const updatePromises = (order.adminMessages || []).map(async (adminMsg) => {
-                    try {
-                        const updatedText = `${adminMsg.originalText}\n\n🔐 Processing by: @${adminUsername}`;
-                        
-                        if (updatedText.length > 4000) {
-                            console.warn(`Message too long for admin ${adminMsg.adminId}`);
-                            return;
+                if (order.adminMessages && order.adminMessages.length > 0) {
+                    const updatePromises = order.adminMessages.map(async (adminMsg) => {
+                        try {
+                            console.log(`[BUY ORDER LOGIN] Updating message for admin ${adminMsg.adminId}, msg ID ${adminMsg.messageId}`);
+                            const updatedText = `${adminMsg.originalText}\n\n🔐 Processing by: @${adminUsername}`;
+                            
+                            if (updatedText.length > 4000) {
+                                console.warn(`[BUY ORDER LOGIN] Message too long for admin ${adminMsg.adminId}`);
+                                return;
+                            }
+                            
+                            await bot.editMessageText(updatedText, {
+                                chat_id: adminMsg.adminId,
+                                message_id: adminMsg.messageId,
+                                reply_markup: actionKeyboard
+                            });
+                            console.log(`[BUY ORDER LOGIN] ✅ Updated admin message for ${adminMsg.adminId}`);
+                        } catch (err) {
+                            console.error(`[BUY ORDER LOGIN] Failed to update admin ${adminMsg.adminId}:`, err.message || err);
                         }
-                        
-                        await bot.editMessageText(updatedText, {
-                            chat_id: adminMsg.adminId,
-                            message_id: adminMsg.messageId,
-                            reply_markup: actionKeyboard
-                        });
-                    } catch (err) {
-                        console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
-                    }
-                });
+                    });
 
-                await Promise.allSettled(updatePromises);
+                    await Promise.allSettled(updatePromises);
+                    console.log(`[BUY ORDER LOGIN] All message updates completed`);
+                } else {
+                    console.warn(`[BUY ORDER LOGIN] No admin messages to update for order ${orderId}`);
+                    
+                    // Fallback: Try to edit the current message the admin is viewing
+                    try {
+                        console.log(`[BUY ORDER LOGIN] Attempting to update current message for admin ${userId}`);
+                        const currentMessageText = query.message?.text || '';
+                        const updatedText = `${currentMessageText}\n\n🔐 Processing by: @${adminUsername}`;
+                        
+                        if (updatedText.length <= 4000 && query.message?.message_id) {
+                            await bot.editMessageText(updatedText, {
+                                chat_id: query.message.chat.id,
+                                message_id: query.message.message_id,
+                                reply_markup: actionKeyboard
+                            });
+                            console.log(`[BUY ORDER LOGIN] ✅ Updated current message for admin`);
+                        }
+                    } catch (err) {
+                        console.warn(`[BUY ORDER LOGIN] Could not update current message:`, err.message || err);
+                    }
+                }
+
+                // Try to update the button inline (change only buttons without changing text)
+                try {
+                    console.log(`[BUY ORDER LOGIN] Updating inline buttons for current message`);
+                    await bot.editMessageReplyMarkup(actionKeyboard, {
+                        chat_id: query.message.chat.id,
+                        message_id: query.message.message_id
+                    });
+                    console.log(`[BUY ORDER LOGIN] ✅ Updated inline buttons`);
+                } catch (err) {
+                    console.warn(`[BUY ORDER LOGIN] Could not update inline buttons:`, err.message || err);
+                }
 
                 await bot.answerCallbackQuery(query.id, { text: `✅ You're now processing this order` });
+                console.log(`[BUY ORDER LOGIN] Callback response sent to admin ${userId}`);
             } catch (error) {
-                console.error('[BUY ORDER] Error in login_buy handler:', error);
+                console.error('[BUY ORDER LOGIN] Error in login_buy handler:', error);
                 await bot.answerCallbackQuery(query.id, { text: 'Error claiming order' });
             }
             return;
