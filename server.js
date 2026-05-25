@@ -6331,9 +6331,19 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
         }
     } else { // buy order
         if (actionType === 'complete') {
-            if (order.status !== 'pending' && order.status !== 'processing') {
-                throw new Error(`Order is ${order.status} - cannot complete`);
+            // Allow completion if order is pending/processing OR if payment is verified on blockchain even if expired
+            const isPaymentVerified = order.transactionVerified === true;
+            const isCompletableStatus = order.status === 'pending' || order.status === 'processing' || order.status === 'verified';
+            
+            if (!isCompletableStatus && !isPaymentVerified) {
+                throw new Error(`Order is ${order.status} - cannot complete. Payment must be verified on blockchain.`);
             }
+            
+            // If order expired but payment verified, recover it
+            if (order.status === 'expired' && isPaymentVerified) {
+                console.log(`[RECOVERY] Order ${order.id} was expired but payment verified on blockchain - allowing completion`);
+            }
+            
             order.status = 'completed';
             order.dateCompleted = new Date();
             await order.save();
