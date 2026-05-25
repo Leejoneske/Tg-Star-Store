@@ -7024,7 +7024,8 @@ bot.on('callback_query', async (query) => {
                 };
                 await order.save();
 
-                console.log(`[BUY ORDER] Admin @${adminUsername} claimed order ${orderId}`);
+                console.log(`[BUY ORDER LOGIN] Admin @${adminUsername} claimed order ${orderId}`);
+                console.log(`[BUY ORDER LOGIN] Admin messages to update: ${(order.adminMessages || []).length}`);
 
                 // Update all admin messages with new text and buttons
                 const actionKeyboard = {
@@ -7036,10 +7037,11 @@ bot.on('callback_query', async (query) => {
 
                 const updatePromises = (order.adminMessages || []).map(async (adminMsg) => {
                     try {
+                        console.log(`[BUY ORDER LOGIN] Updating message for admin ${adminMsg.adminId}, msg ${adminMsg.messageId}`);
                         const updatedText = `${adminMsg.originalText}\n\n🔐 Processing by: @${adminUsername}`;
                         
                         if (updatedText.length > 4000) {
-                            console.warn(`Message too long for admin ${adminMsg.adminId}`);
+                            console.warn(`[BUY ORDER LOGIN] Message too long for admin ${adminMsg.adminId}`);
                             return;
                         }
                         
@@ -7048,14 +7050,17 @@ bot.on('callback_query', async (query) => {
                             message_id: adminMsg.messageId,
                             reply_markup: actionKeyboard
                         });
+                        console.log(`[BUY ORDER LOGIN] ✅ Updated admin message for ${adminMsg.adminId}`);
                     } catch (err) {
-                        console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
+                        console.error(`[BUY ORDER LOGIN] Failed to update admin ${adminMsg.adminId}:`, err.message || err);
                     }
                 });
 
                 await Promise.allSettled(updatePromises);
+                console.log(`[BUY ORDER LOGIN] All message updates completed`);
 
                 await bot.answerCallbackQuery(query.id, { text: `✅ You're now processing this order` });
+                console.log(`[BUY ORDER LOGIN] Callback response sent`);
             } catch (error) {
                 console.error('[BUY ORDER] Error in login_buy handler:', error);
                 await bot.answerCallbackQuery(query.id, { text: 'Error claiming order' });
