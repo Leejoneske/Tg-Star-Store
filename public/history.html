@@ -964,43 +964,26 @@ function loadTransactionHistory() {
         headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
     }
 
-    Promise.all([
-        fetch(`${BASE_API_URL}/transactions/${userId}`, { headers: headers }).then(r => r.json()).catch(() => []),
-        fetch(`${BASE_API_URL}/orders?status=suspended`, { headers: headers }).then(r => r.json()).catch(() => [])
-    ])
-    .then(([transactionsData, suspendedData]) => {
+    fetch(`${BASE_API_URL}/transactions/${userId}`, { headers: headers })
+    .then(r => r.json())
+    .then(transactionsData => {
         console.log('📊 [Frontend] Transaction API Response:', transactionsData);
-        console.log('📊 [Frontend] Suspended orders API Response:', suspendedData);
         
         // Handle both direct array and wrapped response
         const transactions = Array.isArray(transactionsData) ? transactionsData : (transactionsData.transactions || []);
-        const suspendedOrders = Array.isArray(suspendedData) ? suspendedData : (suspendedData.data || []);
         
-        // Convert suspended orders to transaction format
-        const suspendedAsTransactions = suspendedOrders.map(order => ({
-            id: order._id || order.id,
-            type: 'Sell Stars',
-            amount: order.stars || 0,
-            status: 'suspended',
-            date: order.createdAt || order.date || new Date(),
-            details: `Suspended sell order`
-        }));
-        
-        // Combine arrays
-        const allTransactions = [...transactions, ...suspendedAsTransactions];
-        
-        if (!Array.isArray(allTransactions)) {
-            console.error('❌ Combined transactions is not an array:', allTransactions);
+        if (!Array.isArray(transactions)) {
+            console.error('❌ Transactions is not an array:', transactions);
             transactionHistory = [];
             updateTransactionList();
             return;
         }
         
-        console.log(`📊 [Frontend] Processing ${allTransactions.length} total transactions (including ${suspendedOrders.length} suspended)`);
-        transactionHistory = allTransactions.map(item => {
+        console.log(`📊 [Frontend] Processing ${transactions.length} total transactions`);
+        transactionHistory = transactions.map(item => {
             return {
                 ...item,
-                status: item.status === 'suspended' ? 'suspended' : mapOrderStatus(item.status),
+                status: mapOrderStatus(item.status),
                 date: new Date(item.date)
             };
         });

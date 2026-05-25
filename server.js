@@ -5909,8 +5909,8 @@ bot.on("successful_payment", async (msg) => {
             `\n\n💱 Generated via Telegram keyboard button`;
 
         let adminKeyboard;
-        if (amountToPay === 0 && amountTowardsSuspension > 0) {
-            // All stars went to suspension, only show Unsuspend and Fail buttons
+        if (amountToPay === 0 && amountTowardsSuspension > 0 && !suspensionResult.suspensionFulfilled) {
+            // All stars went to suspension AND suspension is still pending, show Unsuspend and Fail buttons
             adminKeyboard = {
                 inline_keyboard: [
                     [
@@ -9570,6 +9570,7 @@ app.get("/api/orders", requireTelegramAuth, async (req, res) => {
         // Format the response to include all order details
         const formattedOrders = orders.map(order => ({
             _id: order._id,
+            id: order.id, // Include the order ID field
             stars: order.stars,
             status: order.status,
             createdAt: order.dateCreated,
