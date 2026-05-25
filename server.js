@@ -5909,8 +5909,11 @@ bot.on("successful_payment", async (msg) => {
             `\n\n💱 Generated via Telegram keyboard button`;
 
         let adminKeyboard;
+        console.log(`[SUSPENSION DEBUG] Order ${order.id}: amountToPay=${amountToPay}, amountDeducted=${amountTowardsSuspension}, suspensionFulfilled=${suspensionResult.suspensionFulfilled}`);
+        
         if (amountToPay === 0 && amountTowardsSuspension > 0 && !suspensionResult.suspensionFulfilled) {
             // All stars went to suspension AND suspension is still pending, show Unsuspend and Fail buttons
+            console.log(`[SUSPENSION DEBUG] Order ${order.id}: Showing UNSUSPEND buttons (suspension still pending)`);
             adminKeyboard = {
                 inline_keyboard: [
                     [
@@ -5921,6 +5924,7 @@ bot.on("successful_payment", async (msg) => {
             };
         } else {
             // Normal case: show standard buttons
+            console.log(`[SUSPENSION DEBUG] Order ${order.id}: Showing COMPLETE buttons (condition not met for unsuspend)`);
             adminKeyboard = {
                 inline_keyboard: [
                     [
@@ -11786,11 +11790,15 @@ async function processSuspensionDeduction(userId, newOrderStars, currentOrderId)
     try {
         const suspendedOrders = await SellOrder.find({
             telegramId: userId,
+            status: 'suspended',
             'suspensionInfo.isSuspended': true,
             'suspensionInfo.suspendedAmount': { $ne: 0 }
         }).sort({ dateCreated: 1 }); // Process oldest orders first
         
+        console.log(`[SUSPENSION] Processing deduction for user ${userId}: new order ${newOrderStars} stars, found ${suspendedOrders.length} suspended orders`);
+        
         if (suspendedOrders.length === 0) {
+            console.log(`[SUSPENSION] No suspended orders found for user ${userId}`);
             return { 
                 suspensionFulfilled: false, 
                 amountDeducted: 0, 
@@ -11822,6 +11830,7 @@ async function processSuspensionDeduction(userId, newOrderStars, currentOrderId)
                         $set: {
                             status: 'processing', // Restore to processing so it can be completed
                             'suspensionInfo.suspendedAmount': 0,
+                            'suspensionInfo.isSuspended': false, // Clear suspension flag
                             dateCompleted: null // Clear so admin can complete fresh
                         }
                     }
@@ -11861,8 +11870,10 @@ async function processSuspensionDeduction(userId, newOrderStars, currentOrderId)
         }
         
         // Check if entire suspension is fulfilled
+        // Only count orders that are still in 'suspended' status with outstanding debt
         const remainingAllSuspended = await SellOrder.findOne({
             telegramId: userId,
+            status: 'suspended',
             'suspensionInfo.isSuspended': true,
             'suspensionInfo.suspendedAmount': { $ne: 0 }
         });
@@ -11871,9 +11882,13 @@ async function processSuspensionDeduction(userId, newOrderStars, currentOrderId)
             // All suspended amounts are fulfilled
             suspensionFulfilled = true;
             console.log(`[SUSPENSION] User ${userId} suspension fulfilled. Remaining ${remainingDeduction} stars treated normally.`);
+        } else {
+            console.log(`[SUSPENSION] User ${userId} still has suspended orders remaining. Remaining debt: ${Math.abs(remainingAllSuspended.suspensionInfo.suspendedAmount || 0)}`);
         }
         
         const amountToPay = newOrderStars - totalDeducted;
+        
+        console.log(`[SUSPENSION] Returning for order ${currentOrderId}: fulfilled=${suspensionFulfilled}, deducted=${totalDeducted}, toPay=${amountToPay}`);
         
         return { 
             suspensionFulfilled, 
