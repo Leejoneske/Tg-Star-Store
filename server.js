@@ -1968,6 +1968,11 @@ const buyOrderSchema = new mongoose.Schema({
         countryCode: String,
         ip: String,
         timestamp: Date
+    },
+    processingAdmin: {
+        id: String,
+        username: String,
+        loginTime: Date
     }
 });
 
@@ -4547,7 +4552,7 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         
         console.log(`[${timestamp}] ADMIN MESSAGE BUILT | Order: ${order.id} | Length: ${adminMessage.length} | Preview: ${adminMessage.slice(0, 100)}...`);
 
-        const adminKeyboard = { inline_keyboard: [[ { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } ]] };
+        const adminKeyboard = { inline_keyboard: [[ { text: '🔓 Login', callback_data: `login_buy_${order.id}` } ]] };
 
         // Send to admins with retry (MUST succeed for at least one admin)
         let adminNotificationSucceeded = false;
@@ -5142,12 +5147,19 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
                     }
                     m.originalText = text;
                     
-                    const buyButtons = {
-                        inline_keyboard: [[
-                            { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
-                            { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
-                        ]]
-                    };
+                    // Show login button if not claimed yet, otherwise show action buttons
+                    const buyButtons = order.processingAdmin
+                        ? {
+                            inline_keyboard: [[
+                                { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
+                                { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
+                            ]]
+                        }
+                        : {
+                            inline_keyboard: [[
+                                { text: "🔓 Login", callback_data: `login_buy_${order.id}` }
+                            ]]
+                        };
                     try {
                         await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: buyButtons });
                     } catch (_) {}
@@ -6847,12 +6859,24 @@ bot.on('callback_query', async (query) => {
                     ]
                 };
             } else {
-                originalKeyboard = {
-                    inline_keyboard: [[
-                        { text: '✅ Complete', callback_data: `complete_buy_${orderId}` },
-                        { text: '❌ Decline', callback_data: `decline_buy_${orderId}` }
-                    ]]
-                };
+                // For buy orders, check if already claimed
+                const buyOrder = await BuyOrder.findOne({ id: orderId });
+                if (buyOrder && buyOrder.processingAdmin) {
+                    // Already claimed - show action buttons
+                    originalKeyboard = {
+                        inline_keyboard: [[
+                            { text: '✅ Complete', callback_data: `complete_buy_${orderId}` },
+                            { text: '❌ Decline', callback_data: `decline_buy_${orderId}` }
+                        ]]
+                    };
+                } else {
+                    // Not claimed yet - show login button
+                    originalKeyboard = {
+                        inline_keyboard: [[
+                            { text: '🔓 Login', callback_data: `login_buy_${orderId}` }
+                        ]]
+                    };
+                }
             }
             
             try {
@@ -6963,6 +6987,82 @@ bot.on('callback_query', async (query) => {
             return;
         }
         // ==================== END UNSUSPEND SELL ORDER HANDLER ====================
+
+        // ==================== LOGIN BUY ORDER HANDLER ====================
+        // Admin claims a buy order for processing
+        if (data.startsWith('login_buy_')) {
+            if (!isAdmin) {
+                console.warn(`[SECURITY] Non-admin ${userId} attempted login_buy action: ${data}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Only admins can login to orders', show_alert: true });
+                return;
+            }
+
+            const orderId = data.replace('login_buy_', '');
+            
+            try {
+                const order = await BuyOrder.findOne({ id: orderId });
+                if (!order) {
+                    await bot.answerCallbackQuery(query.id, { text: '❌ Order not found' });
+                    return;
+                }
+
+                // Check if another admin already claimed this order
+                if (order.processingAdmin && order.processingAdmin.id !== userId) {
+                    await bot.answerCallbackQuery(query.id, { 
+                        text: `❌ Order already being processed by @${order.processingAdmin.username}`, 
+                        show_alert: true 
+                    });
+                    return;
+                }
+
+                // Register this admin as processing the order
+                const adminUsername = query.from.username || `User_${query.from.id}`;
+                order.processingAdmin = {
+                    id: userId,
+                    username: adminUsername,
+                    loginTime: new Date()
+                };
+                await order.save();
+
+                console.log(`[BUY ORDER] Admin @${adminUsername} claimed order ${orderId}`);
+
+                // Update all admin messages with new text and buttons
+                const actionKeyboard = {
+                    inline_keyboard: [[
+                        { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
+                        { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
+                    ]]
+                };
+
+                const updatePromises = (order.adminMessages || []).map(async (adminMsg) => {
+                    try {
+                        const updatedText = `${adminMsg.originalText}\n\n🔐 Processing by: @${adminUsername}`;
+                        
+                        if (updatedText.length > 4000) {
+                            console.warn(`Message too long for admin ${adminMsg.adminId}`);
+                            return;
+                        }
+                        
+                        await bot.editMessageText(updatedText, {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId,
+                            reply_markup: actionKeyboard
+                        });
+                    } catch (err) {
+                        console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
+                    }
+                });
+
+                await Promise.allSettled(updatePromises);
+
+                await bot.answerCallbackQuery(query.id, { text: `✅ You're now processing this order` });
+            } catch (error) {
+                console.error('[BUY ORDER] Error in login_buy handler:', error);
+                await bot.answerCallbackQuery(query.id, { text: 'Error claiming order' });
+            }
+            return;
+        }
+        // ==================== END LOGIN BUY ORDER HANDLER ====================
 
         let order, actionType, orderType;
 
@@ -7094,12 +7194,19 @@ bot.on('callback_query', async (query) => {
                                 }
                                 m.originalText = text;
                                 
-                                const buyButtons = {
-                                    inline_keyboard: [[
-                                        { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
-                                        { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
-                                    ]]
-                                };
+                                // Show login button if not claimed yet, otherwise show action buttons
+                                const buyButtons = order.processingAdmin
+                                    ? {
+                                        inline_keyboard: [[
+                                            { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
+                                            { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
+                                        ]]
+                                    }
+                                    : {
+                                        inline_keyboard: [[
+                                            { text: "🔓 Login", callback_data: `login_buy_${order.id}` }
+                                        ]]
+                                    };
                                 try {
                                     await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: buyButtons });
                                 } catch (_) {}
@@ -18114,11 +18221,11 @@ bot.onText(/\/cbo$/, async (msg) => {
                 order.status = 'pending';
                 order.dateCreated = new Date();
                 order.adminMessages = [];
+                order.processingAdmin = null; // Reset admin claim on recreate
 
                 const adminKeyboard = { 
                     inline_keyboard: [[ 
-                        { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, 
-                        { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } 
+                        { text: '🔓 Login', callback_data: `login_buy_${order.id}` }
                     ]] 
                 };
 
@@ -18295,8 +18402,7 @@ bot.onText(/\/cbo$/, async (msg) => {
                     
                     const adminKeyboard = { 
                         inline_keyboard: [[ 
-                            { text: '✅ Complete', callback_data: `complete_buy_${newOrder.id}` }, 
-                            { text: '❌ Decline', callback_data: `decline_buy_${newOrder.id}` } 
+                            { text: '🔓 Login', callback_data: `login_buy_${newOrder.id}` }
                         ]] 
                     };
                     
