@@ -14,11 +14,13 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const sources = require('./sources');
-
 const CACHE_FILE = path.join(__dirname, '.cache.json');
 const DEFAULT_REFRESH_MS = 6 * 60 * 60 * 1000; // 6h
 const MIN_PASSAGE_LEN = 60;
 const MAX_PASSAGE_LEN = 380;
+const MIN_SCORE = 4.5;        // BM25 floor — was 1.5, way too loose
+const MIN_QUERY_TOKENS = 2;   // ignore 1-word queries ("stars", "help")
+const MIN_OVERLAP_RATIO = 0.5; // matched passage must contain ≥50% of query terms
 const MIN_SCORE = 1.5; // BM25 floor — below this we consider it "no answer"
 
 // ---------- tiny HTTP fetcher (no deps) ----------
@@ -232,9 +234,15 @@ function search(query) {
 }
 
 function stats() {
-    return INDEX
-        ? { ready: true, passages: INDEX.N, builtAt: new Date(INDEX.builtAt).toISOString() }
-        : { ready: false };
+function search(query) {
+    const qTokens = [...new Set(tokenize(query))];
+    if (qTokens.length < MIN_QUERY_TOKENS) return null;
+    const [top] = bm25Search(query, 1);
+    if (!top || top.score < MIN_SCORE) return null;
+    // Require meaningful overlap — BM25 alone happily picks passages that
+    // share only one rare word with the query.
+    const overlap = qTokens.filter((t) => top.d.tf[t]).length / qTokens.length;
+    if (overlap < MIN_OVERLAP_RATIO) return null;
+    return { text: top.d.text, score: top.score, overlap };
 }
-
 module.exports = { init, rebuild, search, stats };
