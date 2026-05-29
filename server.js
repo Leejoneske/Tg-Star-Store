@@ -122,6 +122,7 @@ try {
 // Email Service for professional notifications (Resend API)
 const emailService = require('./services/email-service');
 const tonTransactionService = require('./services/ton-transaction-service');
+const autoReply = require('./services/auto-reply');
 
 // Admin commands module
 const registerAdminEmailCommands = require('./telegram-commands-admin');
@@ -253,17 +254,12 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id', 'x-api-key'],
     exposedHeaders: ['Content-Disposition']
 }));
-
-// Helmet — sane HTTP security headers (CSP disabled to avoid breaking inline scripts in static pages)
-if (helmet) {
     app.use(helmet({
         contentSecurityPolicy: false,
         crossOriginEmbedderPolicy: false,
-        crossOriginResourcePolicy: { policy: 'cross-origin' }
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+        frameguard: false
     }));
-    app.disable('x-powered-by');
-}
-
 // Global lightweight rate limiter on /api/* to mitigate abuse and brute force
 if (rateLimit) {
     const apiLimiter = rateLimit({
@@ -490,12 +486,20 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
 });
 
 // ==================== STATIC DIRECTORY ROUTES ====================
-
+// Lovable preview compatibility: serve extensionless HTML paths (e.g. /index -> /index.html)
+app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (req.path === '/' || req.path.includes('.') || req.path.endsWith('/')) return next();
+    const fsSync = require('fs');
+    const candidate = path.join(__dirname, 'public', req.path + '.html');
+    fsSync.access(candidate, fsSync.constants.F_OK, (err) => {
+        if (err) return next();
+        res.sendFile(candidate);
+    });
+});
 
 // Serve static files from public directory
-
-// Serve static files from public directory
-app.use(express.static('public', { 
+app.use(express.static('public', {
     maxAge: '1h',
     etag: false,
     lastModified: false,
@@ -506,7 +510,6 @@ app.use(express.static('public', {
         }
     }
 }));
-
 
 // Add error handling for body parsing
 app.use(express.json({ 
@@ -13697,59 +13700,64 @@ bot.onText(/\/contact/, (msg) => {
             bot.removeListener('message', supportHandler);
             const userMessageText = userMsg.text;
             
-            // Check if message is FAQ about how to sell
-            const isHowToSellFAQ = isHowToSellQuestion(userMessageText);
+            // 🤖 Auto-reply engine (see services/auto-reply/intents.js to add more)
+            const built = autoReply.buildReply(userMessageText, {
+                username,
+                userId: chatId,
+                chatId,
+                originalText: userMessageText,
+            });
             let autoReplied = false;
-            
-            if (isHowToSellFAQ) {
-                // Send FAQ reply
-                const faqReply = `Hi, click on launch App below ↙️ tap Sell at the bottom, enter your USDT TON wallet address, the number of stars you want to sell, then tap Sell Now.`;
-                
-                const keyboard = {
-                    inline_keyboard: [[
-                        { text: '💰 Open Sell Page', web_app: { url: 'https://starstore.app/sell' } }
-                    ]]
-                };
-                
-                bot.sendMessage(chatId, faqReply, { reply_markup: keyboard });
+
+            if (built) {
+                // Send the matched intent reply
+                bot.sendMessage(chatId, built.text, built.options || {});
                 autoReplied = true;
-                
-                // Send follow-up with talk to person option
-                const followUpText = `Did this answer your question? If you need more help, you can talk to a support person.`;
+
+                // Optional intent-defined follow-up
+                if (built.followUp && built.followUp.text) {
+                    const fuOpts = built.followUp.buttons
+                        ? { reply_markup: { inline_keyboard: built.followUp.buttons } }
+                        : {};
+                    bot.sendMessage(chatId, built.followUp.text, fuOpts);
+                }
+
+                // 🚪 ALWAYS offer a "Talk to Person" bypass so users can skip the bot
+                const followUpText = built.source === 'knowledge'
+                    ? `Did that help? If not, tap below to reach a real person.`
+                    : `Did this answer your question? Tap below to talk to a real person.`;
                 const talkToPersonKeyboard = {
                     inline_keyboard: [[
-                        { text: '👤 Talk to Person', callback_data: `talk_to_person_${chatId}_${Date.now()}` }
+                        { text: '👤 Talk to a Person', callback_data: `talk_to_person_${chatId}_${Date.now()}` }
                     ]]
                 };
-                
+
                 bot.sendMessage(chatId, followUpText, { reply_markup: talkToPersonKeyboard });
-                
-                // Set up callback listener for the button
+
                 const callbackHandler = (query) => {
                     if (query.data.startsWith(`talk_to_person_${chatId}_`)) {
                         bot.answerCallbackQuery(query.id);
-                        // Forward to admins
                         adminIds.forEach(adminId => {
-                            bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}\n\n🤖 Auto-replied: Yes`);
+                            bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}\n\n🤖 Auto-replied: Yes (${built.intent.id}${built.source === 'knowledge' ? ' / kb' : ''})`);
                         });
                         bot.sendMessage(chatId, "✅ Your question has been forwarded to our support team. Please wait for their response.");
                         bot.removeListener('callback_query', callbackHandler);
                     }
                 };
                 bot.on('callback_query', callbackHandler);
-                
-                // Timeout for the callback
+
                 setTimeout(() => {
                     bot.removeListener('callback_query', callbackHandler);
-                    // If not clicked, session expires without forwarding again
                 }, 5 * 60 * 1000);
+
             } else {
-                // Not FAQ, forward immediately
+                // No intent matched — forward to admins immediately
                 adminIds.forEach(adminId => {
                     bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}\n\n🤖 Auto-replied: No`);
                 });
                 bot.sendMessage(chatId, "✅ Your message has been sent to our support team. We'll get back to you shortly!");
             }
+
         }
     };
     bot.on('message', supportHandler);
@@ -13761,40 +13769,9 @@ bot.onText(/\/contact/, (msg) => {
     }, 5 * 60 * 1000);
 });
 
-// Function to detect if message is asking "how to sell"
-function isHowToSellQuestion(text) {
-    if (!text) return false;
-    
-    const lowerText = text.toLowerCase();
-    
-    // Common patterns for "how to sell"
-    const patterns = [
-        /how.*sell/i,
-        /how.*to.*sell/i,
-        /sell.*how/i,
-        /how.*i.*sell/i,
-        /how.*selling/i,
-        /selling.*how/i,
-        /how.*sell.*stars/i,
-        /sell.*stars.*how/i,
-        /how.*sell.*telegram/i,
-        /how.*to.*sell.*stars/i
-    ];
-    
-    // Check for exact patterns
-    if (patterns.some(pattern => pattern.test(lowerText))) {
-        return true;
-    }
-    
-    // Check for keywords: must contain "how" or "what" and "sell"
-    const hasQuestionWord = /\b(how|what|can|do)\b/i.test(lowerText);
-    const hasSell = /\b(sell|selling|sale)\b/i.test(lowerText);
-    
-    // Additional context words
-    const hasContext = /\b(stars?|telegram|starstore|app|bot)\b/i.test(lowerText);
-    
-    return hasQuestionWord && hasSell && (hasContext || lowerText.length < 100); // Shorter messages more likely to be direct questions
-}
+// (Auto-reply matching has been moved to services/auto-reply/ — add new
+//  intents in services/auto-reply/intents.js)
+
 
 // Admin command: View comprehensive user information (activity, location, devices)
 bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
@@ -14138,6 +14115,42 @@ bot.on('message', async (msg) => {
         bot.sendMessage(chatId, `❌ An error occurred: ${error.message}`);
     }
 });
+
+// 🤖 Auto-reply bot admin commands
+bot.onText(/^\/botinfo$/, (msg) => {
+    const adminId = msg.from.id.toString();
+    if (!adminIds.includes(adminId)) return;
+    const s = autoReply.kbStats();
+    const intents = autoReply.listIntents();
+    bot.sendMessage(msg.chat.id,
+        `🤖 Auto-Reply Bot\n\n` +
+        `Intents: ${intents.length}\n` +
+        `Knowledge base: ${s.ready ? `${s.passages} passages, built ${s.builtAt}` : 'not ready yet'}\n\n` +
+        `Commands:\n/botinfo — this view\n/botrefresh — rebuild KB now\n/bottest <text> — preview the bot's reply`
+    );
+});
+
+bot.onText(/^\/botrefresh$/, async (msg) => {
+    const adminId = msg.from.id.toString();
+    if (!adminIds.includes(adminId)) return;
+    bot.sendMessage(msg.chat.id, '⏳ Rebuilding knowledge base…');
+    try {
+        await autoReply.kbRebuild();
+        const s = autoReply.kbStats();
+        bot.sendMessage(msg.chat.id, `✅ Rebuilt. ${s.passages} passages indexed.`);
+    } catch (e) {
+        bot.sendMessage(msg.chat.id, `❌ Rebuild failed: ${e.message}`);
+    }
+});
+
+bot.onText(/^\/bottest\s+([\s\S]+)/, (msg, match) => {
+    const adminId = msg.from.id.toString();
+    if (!adminIds.includes(adminId)) return;
+    const built = autoReply.buildReply(match[1], { username: msg.from.username, chatId: msg.chat.id });
+    if (!built) return bot.sendMessage(msg.chat.id, '(no match — would forward to admins)');
+    bot.sendMessage(msg.chat.id, `Source: ${built.source} (${built.intent.id})\n\n${built.text}`);
+});
+
 
 bot.onText(/\/adminhelp/, (msg) => {
     const chatId = msg.chat.id;
