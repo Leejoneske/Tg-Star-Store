@@ -21,7 +21,7 @@ const MAX_PASSAGE_LEN = 380;
 const MIN_SCORE = 4.5;        // BM25 floor — was 1.5, way too loose
 const MIN_QUERY_TOKENS = 2;   // ignore 1-word queries ("stars", "help")
 const MIN_OVERLAP_RATIO = 0.5; // matched passage must contain ≥50% of query terms
-const MIN_SCORE = 1.5; // BM25 floor — below this we consider it "no answer"
+
 
 // ---------- tiny HTTP fetcher (no deps) ----------
 function httpGet(url, redirects = 3) {
