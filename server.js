@@ -1749,7 +1749,7 @@ app.get('/api/version', (req, res) => {
 app.get('/api/analytics/config', (req, res) => {
     res.json({
         token: process.env.TGANALYTICS_TOKEN || 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZV9hcHAiLCJhcHBfdXJsIjoiaHR0cHM6Ly90Lm1lL1RnU3RhclN0b3JlX2JvdCIsImFwcF9kb21haW4iOiJodHRwczovL3N0YXJzdG9yZS5hcHAifQ==!qjN59/Y8W81DDQBJL4xdsI0tQfjVBGpBWu4jSMOPKjA=',
-        appName: process.env.TGANALYTICS_APP_NAME || 'starstore'
+        appName: process.env.TGANALYTICS_APP_NAME || 'starstore_app'
     });
 });
 
