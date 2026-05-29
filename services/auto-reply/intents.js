@@ -73,6 +73,21 @@ const intents = [
         offerHuman: true,
     },
 
+    // ---------------- WANT / NEED STARS (intent to buy) ----------------
+    {
+        id: 'want_stars',
+        description: 'User says they need / want / are looking for stars',
+        priority: 95,
+        patterns: [
+            /\b(i\s*)?(need|want|looking\s*for|get\s*me|gimme|buy\s*me)\s+(some\s+|more\s+)?(telegram\s+)?stars?\b/i,
+            /\bwhere.*(buy|get).*stars?\b/i,
+            /\bcan\s*i\s*(buy|get).*stars?\b/i,
+        ],
+        reply: 'Got it — you can grab Telegram Stars right here. Open the app, pick a star pack, enter the recipient @username, and pay with TON or USDT. Delivery is instant.',
+        buttons: [[{ text: '⭐ Buy Stars', web_app: { url: BUY_URL } }]],
+        offerHuman: true,
+    },
+
     // ---------------- PAYMENT / WITHDRAW TIME ----------------
     {
         id: 'payment_time',
