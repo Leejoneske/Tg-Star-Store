@@ -3154,6 +3154,63 @@ function cleanupWalletSelections() {
 // Run cleanup every 10 minutes
 setInterval(cleanupWalletSelections, 10 * 60 * 1000);
 
+// ---------- Wallet overview formatting helpers ----------
+function escHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function shortWallet(addr) {
+    if (!addr) return 'N/A';
+    const a = String(addr).trim();
+    if (a.length <= 14) return a;
+    return `${a.slice(0, 6)}…${a.slice(-6)}`;
+}
+
+function formatWalletOverviewHTML(sellOrders, withdrawals) {
+    const out = [];
+    out.push('💰 <b>Your Wallet Overview</b>');
+    out.push('');
+
+    if (sellOrders && sellOrders.length) {
+        out.push(`🛒 <b>Processing Sell Orders</b> · ${sellOrders.length}`);
+        out.push('━━━━━━━━━━━━━━━━━━━━');
+        sellOrders.forEach((o, i) => {
+            const id = escHtml(o.id);
+            const stars = Number(o.stars) || 0;
+            const starLabel = stars === 1 ? 'star' : 'stars';
+            const wallet = escHtml(o.walletAddress || 'N/A');
+            const walletShort = escHtml(shortWallet(o.walletAddress));
+            out.push(`<b>${i + 1}.</b> <code>${id}</code>`);
+            out.push(`   ⭐ ${stars} ${starLabel}`);
+            out.push(`   👛 <code>${wallet}</code>`);
+            if (o.memoTag) out.push(`   🏷 memo: <code>${escHtml(o.memoTag)}</code>`);
+            out.push('');
+        });
+    }
+
+    if (withdrawals && withdrawals.length) {
+        out.push(`💳 <b>Pending Withdrawals</b> · ${withdrawals.length}`);
+        out.push('━━━━━━━━━━━━━━━━━━━━');
+        withdrawals.forEach((w, i) => {
+            const id = escHtml(w.withdrawalId);
+            const amount = escHtml(w.amount);
+            const wallet = escHtml(w.walletAddress || 'N/A');
+            const walletShort = escHtml(shortWallet(w.walletAddress));
+            out.push(`<b>${i + 1}.</b> <code>${id}</code>`);
+            out.push(`   💵 ${amount}`);
+            out.push(`   👛 <code>${wallet}</code>`);
+            out.push('');
+        });
+    }
+
+    out.push('📌 <i>Tap an item below to select it (turns 🟢), then press</i> <b>Continue</b>.');
+    out.push('🔄 <i>Use the Update button next to an item to change its wallet.</i>');
+    return out.join('\n');
+}
+
 // Background job to verify pending transactions (DISABLED - frontend no longer waits)
 // Orders are now shown as successful immediately after creation.
 // Manual admin processing handles the rest.
@@ -13273,19 +13330,7 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
             return bot.sendMessage(chatId, 'ℹ️ You have no processing orders.');
         }
 
-        const lines = [];
-        if (sellOrders?.length) {
-            lines.push('🛒 Processing Sell Orders:');
-            sellOrders.forEach(o => {
-                lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}${o.memoTag ? ` — memo: ${o.memoTag}` : ''}`);
-            });
-        }
-        if (withdrawals?.length) {
-            lines.push('💳 Pending Withdrawals:');
-            withdrawals.forEach(w => {
-                lines.push(`• ${w.withdrawalId} — ${w.amount} — wallet: ${w.walletAddress || 'N/A'}`);
-            });
-        }
+        const overviewText = formatWalletOverviewHTML(sellOrders, withdrawals);
 
         const keyboard = { inline_keyboard: [] };
         // Initialize selection bucket with timestamp and store order/withdrawal data
@@ -13333,7 +13378,7 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
         };
 
         const initialKeyboard = buildKeyboard(walletSelections.get(userId));
-        const sentMsg = await bot.sendMessage(chatId, lines.join('\n') + `\n\n📌 Select items (they'll light up 🟢 when selected), then tap "Continue".`, { reply_markup: initialKeyboard });
+        const sentMsg = await bot.sendMessage(chatId, overviewText, { reply_markup: initialKeyboard, parse_mode: 'HTML', disable_web_page_preview: true });
         
         // Store message ID so we can edit it later
         const bucket = walletSelections.get(userId);
@@ -13492,19 +13537,7 @@ async function handleWalletCommand(msg) {
             return await bot.sendMessage(chatId, 'ℹ️ You have no processing orders.');
         }
         
-        const lines = [];
-        if (sellOrders?.length) {
-            lines.push('🛒 Processing Sell Orders:');
-            sellOrders.forEach(o => {
-                lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}${o.memoTag ? ` — memo: ${o.memoTag}` : ''}`);
-            });
-        }
-        if (withdrawals?.length) {
-            lines.push('💳 Pending Withdrawals:');
-            withdrawals.forEach(w => {
-                lines.push(`• ${w.withdrawalId} — ${w.amount} — wallet: ${w.walletAddress || 'N/A'}`);
-            });
-        }
+        const overviewText = formatWalletOverviewHTML(sellOrders, withdrawals);
         
         // Initialize selection bucket with order/withdrawal data
         walletSelections.set(userId, { 
@@ -13552,7 +13585,7 @@ async function handleWalletCommand(msg) {
         
         const bucket = walletSelections.get(userId);
         const initialKeyboard = buildKeyboard(bucket);
-        const msg_sent = await bot.sendMessage(chatId, lines.join('\n') + `\n\n📌 Select items (they'll light up 🟢 when selected), then tap "Continue".`, { reply_markup: initialKeyboard });
+        const msg_sent = await bot.sendMessage(chatId, overviewText, { reply_markup: initialKeyboard, parse_mode: 'HTML', disable_web_page_preview: true });
         
         // Store message ID so we can edit it later
         bucket.messageId = msg_sent.message_id;
