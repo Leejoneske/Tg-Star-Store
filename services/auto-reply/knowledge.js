@@ -228,13 +228,6 @@ async function init() {
 }
 
 function search(query) {
-    const [top] = bm25Search(query, 1);
-    if (!top || top.score < MIN_SCORE) return null;
-    return { text: top.d.text, score: top.score };
-}
-
-function stats() {
-function search(query) {
     const qTokens = [...new Set(tokenize(query))];
     if (qTokens.length < MIN_QUERY_TOKENS) return null;
     const [top] = bm25Search(query, 1);
@@ -245,4 +238,13 @@ function search(query) {
     if (overlap < MIN_OVERLAP_RATIO) return null;
     return { text: top.d.text, score: top.score, overlap };
 }
+
+function stats() {
+    return {
+        passages: INDEX ? INDEX.N : 0,
+        builtAt: INDEX ? INDEX.builtAt : null,
+        sources: sources.length,
+    };
+}
+
 module.exports = { init, rebuild, search, stats };
