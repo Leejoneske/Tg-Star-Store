@@ -699,6 +699,30 @@
         <main class="px-4 py-4">
             <!-- Wallet Status Section -->
             <section class="wallet-status">
+                <!-- Unified TON Connect card (status + expandable wallet picker) -->
+                <div id="tonConnectCard" class="clean-card mb-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div id="tonWalletsToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="tonAllWalletsPanel"
+                            class="flex-1 min-w-0 flex items-center gap-3 cursor-pointer select-none">
+                            <img id="tonConnectIcon" src="https://cdn.simpleicons.org/ton/0098FF" class="w-9 h-9 flex-shrink-0 rounded-lg" alt="TON">
+                            <div class="min-w-0 flex-1">
+                                <div id="tonConnectStatus" class="text-sm font-medium text-gray-800 truncate">Connect TON Wallet</div>
+                                <div id="tonConnectWalletName" class="text-xs text-gray-500 truncate">Tap to choose a wallet</div>
+                            </div>
+                            <svg id="tonWalletsChevron" class="w-5 h-5 text-gray-400 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                        <button id="tonDisconnectBtn" type="button" class="hidden text-xs font-medium text-red-500 hover:text-red-600 px-2 py-1 flex-shrink-0">
+                            Disconnect
+                        </button>
+                    </div>
+
+                    <div id="tonAllWalletsPanel" class="hidden mt-3 pt-3 border-t border-gray-100">
+                        <div id="tonAllWalletsList" class="grid grid-cols-3 gap-2 max-h-72 overflow-y-auto"></div>
+                    </div>
+                </div>
+
                 <div class="mb-6">
                     <h3 class="text-lg font-semibold mb-3 text-gray-800" data-translate="enterManualAddress">Enter Manual Address</h3>
                     <div id="manualWalletInput" class="mt-3">
@@ -708,7 +732,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                                 </svg>
                             </div>
-                            <input type="text" id="manualWalletAddress" 
+                            <input type="text" id="manualWalletAddress"
                                    placeholder=" "
                                    onfocus="this.placeholder = ' '"
                                    onblur="if(!this.value) this.placeholder = ' '">
@@ -720,7 +744,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                 </svg>
                             </div>
-                            <input type="text" id="manualWalletMemo" 
+                            <input type="text" id="manualWalletMemo"
                                    placeholder=" "
                                    onfocus="this.placeholder = ' '"
                                    onblur="if(!this.value) this.placeholder = ' '">
@@ -729,36 +753,10 @@
                         <p class="text-sm text-gray-600 mt-1 px-2" data-translate="memoNote">Memo/Tag (Optional): Most USDT TON transfers do not require a memo/tag. Only enter if your exchange requires it.</p>
                     </div>
                 </div>
+
+
+
                 
-                <div class="border-t border-gray-200 pt-6">
-                    <h3 class="text-lg font-semibold mb-3 text-gray-800" data-translate="chooseRecommendedWallets">Or Choose Recommended Wallets</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button onclick="openWallet('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            <img src="https://cdn.simpleicons.org/binance/F0B90B" class="w-5 h-5 mr-3" alt="Binance">
-                            <span class="text-sm font-medium">Binance</span>
-                        </button>
-                        <button onclick="openWallet('okx')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            <img src="https://cdn.simpleicons.org/okx/000000" class="w-5 h-5 mr-3" alt="OKX">
-                            <span class="text-sm font-medium">OKX</span>
-                        </button>
-                        <button onclick="openWallet('telegram')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            <img src="https://cdn.simpleicons.org/telegram/26A5E4" class="w-5 h-5 mr-3" alt="Telegram">
-                            <span class="text-sm font-medium">Telegram</span>
-                        </button>
-                        <button onclick="openWallet('tonkeeper')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            <img src="https://cdn.simpleicons.org/ton/0098FF" class="w-5 h-5 mr-3" alt="TONKeeper">
-                            <span class="text-sm font-medium">TONKeeper</span>
-                        </button>
-                        <button onclick="openWallet('bybit')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            <img src="https://www.bybit.com/favicon.ico" class="w-5 h-5 mr-3" alt="Bybit">
-                            <span class="text-sm font-medium">Bybit</span>
-                        </button>
-                        <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            <img src="https://cryptomus.com/favicon.ico" class="w-5 h-5 mr-3" alt="Cryptomus" onerror="this.src='https://cdn.simpleicons.org/paypal/003087'">
-                            <span class="text-sm font-medium">Cryptomus</span>
-                        </button>
-                    </div>
-                </div>
                 
                 <div class="bg-red-50 border-l-4 border-red-400 p-3 mt-3">
                     <div class="flex">
@@ -1013,6 +1011,269 @@
         } catch (e) {
             console.error('Error initializing TonConnectUI:', e);
         }
+
+        // Detect whether a TonConnect wallet is on testnet (chain id -3). Mainnet is -239.
+        function isTestnetWallet(wallet) {
+            try {
+                const chain = wallet?.account?.chain;
+                if (chain === undefined || chain === null) return false;
+                const n = typeof chain === 'number' ? chain : parseInt(String(chain), 10);
+                if (n === -3) return true;
+                if (typeof chain === 'string' && /test/i.test(chain)) return true;
+            } catch (_) {}
+            return false;
+        }
+
+        // Convert TON raw address (0:hex / -1:hex) → user-friendly base64url address.
+        // tag byte: bit7 = testnet, bit6 = non-bounceable. We use non-bounceable
+        // (what exchanges/USDT-TON deposits expect): mainnet = 0x51 ("UQ…"),
+        // testnet = 0xD1 ("0Q…"). The visible prefix lets users spot testnet at a glance.
+        function toUserFriendly(raw, isTestnet) {
+            if (!raw) return '';
+            const s = String(raw).trim();
+            // Already in user-friendly form? Pass through unchanged so we don't
+            // silently change network/bounceability of a manually-pasted address.
+            if (/^(EQ|UQ|kQ|0Q)[A-Za-z0-9_\-]{46,}$/.test(s)) return s;
+            const m = s.match(/^(-?\d+):([a-fA-F0-9]{64})$/);
+            if (!m) return s;
+            const workchain = parseInt(m[1], 10);
+            const hashHex = m[2];
+            const bytes = new Uint8Array(36);
+            bytes[0] = isTestnet ? 0xD1 : 0x51; // non-bounceable, testnet/mainnet
+            bytes[1] = workchain === -1 ? 0xff : 0x00;
+            for (let i = 0; i < 32; i++) bytes[2 + i] = parseInt(hashHex.substr(i * 2, 2), 16);
+            let crc = 0;
+            for (let i = 0; i < 34; i++) {
+                crc ^= (bytes[i] << 8);
+                for (let j = 0; j < 8; j++) {
+                    crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+                    crc &= 0xffff;
+                }
+            }
+            const full = new Uint8Array(36);
+            full.set(bytes.subarray(0, 34));
+            full[34] = (crc >> 8) & 0xff;
+            full[35] = crc & 0xff;
+            let bin = '';
+            for (let i = 0; i < full.length; i++) bin += String.fromCharCode(full[i]);
+            return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        // Back-compat alias kept for older call sites (always mainnet UQ).
+        function toUserFriendlyUQ(raw) { return toUserFriendly(raw, false); }
+
+        // ===== TON Connect wallet wiring (sell page) =====
+        function setupTonConnectWiring() {
+            const statusEl = document.getElementById('tonConnectStatus');
+            const nameEl = document.getElementById('tonConnectWalletName');
+            const iconEl = document.getElementById('tonConnectIcon');
+            const addrInput = document.getElementById('manualWalletAddress');
+            const toggle = document.getElementById('tonWalletsToggle');
+            const chevron = document.getElementById('tonWalletsChevron');
+            const panel = document.getElementById('tonAllWalletsPanel');
+            const listEl = document.getElementById('tonAllWalletsList');
+            const disconnectBtn = document.getElementById('tonDisconnectBtn');
+
+            const TON_ICON = 'https://cdn.simpleicons.org/ton/0098FF';
+
+            if (!tonConnectUI) {
+                if (statusEl) statusEl.textContent = 'TON Connect unavailable';
+                return;
+            }
+
+            const openModal = () => {
+                try { tonConnectUI.openModal(); } catch (e) { console.error('TonConnect openModal failed', e); }
+            };
+
+            let walletsCache = null;
+            const loadWallets = async () => {
+                if (walletsCache) return walletsCache;
+                try { walletsCache = await tonConnectUI.getWallets(); }
+                catch (e) { console.error('getWallets failed', e); walletsCache = []; }
+                return walletsCache;
+            };
+
+            const renderWallets = (wallets) => {
+                if (!listEl) return;
+                listEl.innerHTML = '';
+                wallets.forEach((w) => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-gray-100 active:scale-95 transition-all';
+                    const img = document.createElement('img');
+                    img.src = w.imageUrl || TON_ICON;
+                    img.alt = w.name || '';
+                    img.className = 'w-11 h-11 rounded-xl';
+                    img.loading = 'lazy';
+                    const label = document.createElement('span');
+                    label.className = 'text-[11px] text-gray-700 text-center leading-tight line-clamp-2';
+                    label.textContent = w.name || w.appName || '';
+                    item.appendChild(img);
+                    item.appendChild(label);
+                    item.addEventListener('click', async () => {
+                        try {
+                            if (typeof tonConnectUI.openSingleWalletModal === 'function' && w.appName) {
+                                await tonConnectUI.openSingleWalletModal(w.appName);
+                            } else {
+                                openModal();
+                            }
+                        } catch (e) {
+                            console.error('open wallet failed', e);
+                            openModal();
+                        }
+                    });
+                    listEl.appendChild(item);
+                });
+            };
+
+            let panelOpen = false;
+            const setPanel = (open) => {
+                panelOpen = open;
+                if (panel) panel.classList.toggle('hidden', !panelOpen);
+                if (toggle) toggle.setAttribute('aria-expanded', String(panelOpen));
+                if (chevron) chevron.style.transform = panelOpen ? 'rotate(180deg)' : '';
+            };
+
+            const togglePanel = async () => {
+                if (!panel) { openModal(); return; }
+                setPanel(!panelOpen);
+                if (panelOpen) {
+                    if (!walletsCache) {
+                        listEl.innerHTML = '<div class="col-span-3 text-center text-sm text-gray-400 py-4">Loading…</div>';
+                    }
+                    const wallets = await loadWallets();
+                    if (wallets && wallets.length) renderWallets(wallets);
+                    else listEl.innerHTML = '<div class="col-span-3 text-center text-sm text-gray-500 py-4">No wallets available</div>';
+                }
+            };
+
+            if (toggle) toggle.addEventListener('click', togglePanel);
+
+            if (disconnectBtn) {
+                disconnectBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try { await tonConnectUI.disconnect(); } catch (err) { console.error(err); }
+                });
+            }
+
+            const shortFmt = (a) => a.length > 12 ? (a.slice(0, 6) + '...' + a.slice(-4)) : a;
+
+            const findWalletMeta = async (appName, name) => {
+                const wallets = await loadWallets();
+                if (!wallets) return null;
+                return wallets.find(w => (appName && w.appName === appName) || (name && w.name === name)) || null;
+            };
+
+            // Throttle so we don't spam toasts when onStatusChange fires repeatedly.
+            let lastTestnetToastAt = 0;
+            const notifyTestnetBlocked = () => {
+                const now = Date.now();
+                if (now - lastTestnetToastAt < 4000) return;
+                lastTestnetToastAt = now;
+                if (window.Toast && typeof window.Toast.error === 'function') {
+                    window.Toast.error('Testnet wallet not supported. Switch your wallet to mainnet and reconnect.', 5000);
+                } else {
+                    console.warn('Testnet wallet blocked on sell page');
+                }
+            };
+
+            const setConnected = async (address, wallet) => {
+                // Hard block: testnet wallets are never valid payout destinations.
+                // Force-disconnect, never auto-fill, and toast the user.
+                if (isTestnetWallet(wallet)) {
+                    notifyTestnetBlocked();
+                    try { await tonConnectUI.disconnect(); } catch (e) { console.error('disconnect testnet wallet failed', e); }
+                    setDisconnected();
+                    return;
+                }
+
+                const friendly = toUserFriendly(address, false);
+                let icon = TON_ICON, displayName = 'TON Wallet';
+                if (wallet) {
+                    displayName = wallet.device?.appName || wallet.name || displayName;
+                    if (wallet.imageUrl) icon = wallet.imageUrl;
+                    else {
+                        const meta = await findWalletMeta(wallet.device?.appName, wallet.name);
+                        if (meta) { icon = meta.imageUrl || icon; displayName = meta.name || displayName; }
+                    }
+                }
+                if (iconEl) iconEl.src = icon;
+                if (statusEl) {
+                    statusEl.textContent = displayName;
+                    statusEl.classList.remove('text-gray-800');
+                    statusEl.classList.add('text-gray-900');
+                }
+                if (nameEl) {
+                    nameEl.textContent = 'Connected · ' + shortFmt(friendly);
+                    nameEl.classList.remove('text-gray-500');
+                    nameEl.classList.add('text-green-600', 'font-medium');
+                }
+                if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+                if (chevron) chevron.classList.add('hidden');
+                setPanel(false);
+
+                if (addrInput && friendly) {
+                    addrInput.value = friendly;
+                    addrInput.dataset.autofilled = '1';
+                    addrInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    addrInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    currentWalletAddress = friendly;
+                }
+            };
+
+            const setDisconnected = () => {
+                if (iconEl) iconEl.src = TON_ICON;
+                if (statusEl) {
+                    statusEl.textContent = 'Connect TON Wallet';
+                    statusEl.classList.remove('text-red-600', 'text-gray-900');
+                }
+                if (nameEl) {
+                    nameEl.textContent = 'Tap to choose a wallet';
+                    nameEl.classList.add('text-gray-500');
+                    nameEl.classList.remove('text-green-600', 'text-red-600', 'font-medium');
+                }
+                if (disconnectBtn) disconnectBtn.classList.add('hidden');
+                if (chevron) chevron.classList.remove('hidden');
+                if (addrInput && addrInput.dataset.autofilled === '1') {
+                    addrInput.value = '';
+                    delete addrInput.dataset.autofilled;
+                    currentWalletAddress = '';
+                    addrInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    addrInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            };
+
+            try {
+                tonConnectUI.onStatusChange((wallet) => {
+                    if (wallet && wallet.account && wallet.account.address) {
+                        setConnected(wallet.account.address, wallet);
+                    } else {
+                        setDisconnected();
+                    }
+                });
+            } catch (e) { console.error('onStatusChange failed', e); }
+
+            // Wait for TonConnect to restore any persisted session, then reflect it in the UI.
+            (async () => {
+                try {
+                    if (tonConnectUI.connectionRestored) {
+                        await tonConnectUI.connectionRestored;
+                    }
+                    const w = tonConnectUI.wallet;
+                    if (w && w.account && w.account.address) {
+                        await setConnected(w.account.address, w);
+                    }
+                } catch (e) { console.error('connectionRestored failed', e); }
+            })();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupTonConnectWiring);
+        } else {
+            setupTonConnectWiring();
+        }
+
+
 
         // Initialize translations
         if (typeof TranslationUtils !== 'undefined') {
