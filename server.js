@@ -21918,12 +21918,103 @@ function verifyAdminToken(token) {
 	}
 }
 
+// ----- Admin session tracking (idle timeout, remote revoke) -----
+const ADMIN_IDLE_MS = 15 * 60 * 1000; // 15 minutes
+global.__adminSessions = global.__adminSessions || new Map(); // sid -> record
+
+function _now() { return Date.now(); }
+
+function recordAdminSession({ sid, tgId, ip, ua, geo }) {
+	const rec = {
+		sid, tgId,
+		createdAt: _now(),
+		lastActive: _now(),
+		ip: ip || '',
+		ua: ua || '',
+		country: geo?.country || '',
+		city: geo?.city || '',
+		terminated: false,
+		terminatedReason: null
+	};
+	global.__adminSessions.set(sid, rec);
+	return rec;
+}
+
+function touchAdminSession(sid) {
+	const r = global.__adminSessions.get(sid);
+	if (!r) return null;
+	r.lastActive = _now();
+	return r;
+}
+
+function terminateAdminSession(sid, reason = 'manual') {
+	const r = global.__adminSessions.get(sid);
+	if (!r) return false;
+	r.terminated = true;
+	r.terminatedReason = reason;
+	r.terminatedAt = _now();
+	return true;
+}
+
+function listActiveAdminSessions() {
+	const out = [];
+	for (const r of global.__adminSessions.values()) {
+		if (r.terminated) continue;
+		if (_now() - r.lastActive > ADMIN_IDLE_MS) continue;
+		out.push({ ...r });
+	}
+	return out.sort((a, b) => b.lastActive - a.lastActive);
+}
+
+function parseDeviceFromUA(ua = '') {
+	let device = 'Desktop';
+	if (/Mobile|Android|iPhone|iPad/i.test(ua)) device = 'Mobile';
+	let browser = 'Browser';
+	if (/Edg\//i.test(ua)) browser = 'Edge';
+	else if (/Chrome\//i.test(ua)) browser = 'Chrome';
+	else if (/Safari\//i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+	else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+	let os = 'Unknown OS';
+	if (/Windows NT/i.test(ua)) os = 'Windows';
+	else if (/Mac OS X/i.test(ua)) os = 'macOS';
+	else if (/Android/i.test(ua)) os = 'Android';
+	else if (/iPhone|iPad|iOS/i.test(ua)) os = 'iOS';
+	else if (/Linux/i.test(ua)) os = 'Linux';
+	return { device, browser, os };
+}
+
+async function lookupIPGeo(ip) {
+	if (!ip || /^(127\.|10\.|192\.168\.|::1|fc00:|fe80:)/i.test(ip)) {
+		return { country: 'Local', city: 'Local', region: '' };
+	}
+	try {
+		const r = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { timeout: 4000 });
+		if (!r.ok) return {};
+		const g = await r.json();
+		return {
+			country: g?.country_name || g?.country || '',
+			city: g?.city || '',
+			region: g?.region || ''
+		};
+	} catch { return {}; }
+}
+
 function getAdminSession(req) {
 	const cookies = parseCookies(req.headers.cookie || '');
 	const token = cookies['admin_session'];
 	if (!token) return null;
 	const payload = verifyAdminToken(token);
 	if (!payload || !payload.sid || !payload.tgId) return null;
+	const rec = global.__adminSessions.get(payload.sid);
+	if (rec) {
+		if (rec.terminated) return null;
+		if (_now() - rec.lastActive > ADMIN_IDLE_MS) {
+			rec.terminated = true;
+			rec.terminatedReason = 'idle';
+			return null;
+		}
+		rec.lastActive = _now();
+	}
 	return { token, payload };
 }
 
@@ -22008,7 +22099,7 @@ app.post('/api/admin/auth/send-otp', async (req, res) => {
 	}
 });
 
-app.post('/api/admin/auth/verify-otp', (req, res) => {
+app.post('/api/admin/auth/verify-otp', async (req, res) => {
 	try {
 		const tgId = (req.body?.tgId || '').toString().trim();
 		const code = (req.body?.code || '').toString().trim();
@@ -22050,7 +22141,38 @@ app.post('/api/admin/auth/verify-otp', (req, res) => {
 		const isProd = process.env.NODE_ENV === 'production';
 		const cookie = `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict${isProd ? '; Secure' : ''}; Max-Age=${12 * 60 * 60}`;
 		res.setHeader('Set-Cookie', cookie);
-		
+
+		// Capture login context and create session record
+		const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().split(',')[0].trim();
+		const ua = (req.headers['user-agent'] || '').toString();
+		const geo = await lookupIPGeo(ip);
+		recordAdminSession({ sid, tgId, ip, ua, geo });
+
+		// Notify all admins (best-effort) with revoke button
+		try {
+			const { device, browser, os } = parseDeviceFromUA(ua);
+			const where = [geo.city, geo.region, geo.country].filter(Boolean).join(', ') || 'Unknown location';
+			const when = new Date().toLocaleString('en-US', { timeZone: 'UTC', timeZoneName: 'short' });
+			const text =
+				`🔐 <b>Admin sign-in</b>\n` +
+				`━━━━━━━━━━━━━━━━━━━━\n` +
+				`<b>Admin:</b> <code>${tgId}</code>\n` +
+				`<b>Where:</b> ${where}\n` +
+				`<b>IP:</b> <code>${ip || '—'}</code>\n` +
+				`<b>Device:</b> ${device} · ${os} · ${browser}\n` +
+				`<b>When:</b> ${when}\n` +
+				`<b>Session:</b> <code>${sid.slice(0, 8)}…</code>\n\n` +
+				`If this wasn't you, terminate the session below.`;
+			const kb = { inline_keyboard: [[
+				{ text: '🚫 Terminate this session', callback_data: `admrev:${sid}` }
+			]] };
+			for (const adminId of adminIds) {
+				try { await bot.sendMessage(adminId, text, { parse_mode: 'HTML', reply_markup: kb }); } catch (_) {}
+			}
+		} catch (e) {
+			console.warn('[ADMIN LOGIN] notify failed:', e?.message || e);
+		}
+
 		console.log('✅ Admin OTP verification successful for:', tgId);
 		return res.json({ success: true, csrfToken: sid });
 	} catch (error) {
@@ -22061,12 +22183,112 @@ app.post('/api/admin/auth/verify-otp', (req, res) => {
 
 app.post('/api/admin/logout', (req, res) => {
 	try {
+		try {
+			const cookies = parseCookies(req.headers.cookie || '');
+			const payload = verifyAdminToken(cookies['admin_session'] || '');
+			if (payload?.sid) terminateAdminSession(payload.sid, 'logout');
+		} catch (_) {}
 		res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
 		return res.json({ success: true });
 	} catch {
 		return res.json({ success: true });
 	}
 });
+
+// Admin session heartbeat — touches lastActive; client calls every ~60s
+app.post('/api/admin/heartbeat', requireAdmin, (req, res) => {
+	try {
+		const cookies = parseCookies(req.headers.cookie || '');
+		const payload = verifyAdminToken(cookies['admin_session'] || '');
+		if (payload?.sid) touchAdminSession(payload.sid);
+		res.json({ ok: true, idleTimeoutMs: ADMIN_IDLE_MS });
+	} catch {
+		res.json({ ok: true, idleTimeoutMs: ADMIN_IDLE_MS });
+	}
+});
+
+// List active admin sessions
+app.get('/api/admin/sessions', requireAdmin, (req, res) => {
+	const cookies = parseCookies(req.headers.cookie || '');
+	const payload = verifyAdminToken(cookies['admin_session'] || '');
+	const currentSid = payload?.sid || null;
+	const sessions = listActiveAdminSessions().map(s => ({
+		sid: s.sid,
+		tgId: s.tgId,
+		ip: s.ip,
+		country: s.country,
+		city: s.city,
+		ua: s.ua,
+		device: parseDeviceFromUA(s.ua),
+		createdAt: s.createdAt,
+		lastActive: s.lastActive,
+		isCurrent: s.sid === currentSid
+	}));
+	res.json({ sessions, idleTimeoutMs: ADMIN_IDLE_MS, currentSid });
+});
+
+// Terminate a session
+app.post('/api/admin/sessions/:sid/terminate', requireAdmin, (req, res) => {
+	const sid = String(req.params.sid || '');
+	const ok = terminateAdminSession(sid, `revoked-by:${req.user?.id || 'admin'}`);
+	if (ok) {
+		// Notify other admins
+		try {
+			const text = `🚫 Admin session <code>${sid.slice(0,8)}…</code> was terminated by <code>${req.user?.id || 'admin'}</code>.`;
+			for (const adminId of adminIds) {
+				try { bot.sendMessage(adminId, text, { parse_mode: 'HTML' }); } catch (_) {}
+			}
+		} catch (_) {}
+	}
+	res.json({ success: ok });
+});
+
+// Telegram inline-button handler for admin session revoke
+try {
+	bot.on('callback_query', async (query) => {
+		try {
+			const data = String(query?.data || '');
+			if (!data.startsWith('admrev:')) return;
+			const fromId = String(query.from?.id || '');
+			if (!adminIds.includes(fromId)) {
+				return bot.answerCallbackQuery(query.id, { text: 'Not authorized', show_alert: true });
+			}
+			const sid = data.slice('admrev:'.length);
+			const rec = global.__adminSessions.get(sid);
+			if (!rec) {
+				return bot.answerCallbackQuery(query.id, { text: 'Session not found / already expired', show_alert: true });
+			}
+			if (rec.terminated) {
+				return bot.answerCallbackQuery(query.id, { text: 'Already terminated', show_alert: true });
+			}
+			terminateAdminSession(sid, `revoked-by-telegram:${fromId}`);
+			await bot.answerCallbackQuery(query.id, { text: '✅ Session terminated' });
+			try {
+				await bot.editMessageReplyMarkup(
+					{ inline_keyboard: [[{ text: '✅ Session terminated', callback_data: 'noop' }]] },
+					{ chat_id: query.message.chat.id, message_id: query.message.message_id }
+				);
+			} catch (_) {}
+		} catch (e) {
+			console.warn('[ADMIN REVOKE CB]', e?.message || e);
+		}
+	});
+} catch (_) { /* bot may not be ready in some envs */ }
+
+// Admin → send DM to a single user
+app.post('/api/admin/users/:tgId/dm', requireAdmin, async (req, res) => {
+	try {
+		const tgId = String(req.params.tgId || '').trim();
+		const message = String(req.body?.message || '').trim();
+		if (!tgId || !/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		if (!message || message.length > 2000) return res.status(400).json({ error: 'Message required (max 2000 chars)' });
+		await bot.sendMessage(tgId, message);
+		res.json({ success: true });
+	} catch (e) {
+		res.status(500).json({ error: e?.message || 'Failed to send' });
+	}
+});
+
 
 // Modern admin auth verification endpoint
 app.get('/api/admin/auth/verify', requireAdmin, (req, res) => {
