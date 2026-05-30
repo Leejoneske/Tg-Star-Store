@@ -485,6 +485,62 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
   }
 });
 
+function getClientIp(req) {
+    return String(req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '')
+        .split(',')[0]
+        .trim()
+        .replace(/^::ffff:/, '');
+}
+
+function isLocalIp(ip) {
+    return !ip || /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1|fc00:|fe80:|localhost)/i.test(ip);
+}
+
+async function resolveRequestGeo(req) {
+    const ip = getClientIp(req);
+    const cfCountry = String(req.headers['cf-ipcountry'] || '').toUpperCase();
+    if (cfCountry && cfCountry !== 'XX') {
+        return { ip, country: cfCountry === 'KE' ? 'Kenya' : cfCountry, countryCode: cfCountry, city: '', region: '', source: 'cf' };
+    }
+    const geo = await getGeolocation(ip);
+    return { ip, ...geo, countryCode: String(geo?.countryCode || '').toUpperCase(), source: 'lookup' };
+}
+
+function isKenyaGeo(geo) {
+    if (isLocalIp(geo?.ip) && process.env.NODE_ENV !== 'production') return true;
+    return String(geo?.countryCode || '').toUpperCase() === 'KE' || /^kenya$/i.test(String(geo?.country || ''));
+}
+
+async function sendAdmin404(res) {
+    try {
+        const notFoundContent = await fs.readFile(path.join(__dirname, 'public', 'errors', '404.html'), 'utf8');
+        return res.status(404).type('text/html').send(notFoundContent);
+    } catch (_) {
+        return res.status(404).send('Not found');
+    }
+}
+
+async function requireKenyaAdminLocation(req, res, next) {
+    try {
+        const geo = await resolveRequestGeo(req);
+        req.adminGeo = geo;
+        if (!isKenyaGeo(geo)) return sendAdmin404(res);
+        return next();
+    } catch (_) {
+        return sendAdmin404(res);
+    }
+}
+
+app.get(['/admin', '/admin/', '/admin/index.html'], requireKenyaAdminLocation, async (req, res) => {
+    try {
+        const content = await fs.readFile(path.join(__dirname, 'public', 'admin', 'index.html'), 'utf8');
+        res.status(200).type('text/html').send(content);
+    } catch (e) {
+        console.error('Error serving /admin:', e.message);
+        return sendAdmin404(res);
+    }
+});
+
 // ==================== STATIC DIRECTORY ROUTES ====================
 // Lovable preview compatibility: serve extensionless HTML paths (e.g. /index -> /index.html)
 app.use((req, res, next) => {
@@ -1379,21 +1435,8 @@ app.get('/sitemap-duplicate-removed', async (req, res) => {
     res.status(500).send('');
   }
 });
-app.get('/admin', async (req, res) => {
-	try {
-		const content = await fs.readFile(path.join(__dirname, 'public', 'admin', 'index.html'), 'utf8');
-		res.status(200).type('text/html').send(content);
-	} catch (e) {
-		console.error('Error serving /admin:', e.message);
-		const notFound = path.join(__dirname, 'public', 'errors', '404.html');
-		try {
-			const notFoundContent = await fs.readFile(notFound, 'utf8');
-			res.status(404).type('text/html').send(notFoundContent);
-		} catch (e2) {
-			res.status(404).send('Not found');
-		}
-	}
-});
+// (legacy unprotected /admin handler removed — protected by requireKenyaAdminLocation above)
+
 
 // Catch-all 404 for non-API GET requests - allows all other traffic through
 app.use((req, res, next) => {
@@ -5336,7 +5379,7 @@ async function getGeolocation(ip) {
     // Check cache first
     const cached = geoCache.get(ip);
     if (cached && Date.now() - cached.timestamp < GEO_CACHE_TTL) {
-        return { country: cached.country, countryCode: cached.countryCode, city: cached.city };
+        return { country: cached.country, countryCode: cached.countryCode, city: cached.city, region: cached.region || '' };
     }
     
     // Try multiple providers in order
@@ -5347,16 +5390,18 @@ async function getGeolocation(ip) {
             parse: (data) => ({
                 country: data.country_name || 'Unknown',
                 countryCode: data.country_code || 'XX',
-                city: data.city || data.region_code || 'Unknown'
+                city: data.city || data.region_code || 'Unknown',
+                region: data.region || data.region_code || ''
             })
         },
         {
             name: 'ip-api.com',
-            url: `https://ip-api.com/json/${ip}?fields=status,country,countryCode,city`,
+            url: `https://ip-api.com/json/${ip}?fields=status,country,countryCode,city,regionName`,
             parse: (data) => ({
                 country: data.country || 'Unknown',
                 countryCode: data.countryCode || 'XX',
-                city: data.city || 'Unknown'
+                city: data.city || 'Unknown',
+                region: data.regionName || ''
             })
         },
         {
@@ -5365,10 +5410,31 @@ async function getGeolocation(ip) {
             parse: (data) => {
                 const city = data.city || 'Unknown';
                 const country = data.country || 'Unknown';
-                return { country, countryCode: country.substring(0, 2).toUpperCase(), city };
+                return { country, countryCode: country.substring(0, 2).toUpperCase(), city, region: data.region || '' };
             }
+        },
+        {
+            name: 'ipwho.is',
+            url: `https://ipwho.is/${encodeURIComponent(ip)}`,
+            parse: (data) => ({
+                country: data.country || 'Unknown',
+                countryCode: data.country_code || 'XX',
+                city: data.city || 'Unknown',
+                region: data.region || ''
+            })
+        },
+        {
+            name: 'freeipapi.com',
+            url: `https://freeipapi.com/api/json/${encodeURIComponent(ip)}`,
+            parse: (data) => ({
+                country: data.countryName || 'Unknown',
+                countryCode: data.countryCode || 'XX',
+                city: data.cityName || 'Unknown',
+                region: data.regionName || ''
+            })
         }
     ];
+
     
     let lastError = null;
     for (const provider of providers) {
@@ -21932,7 +21998,9 @@ function recordAdminSession({ sid, tgId, ip, ua, geo }) {
 		ip: ip || '',
 		ua: ua || '',
 		country: geo?.country || '',
+		countryCode: geo?.countryCode || '',
 		city: geo?.city || '',
+		region: geo?.region || '',
 		terminated: false,
 		terminatedReason: null
 	};
@@ -21984,19 +22052,9 @@ function parseDeviceFromUA(ua = '') {
 }
 
 async function lookupIPGeo(ip) {
-	if (!ip || /^(127\.|10\.|192\.168\.|::1|fc00:|fe80:)/i.test(ip)) {
-		return { country: 'Local', city: 'Local', region: '' };
-	}
-	try {
-		const r = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { timeout: 4000 });
-		if (!r.ok) return {};
-		const g = await r.json();
-		return {
-			country: g?.country_name || g?.country || '',
-			city: g?.city || '',
-			region: g?.region || ''
-		};
-	} catch { return {}; }
+	if (isLocalIp(ip)) return { country: 'Local', countryCode: 'LOCAL', city: 'Local', region: '' };
+	const g = await getGeolocation(ip);
+	return { country: g?.country || '', countryCode: g?.countryCode || '', city: g?.city || '', region: g?.region || '' };
 }
 
 function getAdminSession(req) {
@@ -22013,13 +22071,11 @@ function getAdminSession(req) {
 			rec.terminatedReason = 'idle';
 			return null;
 		}
-		rec.lastActive = _now();
 	}
 	return { token, payload };
 }
 
 function requireAdmin(req, res, next) {
-	// Backward-compatible GET-only header auth, or cookie session with CSRF for mutations
 	const sess = getAdminSession(req);
 	if (sess && adminIds.includes(sess.payload.tgId)) {
 		if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
@@ -22031,16 +22087,8 @@ function requireAdmin(req, res, next) {
 		req.user = { id: sess.payload.tgId, isAdmin: true };
 		return next();
 	}
-	try {
-		const tgId = (req.headers['x-telegram-id'] || '').toString();
-		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId) && (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS')) {
-			req.user = { id: tgId, isAdmin: true };
-			return next();
-		}
-		return res.status(403).json({ error: 'Forbidden' });
-	} catch (e) {
-		return res.status(403).json({ error: 'Forbidden' });
-	}
+	res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
+	return res.status(401).json({ error: 'Session expired or terminated' });
 }
 
 // DUPLICATE /api/me endpoint removed - using the detailed one defined earlier (line 13563+)
@@ -22070,11 +22118,24 @@ app.post('/api/admin/auth/send-otp', async (req, res) => {
 			console.log('❌ Invalid Telegram ID format');
 			return res.status(400).json({ error: 'Invalid Telegram ID' });
 		}
-		
+
+		// Re-verify caller location server-side before issuing an OTP, even
+		// if they somehow reached the form from outside Kenya.
+		try {
+			const geo = await resolveRequestGeo(req);
+			if (!isKenyaGeo(geo)) {
+				console.log('❌ Admin OTP blocked — non-Kenya origin:', geo?.countryCode || 'XX');
+				return res.status(404).json({ error: 'Not found' });
+			}
+		} catch (_) {
+			return res.status(404).json({ error: 'Not found' });
+		}
+
 		if (!adminIds.includes(tgId)) {
 			console.log('❌ Telegram ID not in admin list:', { tgId, adminIds });
 			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
 		}
+
 		const code = (Math.floor(100000 + Math.random() * 900000)).toString();
 		const now = Date.now();
 		global.__adminOtpStore = global.__adminOtpStore || new Map();
@@ -22115,11 +22176,24 @@ app.post('/api/admin/auth/verify-otp', async (req, res) => {
 			console.log('❌ Invalid credentials provided');
 			return res.status(400).json({ error: 'Invalid credentials' });
 		}
-		
+
+		// Re-check geolocation before completing login — blocks anyone who
+		// bypassed the initial /admin page geo-fence (e.g. via direct API call).
+		try {
+			const geo = await resolveRequestGeo(req);
+			if (!isKenyaGeo(geo)) {
+				console.log('❌ Admin verify-otp blocked — non-Kenya origin:', geo?.countryCode || 'XX');
+				return res.status(404).json({ error: 'Not found' });
+			}
+		} catch (_) {
+			return res.status(404).json({ error: 'Not found' });
+		}
+
 		if (!adminIds.includes(tgId)) {
 			console.log('❌ Not in admin list:', { tgId, adminIds });
 			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
 		}
+
 		
 		global.__adminOtpStore = global.__adminOtpStore || new Map();
 		const rec = global.__adminOtpStore.get(tgId);
@@ -22288,6 +22362,101 @@ app.post('/api/admin/users/:tgId/dm', requireAdmin, async (req, res) => {
 		res.status(500).json({ error: e?.message || 'Failed to send' });
 	}
 });
+
+// ============================================================================
+// Admin → user management tools (ban / unban / balance adjust / lookup)
+// ============================================================================
+
+const ADMIN_DB_PATH = path.join(__dirname, 'data', 'database.json');
+async function loadDbFile() {
+	try {
+		const txt = await fs.readFile(ADMIN_DB_PATH, 'utf8');
+		return JSON.parse(txt || '{}');
+	} catch { return {}; }
+}
+async function saveDbFile(db) {
+	try {
+		await fs.mkdir(path.dirname(ADMIN_DB_PATH), { recursive: true });
+		await fs.writeFile(ADMIN_DB_PATH, JSON.stringify(db, null, 2), 'utf8');
+		return true;
+	} catch (e) { console.error('saveDbFile failed:', e?.message); return false; }
+}
+async function loadUsersDb() {
+	const db = await loadDbFile();
+	return db.users || {};
+}
+async function saveUsersDb(users) {
+	const db = await loadDbFile();
+	db.users = users;
+	return saveDbFile(db);
+}
+
+
+app.post('/api/admin/users/:tgId/ban', requireAdmin, async (req, res) => {
+	try {
+		const tgId = String(req.params.tgId || '').trim();
+		const reason = String(req.body?.reason || 'Violation of terms').slice(0, 500);
+		if (!/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		const users = await loadUsersDb();
+		users[tgId] = users[tgId] || {};
+		users[tgId].banned = true;
+		users[tgId].bannedAt = new Date().toISOString();
+		users[tgId].bannedReason = reason;
+		users[tgId].bannedBy = req.user?.id || 'admin';
+		await saveUsersDb(users);
+		try { await bot.sendMessage(tgId, `🚫 Your StarStore account has been suspended.\n\nReason: ${reason}\n\nContact support if you believe this is an error.`); } catch (_) {}
+		res.json({ success: true });
+	} catch (e) { res.status(500).json({ error: e?.message || 'Failed' }); }
+});
+
+app.post('/api/admin/users/:tgId/unban', requireAdmin, async (req, res) => {
+	try {
+		const tgId = String(req.params.tgId || '').trim();
+		if (!/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		const users = await loadUsersDb();
+		if (!users[tgId]) return res.status(404).json({ error: 'User not found' });
+		users[tgId].banned = false;
+		users[tgId].unbannedAt = new Date().toISOString();
+		users[tgId].unbannedBy = req.user?.id || 'admin';
+		await saveUsersDb(users);
+		try { await bot.sendMessage(tgId, '✅ Your StarStore account has been reinstated. Welcome back!'); } catch (_) {}
+		res.json({ success: true });
+	} catch (e) { res.status(500).json({ error: e?.message || 'Failed' }); }
+});
+
+app.post('/api/admin/users/:tgId/adjust-balance', requireAdmin, async (req, res) => {
+	try {
+		const tgId = String(req.params.tgId || '').trim();
+		const delta = Number(req.body?.delta);
+		const reason = String(req.body?.reason || 'Admin adjustment').slice(0, 500);
+		if (!/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		if (!Number.isFinite(delta) || delta === 0) return res.status(400).json({ error: 'delta must be a non-zero number' });
+		if (Math.abs(delta) > 1_000_000) return res.status(400).json({ error: 'delta too large' });
+		const users = await loadUsersDb();
+		users[tgId] = users[tgId] || { balance: 0 };
+		const before = Number(users[tgId].balance || 0);
+		const after = Math.max(0, before + delta);
+		users[tgId].balance = after;
+		users[tgId].adjustments = users[tgId].adjustments || [];
+		users[tgId].adjustments.push({ delta, before, after, reason, at: new Date().toISOString(), by: req.user?.id || 'admin' });
+		await saveUsersDb(users);
+		try { await bot.sendMessage(tgId, `💰 Balance update\n\n${delta > 0 ? '+' : ''}${delta} stars (${reason})\nNew balance: ${after}`); } catch (_) {}
+		res.json({ success: true, before, after });
+	} catch (e) { res.status(500).json({ error: e?.message || 'Failed' }); }
+});
+
+app.get('/api/admin/users/:tgId', requireAdmin, async (req, res) => {
+	try {
+		const tgId = String(req.params.tgId || '').trim();
+		if (!/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		const users = await loadUsersDb();
+		const user = users[tgId];
+		if (!user) return res.status(404).json({ error: 'User not found' });
+		res.json({ success: true, user: { id: tgId, ...user } });
+	} catch (e) { res.status(500).json({ error: e?.message || 'Failed' }); }
+});
+
+
 
 
 // Modern admin auth verification endpoint
