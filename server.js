@@ -499,8 +499,21 @@ function isLocalIp(ip) {
 async function resolveRequestGeo(req) {
     const ip = getClientIp(req);
     const cfCountry = String(req.headers['cf-ipcountry'] || '').toUpperCase();
+    const headerCity = decodeURIComponent(String(req.headers['cf-ipcity'] || req.headers['x-vercel-ip-city'] || '').replace(/\+/g, ' ')).trim();
+    const headerRegion = decodeURIComponent(String(req.headers['cf-region'] || req.headers['x-vercel-ip-country-region'] || '').replace(/\+/g, ' ')).trim();
     if (cfCountry && cfCountry !== 'XX') {
-        return { ip, country: cfCountry === 'KE' ? 'Kenya' : cfCountry, countryCode: cfCountry, city: '', region: '', source: 'cf' };
+        let lookup = null;
+        if (!isLocalIp(ip)) {
+            try { lookup = await getGeolocation(ip); } catch (_) { lookup = null; }
+        }
+        return {
+            ip,
+            country: lookup?.country && lookup.country !== 'Unknown' ? lookup.country : (cfCountry === 'KE' ? 'Kenya' : cfCountry),
+            countryCode: cfCountry,
+            city: headerCity || (lookup?.city !== 'Unknown' ? lookup?.city : '') || '',
+            region: headerRegion || lookup?.region || '',
+            source: 'cf'
+        };
     }
     const geo = await getGeolocation(ip);
     return { ip, ...geo, countryCode: String(geo?.countryCode || '').toUpperCase(), source: 'lookup' };
@@ -4063,9 +4076,39 @@ async function lookupTelegramUsername(name) {
         return cached;
     }
 
+    async function lookupPublicTelegramPage(username) {
+        try {
+            const resp = await fetch(`https://t.me/${encodeURIComponent(username)}`, {
+                method: 'GET',
+                redirect: 'manual',
+                headers: { 'User-Agent': 'Mozilla/5.0 StarStore username validation' }
+            });
+            const location = resp.headers?.get?.('location') || '';
+            if (resp.status >= 300 && resp.status < 400 && /telegram\.org\/?$/i.test(location)) {
+                return { ok: false, reason: 'not_found', at: Date.now(), source: 't.me' };
+            }
+            const text = await resp.text().catch(() => '');
+            const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (resp.ok && (new RegExp(`Telegram: (Contact|Channel|Group).*@${escaped}`, 'i').test(text) || new RegExp(`property="og:title"[^>]+@${escaped}`, 'i').test(text))) {
+                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true };
+            }
+            if (/tgme_page_title|tgme_page_extra|tgme_username_link/i.test(text) && new RegExp(`@${escaped}`, 'i').test(text)) {
+                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true };
+            }
+            return null;
+        } catch (_) {
+            return null;
+        }
+    }
+
     // Without a bot token we cannot verify existence — degrade gracefully
-    // by reporting "unknown" so the client can fall back to format-only.
+    // by checking Telegram's public username page before falling back.
     if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dev_stub') {
+        const pageLookup = await lookupPublicTelegramPage(name);
+        if (pageLookup) {
+            usernameLookupCache.set(name, pageLookup);
+            return pageLookup;
+        }
         return { ok: null, reason: 'bot_unavailable', at: Date.now() };
     }
 
@@ -4089,14 +4132,20 @@ async function lookupTelegramUsername(name) {
             return entry;
         }
 
+        // Bot API getChat can fail for valid user usernames the bot has never
+        // interacted with, so confirm with the public t.me page before rejecting.
+        const pageLookup = await lookupPublicTelegramPage(name);
+        if (pageLookup?.ok === true) {
+            usernameLookupCache.set(name, pageLookup);
+            return pageLookup;
+        }
+
         // Telegram returns 400 with "chat not found" for non-existent usernames
         const desc = (data && data.description) || '';
         const notFound = /chat not found|USERNAME_NOT_OCCUPIED|USERNAME_INVALID/i.test(desc);
-        const entry = {
-            ok: false,
-            reason: notFound ? 'not_found' : (desc || 'unknown_error'),
-            at: Date.now(),
-        };
+        const entry = pageLookup?.ok === false
+            ? pageLookup
+            : { ok: false, reason: notFound ? 'not_found' : (desc || 'unknown_error'), at: Date.now() };
         // Only cache definitive not-found results to avoid sticky errors
         if (notFound) usernameLookupCache.set(name, entry);
         return entry;
@@ -21289,8 +21338,20 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         if (activeSinceMin > 0) {
             filter.lastActive = { $gte: new Date(Date.now() - activeSinceMin * 60 * 1000) };
         }
-        const users = await User.find(filter).sort({ lastActive: -1 }).limit(limit).lean();
-        res.json({ users, total: await User.countDocuments(filter).catch(()=>0) });
+        const q = String(req.query.q || '').trim();
+        if (q) {
+            const escaped = escapeRegex(q);
+            filter.$or = [{ id: { $regex: escaped, $options: 'i' } }, { username: { $regex: escaped, $options: 'i' } }];
+        }
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const [users, total] = await Promise.all([
+            User.find(filter).sort({ lastActive: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+            User.countDocuments(filter).catch(()=>0)
+        ]);
+        const ids = users.map(u => String(u.id || '')).filter(Boolean);
+        const activeBans = ids.length ? await Warning.find({ userId: { $in: ids }, type: 'ban', isActive: true }).lean().catch(()=>[]) : [];
+        const banMap = new Map(activeBans.map(b => [String(b.userId), b]));
+        res.json({ users: users.map(u => ({ ...u, banned: banMap.has(String(u.id)), banReason: banMap.get(String(u.id))?.reason || null })), total });
     } catch (e) {
         res.status(500).json({ error: 'Failed to load users' });
     }
@@ -22028,7 +22089,12 @@ function listActiveAdminSessions() {
 	const out = [];
 	for (const r of global.__adminSessions.values()) {
 		if (r.terminated) continue;
-		if (_now() - r.lastActive > ADMIN_IDLE_MS) continue;
+		if (_now() - r.lastActive > ADMIN_IDLE_MS) {
+			r.terminated = true;
+			r.terminatedReason = 'idle';
+			r.terminatedAt = _now();
+			continue;
+		}
 		out.push({ ...r });
 	}
 	return out.sort((a, b) => b.lastActive - a.lastActive);
@@ -22084,6 +22150,8 @@ function requireAdmin(req, res, next) {
 				return res.status(403).json({ error: 'CSRF check failed' });
 			}
 		}
+		if (req.path !== '/api/admin/heartbeat') touchAdminSession(sess.payload.sid);
+		req.adminSession = sess.payload;
 		req.user = { id: sess.payload.tgId, isAdmin: true };
 		return next();
 	}
@@ -22217,9 +22285,9 @@ app.post('/api/admin/auth/verify-otp', async (req, res) => {
 		res.setHeader('Set-Cookie', cookie);
 
 		// Capture login context and create session record
-		const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().split(',')[0].trim();
+		const ip = getClientIp(req);
 		const ua = (req.headers['user-agent'] || '').toString();
-		const geo = await lookupIPGeo(ip);
+		const geo = await resolveRequestGeo(req);
 		recordAdminSession({ sid, tgId, ip, ua, geo });
 
 		// Notify all admins (best-effort) with revoke button
@@ -22274,6 +22342,12 @@ app.post('/api/admin/heartbeat', requireAdmin, (req, res) => {
 	try {
 		const cookies = parseCookies(req.headers.cookie || '');
 		const payload = verifyAdminToken(cookies['admin_session'] || '');
+		const clientLastActivityAt = Number(req.body?.lastActivityAt || 0);
+		if (payload?.sid && Number.isFinite(clientLastActivityAt) && clientLastActivityAt > 0 && _now() - clientLastActivityAt > ADMIN_IDLE_MS) {
+			terminateAdminSession(payload.sid, 'idle');
+			res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
+			return res.status(401).json({ error: 'Session expired due to inactivity', idleTimeoutMs: ADMIN_IDLE_MS });
+		}
 		if (payload?.sid) touchAdminSession(payload.sid);
 		res.json({ ok: true, idleTimeoutMs: ADMIN_IDLE_MS });
 	} catch {
@@ -22305,6 +22379,7 @@ app.get('/api/admin/sessions', requireAdmin, (req, res) => {
 app.post('/api/admin/sessions/:sid/terminate', requireAdmin, (req, res) => {
 	const sid = String(req.params.sid || '');
 	const ok = terminateAdminSession(sid, `revoked-by:${req.user?.id || 'admin'}`);
+	const terminatedCurrent = !!(req.adminSession?.sid && req.adminSession.sid === sid);
 	if (ok) {
 		// Notify other admins
 		try {
@@ -22314,7 +22389,8 @@ app.post('/api/admin/sessions/:sid/terminate', requireAdmin, (req, res) => {
 			}
 		} catch (_) {}
 	}
-	res.json({ success: ok });
+	if (terminatedCurrent) res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
+	res.json({ success: ok, terminatedCurrent });
 });
 
 // Telegram inline-button handler for admin session revoke
@@ -22397,6 +22473,12 @@ app.post('/api/admin/users/:tgId/ban', requireAdmin, async (req, res) => {
 		const tgId = String(req.params.tgId || '').trim();
 		const reason = String(req.body?.reason || 'Violation of terms').slice(0, 500);
 		if (!/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		await Warning.findOneAndUpdate(
+			{ userId: tgId, type: 'ban', isActive: true },
+			{ $setOnInsert: { caseId: generateBanCaseId(), issuedAt: new Date() }, $set: { reason, issuedBy: req.user?.id || 'admin', appealDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), isActive: true } },
+			{ upsert: true, new: true }
+		);
+		try { await BanAuditLog.create({ userId: tgId, action: 'banned', performedBy: req.user?.id || 'admin', details: { reason } }); } catch (_) {}
 		const users = await loadUsersDb();
 		users[tgId] = users[tgId] || {};
 		users[tgId].banned = true;
@@ -22413,8 +22495,10 @@ app.post('/api/admin/users/:tgId/unban', requireAdmin, async (req, res) => {
 	try {
 		const tgId = String(req.params.tgId || '').trim();
 		if (!/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		await Warning.updateMany({ userId: tgId, type: 'ban', isActive: true }, { $set: { isActive: false, appealStatus: 'closed' } });
+		try { await BanAuditLog.create({ userId: tgId, action: 'unbanned', performedBy: req.user?.id || 'admin', details: { source: 'admin_dashboard' } }); } catch (_) {}
 		const users = await loadUsersDb();
-		if (!users[tgId]) return res.status(404).json({ error: 'User not found' });
+		users[tgId] = users[tgId] || {};
 		users[tgId].banned = false;
 		users[tgId].unbannedAt = new Date().toISOString();
 		users[tgId].unbannedBy = req.user?.id || 'admin';
