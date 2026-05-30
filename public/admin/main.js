@@ -136,6 +136,14 @@ async function api(path, opts = {}) {
     return data;
 }
 
+function forceAdminLogout(message = 'Session ended. Please sign in again.') {
+    Auth.clear();
+    clearTimeout(idleTimer); clearTimeout(warnTimer); clearInterval(hbTimer);
+    $('#app')?.classList.add('d-none');
+    $('#login-screen')?.classList.remove('d-none');
+    Toast.show(message, 'warning');
+}
+
 // ---------------------- Auth flow ----------------------
 const Auth = {
     async verify() {
@@ -539,21 +547,25 @@ async function loadUsers() {
             return;
         }
         wrap.innerHTML = `<table class="table mb-0"><thead><tr>
-            <th>ID</th><th>Username</th><th>Joined</th><th>Last active</th><th>Stars</th><th class="text-end">Actions</th>
+            <th>ID</th><th>Username</th><th>Status</th><th>Joined</th><th>Last active</th><th>Stars</th><th class="text-end">Actions</th>
         </tr></thead><tbody>${rows.map(u => `
             <tr>
                 <td class="cell-mono">${escapeHtml(u.id)}</td>
                 <td>${u.username ? '@' + escapeHtml(u.username) : '<span class="cell-mono">—</span>'}</td>
+                <td>${u.banned ? '<span class="badge text-bg-danger">Banned</span>' : '<span class="badge text-bg-success">Active</span>'}</td>
                 <td class="cell-mono">${fmtDate(u.createdAt || u.dateJoined)}</td>
                 <td class="cell-mono">${u.lastActive ? timeAgo(u.lastActive) : '—'}</td>
                 <td class="fw-semibold">${fmtNum(u.stars || u.balance || 0)}</td>
                 <td class="text-end">
                     <div class="btn-group btn-group-sm" role="group">
-                        <button class="btn btn-outline-primary" title="Send DM" data-user-dm="${escapeHtml(u.id)}"><i class="fas fa-paper-plane"></i></button>
                         <button class="btn btn-outline-success" title="Adjust balance" data-user-balance="${escapeHtml(u.id)}"><i class="fas fa-coins"></i></button>
+                        <button class="btn btn-outline-primary" title="Audit balance" data-user-audit="${escapeHtml(u.id)}"><i class="fas fa-calculator"></i></button>
+                        <button class="btn btn-outline-warning" title="Repair referrals" data-user-repair="${escapeHtml(u.id)}"><i class="fas fa-wrench"></i></button>
+                        <button class="btn btn-outline-secondary" title="Diagnose referrals" data-user-diagnose="${escapeHtml(u.id)}"><i class="fas fa-stethoscope"></i></button>
                         ${u.banned
                             ? `<button class="btn btn-outline-secondary" title="Unban" data-user-unban="${escapeHtml(u.id)}"><i class="fas fa-unlock"></i></button>`
                             : `<button class="btn btn-outline-danger" title="Ban" data-user-ban="${escapeHtml(u.id)}"><i class="fas fa-ban"></i></button>`}
+                        <button class="btn btn-outline-primary" title="Send DM" data-user-dm="${escapeHtml(u.id)}"><i class="fas fa-paper-plane"></i></button>
                         <button class="btn btn-outline-info" title="View raw" data-user-view="${escapeHtml(u.id)}"><i class="fas fa-eye"></i></button>
                     </div>
                 </td>
@@ -768,8 +780,12 @@ async function terminateSession(sid) {
     const ok = await Confirm.open({ title: 'Terminate session', body: 'Terminate this admin session?', okText: 'Terminate', okVariant: 'danger' });
     if (!ok) return;
     try {
-        await api(`/api/admin/sessions/${encodeURIComponent(sid)}/terminate`, { method: 'POST', body: JSON.stringify({}) });
+        const r = await api(`/api/admin/sessions/${encodeURIComponent(sid)}/terminate`, { method: 'POST', body: JSON.stringify({}) });
         Toast.show('Session terminated.', 'success');
+        if (r?.terminatedCurrent) {
+            setTimeout(() => forceAdminLogout('Your admin session was terminated.'), 250);
+            return;
+        }
         loadSessions();
     } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
 }
@@ -830,18 +846,42 @@ async function viewUser(tgId) {
     } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
 }
 
+async function auditUserBalance(tgId) {
+    try {
+        const r = await api('/api/admin/audit-and-recover-balances', { method: 'POST', body: JSON.stringify({ userId: tgId, sendNotification: false }) });
+        const a = r.audit || {};
+        Toast.show(`Audit: ${a.totalReferralsCount || 0} active referrals, ${fmtMoney(a.expectingBalance || 0)}`, 'success');
+    } catch (e) { Toast.show(e.message || 'Audit failed.', 'error'); }
+}
+async function repairUserReferrals(tgId) {
+    const ok = await Confirm.open({ title: 'Repair referrals', body: `Repair referral records for user ${tgId}?`, okText: 'Repair', okVariant: 'warning' });
+    if (!ok) return;
+    try {
+        const r = await api('/api/admin/manual-repair-referrals', { method: 'POST', body: JSON.stringify({ userId: tgId }) });
+        Toast.show(`Repair complete. Repaired: ${r.repaired || 0}`, 'success');
+        loadUsers();
+    } catch (e) { Toast.show(e.message || 'Repair failed.', 'error'); }
+}
+async function diagnoseUser(tgId) {
+    try {
+        const r = await api('/api/admin/diagnose-missing-balances', { method: 'POST', body: JSON.stringify({ userId: tgId }) });
+        const issues = r.diagnostics?.issues?.length || 0;
+        Toast.show(issues ? `${issues} referral issue(s) found.` : 'No referral issues found.', issues ? 'warning' : 'success');
+    } catch (e) { Toast.show(e.message || 'Diagnosis failed.', 'error'); }
+}
+
 
 // ---------------------- Idle timer & heartbeat ----------------------
 let IDLE_MS = 15 * 60 * 1000;
 let idleTimer = null, warnTimer = null, hbTimer = null;
+let lastActivityAt = Date.now();
 function resetIdle() {
+    lastActivityAt = Date.now();
     clearTimeout(idleTimer); clearTimeout(warnTimer);
     warnTimer = setTimeout(() => Toast.show('You will be signed out in 1 minute due to inactivity.', 'warning'), Math.max(0, IDLE_MS - 60000));
     idleTimer = setTimeout(async () => {
         try { await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
-        Auth.clear();
-        Toast.show('Signed out due to inactivity.', 'info');
-        setTimeout(() => location.reload(), 600);
+        forceAdminLogout('Signed out due to inactivity.');
     }, IDLE_MS);
 }
 function startIdleTracking() {
@@ -852,16 +892,14 @@ function startIdleTracking() {
     clearInterval(hbTimer);
     hbTimer = setInterval(async () => {
         try {
-            const r = await api('/api/admin/heartbeat', { method: 'POST', body: JSON.stringify({}) });
+            const r = await api('/api/admin/heartbeat', { method: 'POST', body: JSON.stringify({ lastActivityAt }) });
             if (r?.idleTimeoutMs) IDLE_MS = r.idleTimeoutMs;
         } catch (e) {
             if (e.status === 403 || e.status === 401) {
-                Auth.clear();
-                Toast.show('Session ended. Please sign in again.', 'warning');
-                setTimeout(() => location.reload(), 600);
+                forceAdminLogout('Session ended. Please sign in again.');
             }
         }
-    }, 60000);
+    }, 15000);
 }
 
 // ---------------------- View dispatcher ----------------------
@@ -947,6 +985,12 @@ function bindEvents() {
         if (un) unbanUser(un.dataset.userUnban);
         const ab = e.target.closest('[data-user-balance]');
         if (ab) adjustBalance(ab.dataset.userBalance);
+        const au = e.target.closest('[data-user-audit]');
+        if (au) auditUserBalance(au.dataset.userAudit);
+        const rp = e.target.closest('[data-user-repair]');
+        if (rp) repairUserReferrals(rp.dataset.userRepair);
+        const dg = e.target.closest('[data-user-diagnose]');
+        if (dg) diagnoseUser(dg.dataset.userDiagnose);
         const uv = e.target.closest('[data-user-view]');
         if (uv) viewUser(uv.dataset.userView);
         const ts = e.target.closest('[data-session-terminate]');
