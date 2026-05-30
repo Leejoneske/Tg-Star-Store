@@ -548,7 +548,14 @@ async function loadUsers() {
                 <td class="cell-mono">${u.lastActive ? timeAgo(u.lastActive) : '—'}</td>
                 <td class="fw-semibold">${fmtNum(u.stars || u.balance || 0)}</td>
                 <td class="text-end">
-                    <button class="btn btn-outline-primary btn-sm" data-user-dm="${escapeHtml(u.id)}"><i class="fas fa-paper-plane me-1"></i>DM</button>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-primary" title="Send DM" data-user-dm="${escapeHtml(u.id)}"><i class="fas fa-paper-plane"></i></button>
+                        <button class="btn btn-outline-success" title="Adjust balance" data-user-balance="${escapeHtml(u.id)}"><i class="fas fa-coins"></i></button>
+                        ${u.banned
+                            ? `<button class="btn btn-outline-secondary" title="Unban" data-user-unban="${escapeHtml(u.id)}"><i class="fas fa-unlock"></i></button>`
+                            : `<button class="btn btn-outline-danger" title="Ban" data-user-ban="${escapeHtml(u.id)}"><i class="fas fa-ban"></i></button>`}
+                        <button class="btn btn-outline-info" title="View raw" data-user-view="${escapeHtml(u.id)}"><i class="fas fa-eye"></i></button>
+                    </div>
                 </td>
             </tr>`).join('')}</tbody></table>`;
     } catch (e) {
@@ -789,6 +796,41 @@ async function sendDm() {
     finally { btn.disabled = false; }
 }
 
+// ---------------------- User management actions ----------------------
+async function banUser(tgId) {
+    const reason = prompt(`Ban user ${tgId}?\n\nReason (sent to user):`, 'Violation of terms');
+    if (reason === null) return;
+    try {
+        await api(`/api/admin/users/${encodeURIComponent(tgId)}/ban`, { method: 'POST', body: JSON.stringify({ reason }) });
+        Toast.show('User banned.', 'success'); loadUsers();
+    } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
+}
+async function unbanUser(tgId) {
+    if (!confirm(`Reinstate user ${tgId}?`)) return;
+    try {
+        await api(`/api/admin/users/${encodeURIComponent(tgId)}/unban`, { method: 'POST', body: JSON.stringify({}) });
+        Toast.show('User reinstated.', 'success'); loadUsers();
+    } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
+}
+async function adjustBalance(tgId) {
+    const raw = prompt(`Adjust balance for user ${tgId}\n\nEnter delta (e.g. 100 or -50):`, '');
+    if (raw === null) return;
+    const delta = Number(raw);
+    if (!Number.isFinite(delta) || delta === 0) { Toast.show('Invalid delta.', 'warning'); return; }
+    const reason = prompt('Reason for adjustment:', 'Admin adjustment') || 'Admin adjustment';
+    try {
+        const r = await api(`/api/admin/users/${encodeURIComponent(tgId)}/adjust-balance`, { method: 'POST', body: JSON.stringify({ delta, reason }) });
+        Toast.show(`Balance: ${r.before} → ${r.after}`, 'success'); loadUsers();
+    } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
+}
+async function viewUser(tgId) {
+    try {
+        const r = await api(`/api/admin/users/${encodeURIComponent(tgId)}`);
+        alert(JSON.stringify(r.user, null, 2));
+    } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
+}
+
+
 // ---------------------- Idle timer & heartbeat ----------------------
 let IDLE_MS = 15 * 60 * 1000;
 let idleTimer = null, warnTimer = null, hbTimer = null;
@@ -899,6 +941,14 @@ function bindEvents() {
         if (wa) wdAction(wa.dataset.id, wa.dataset.wdAction);
         const dm = e.target.closest('[data-user-dm]');
         if (dm) openDmModal(dm.dataset.userDm);
+        const bn = e.target.closest('[data-user-ban]');
+        if (bn) banUser(bn.dataset.userBan);
+        const un = e.target.closest('[data-user-unban]');
+        if (un) unbanUser(un.dataset.userUnban);
+        const ab = e.target.closest('[data-user-balance]');
+        if (ab) adjustBalance(ab.dataset.userBalance);
+        const uv = e.target.closest('[data-user-view]');
+        if (uv) viewUser(uv.dataset.userView);
         const ts = e.target.closest('[data-session-terminate]');
         if (ts) terminateSession(ts.dataset.sessionTerminate);
     });
