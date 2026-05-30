@@ -821,8 +821,9 @@ class DailyRewardsSystem {
         row.style.animationDelay = `${index * 30}ms`;
 
         const rankBadge = this.getRankBadge(rank);
-        const displayName = entry.displayName || entry.username || ('user_' + (entry.userId || '').slice(-5));
-        const avatar = this.createAvatar(displayName);
+        const rawName = entry.displayName || entry.username || ('user_' + (entry.userId || '').slice(-5));
+        const displayName = isCurrentUser ? rawName : this.maskUsername(rawName);
+        const avatar = this.createAvatar(rawName);
         const streakText = this.getStreakText(entry.activityPoints || 0);
 
         row.innerHTML = `
@@ -849,6 +850,17 @@ class DailyRewardsSystem {
         if (rank === 3) return { class: 'bronze', content: '🥉' };
         return { class: '', content: rank };
     }
+
+    maskUsername(name) {
+        if (!name) return '****';
+        const s = String(name);
+        if (s.length <= 3) return s[0] + '**';
+        const first = s.slice(0, 2);
+        const last = s.slice(-1);
+        const stars = '*'.repeat(Math.max(2, Math.min(6, s.length - 3)));
+        return `${first}${stars}${last}`;
+    }
+
 
     createAvatar(name) {
         const initial = (name || 'U')[0].toUpperCase();
@@ -1060,44 +1072,12 @@ class DailyRewardsSystem {
     }
 
     showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type} animate-in`;
-        toast.textContent = message;
-        
-        const colors = {
-            success: '#4caf50',
-            error: '#f44336',
-            warning: '#ff9800',
-            info: '#2196f3'
-        };
-        
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: ${colors[type] || colors.info};
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            z-index: 10000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            max-width: 90%;
-        `;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(-50%) translateY(20px)';
-            toast.style.transition = 'all 0.3s ease';
-        }, 3000);
-        
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 3500);
+        if (window.Toast && typeof window.Toast.show === 'function') {
+            window.Toast.show(message, type);
+            return;
+        }
+        // Fallback (should rarely trigger)
+        console.log(`[${type}] ${message}`);
     }
 
     handleError(error) {
@@ -1161,9 +1141,11 @@ class DailyRewardsSystem {
     }
 
     handleAchievementUnlock(achievement) {
+        if (!achievement) return;
+        const label = achievement.title || achievement.name || achievement.id;
+        if (!label) return;
         console.log('🎉 Achievement unlocked:', achievement);
-        // Show achievement notification
-        this.showToast(`🎉 Achievement Unlocked: ${achievement.name}`, 'success');
+        this.showToast(`🎉 Achievement Unlocked: ${label} ${achievement.icon || ''}`.trim(), 'success');
     }
 
     renderWithCache(cachedData) {
