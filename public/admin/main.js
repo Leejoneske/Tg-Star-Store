@@ -245,7 +245,8 @@ const VIEW_TITLES = {
     withdrawals: 'Withdrawals',
     users: 'Users',
     notifications: 'Notifications',
-    bots: 'Bot Simulator'
+    bots: 'Bot Simulator',
+    sessions: 'Admin Sessions'
 };
 
 let currentView = 'dashboard';
@@ -538,7 +539,7 @@ async function loadUsers() {
             return;
         }
         wrap.innerHTML = `<table class="table mb-0"><thead><tr>
-            <th>ID</th><th>Username</th><th>Joined</th><th>Last active</th><th>Stars</th>
+            <th>ID</th><th>Username</th><th>Joined</th><th>Last active</th><th>Stars</th><th class="text-end">Actions</th>
         </tr></thead><tbody>${rows.map(u => `
             <tr>
                 <td class="cell-mono">${escapeHtml(u.id)}</td>
@@ -546,6 +547,9 @@ async function loadUsers() {
                 <td class="cell-mono">${fmtDate(u.createdAt || u.dateJoined)}</td>
                 <td class="cell-mono">${u.lastActive ? timeAgo(u.lastActive) : '—'}</td>
                 <td class="fw-semibold">${fmtNum(u.stars || u.balance || 0)}</td>
+                <td class="text-end">
+                    <button class="btn btn-outline-primary btn-sm" data-user-dm="${escapeHtml(u.id)}"><i class="fas fa-paper-plane me-1"></i>DM</button>
+                </td>
             </tr>`).join('')}</tbody></table>`;
     } catch (e) {
         wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-triangle-exclamation"></i></div>
@@ -718,6 +722,106 @@ function exportCsv(path, filename) {
         .catch(e => Toast.show(e.message || 'Export failed.', 'error'));
 }
 
+// ---------------------- Admin Sessions ----------------------
+async function loadSessions() {
+    const wrap = $('#sessions-table');
+    if (!wrap) return;
+    wrap.innerHTML = tableLoading();
+    try {
+        const r = await api('/api/admin/sessions');
+        const rows = r.sessions || [];
+        if (!rows.length) {
+            wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-shield-halved"></i></div>
+                <p class="small mb-0">No active sessions.</p></div>`;
+            return;
+        }
+        wrap.innerHTML = `<table class="table mb-0"><thead><tr>
+            <th>Admin</th><th>IP</th><th>Location</th><th>Device</th><th>Signed in</th><th>Last active</th><th class="text-end">Actions</th>
+        </tr></thead><tbody>${rows.map(s => `
+            <tr>
+                <td class="cell-mono">${escapeHtml(s.tgId)}${s.isCurrent ? ' <span class="badge text-bg-primary ms-1">you</span>' : ''}</td>
+                <td class="cell-mono">${escapeHtml(s.ip || '—')}</td>
+                <td>${escapeHtml([s.city, s.country].filter(Boolean).join(', ') || '—')}</td>
+                <td class="small">${escapeHtml(s.device?.device || '')} · ${escapeHtml(s.device?.os || '')} · ${escapeHtml(s.device?.browser || '')}</td>
+                <td class="cell-mono">${fmtDate(s.createdAt)}</td>
+                <td class="cell-mono">${timeAgo(s.lastActive)}</td>
+                <td class="text-end">
+                    <button class="btn btn-outline-danger btn-sm" data-session-terminate="${escapeHtml(s.sid)}" ${s.isCurrent ? 'title="This will sign you out"' : ''}>
+                        <i class="fas fa-power-off me-1"></i>Terminate
+                    </button>
+                </td>
+            </tr>`).join('')}</tbody></table>`;
+    } catch (e) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <p class="small mb-0">${escapeHtml(e.message || 'Failed to load.')}</p></div>`;
+    }
+}
+
+async function terminateSession(sid) {
+    const ok = await Confirm.open({ title: 'Terminate session', body: 'Terminate this admin session?', okText: 'Terminate', okVariant: 'danger' });
+    if (!ok) return;
+    try {
+        await api(`/api/admin/sessions/${encodeURIComponent(sid)}/terminate`, { method: 'POST', body: JSON.stringify({}) });
+        Toast.show('Session terminated.', 'success');
+        loadSessions();
+    } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
+}
+
+// ---------------------- Send DM modal ----------------------
+function openDmModal(tgId) {
+    const el = $('#dm-modal'); if (!el || !window.bootstrap) return;
+    $('#dm-user-id').textContent = tgId;
+    $('#dm-message').value = '';
+    el.dataset.tgId = tgId;
+    bootstrap.Modal.getOrCreateInstance(el).show();
+}
+async function sendDm() {
+    const el = $('#dm-modal'); if (!el) return;
+    const tgId = el.dataset.tgId;
+    const msg = $('#dm-message').value.trim();
+    if (!msg) { Toast.show('Message required.', 'warning'); return; }
+    const btn = $('#dm-send'); btn.disabled = true;
+    try {
+        await api(`/api/admin/users/${encodeURIComponent(tgId)}/dm`, { method: 'POST', body: JSON.stringify({ message: msg }) });
+        Toast.show('Message sent.', 'success');
+        bootstrap.Modal.getInstance(el)?.hide();
+    } catch (e) { Toast.show(e.message || 'Failed.', 'error'); }
+    finally { btn.disabled = false; }
+}
+
+// ---------------------- Idle timer & heartbeat ----------------------
+let IDLE_MS = 15 * 60 * 1000;
+let idleTimer = null, warnTimer = null, hbTimer = null;
+function resetIdle() {
+    clearTimeout(idleTimer); clearTimeout(warnTimer);
+    warnTimer = setTimeout(() => Toast.show('You will be signed out in 1 minute due to inactivity.', 'warning'), Math.max(0, IDLE_MS - 60000));
+    idleTimer = setTimeout(async () => {
+        try { await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
+        Auth.clear();
+        Toast.show('Signed out due to inactivity.', 'info');
+        setTimeout(() => location.reload(), 600);
+    }, IDLE_MS);
+}
+function startIdleTracking() {
+    ['click','keydown','mousemove','touchstart','scroll'].forEach(ev =>
+        document.addEventListener(ev, resetIdle, { passive: true })
+    );
+    resetIdle();
+    clearInterval(hbTimer);
+    hbTimer = setInterval(async () => {
+        try {
+            const r = await api('/api/admin/heartbeat', { method: 'POST', body: JSON.stringify({}) });
+            if (r?.idleTimeoutMs) IDLE_MS = r.idleTimeoutMs;
+        } catch (e) {
+            if (e.status === 403 || e.status === 401) {
+                Auth.clear();
+                Toast.show('Session ended. Please sign in again.', 'warning');
+                setTimeout(() => location.reload(), 600);
+            }
+        }
+    }, 60000);
+}
+
 // ---------------------- View dispatcher ----------------------
 function loadView(view) {
     switch (view) {
@@ -728,6 +832,7 @@ function loadView(view) {
         case 'users':         return loadUsers();
         case 'notifications': return;
         case 'bots':          return loadBots();
+        case 'sessions':      return loadSessions();
     }
 }
 
@@ -742,7 +847,12 @@ function bindEvents() {
     $$('[data-go]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.go)));
 
     $('#refresh-btn')?.addEventListener('click', () => loadView(currentView));
-    $('#logout-btn')?.addEventListener('click', () => { Auth.clear(); location.reload(); });
+    $('#logout-btn')?.addEventListener('click', async () => {
+        try { await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
+        Auth.clear(); location.reload();
+    });
+    $('#sessions-refresh')?.addEventListener('click', loadSessions);
+    $('#dm-send')?.addEventListener('click', sendDm);
     $('#refresh-activity')?.addEventListener('click', loadDashboard);
 
     $('#orders-type')?.addEventListener('change', e => { ordersState.type = e.target.value; ordersState.page = 1; loadOrders(); });
@@ -787,6 +897,10 @@ function bindEvents() {
         if (oa) orderAction(oa.dataset.id, oa.dataset.orderAction);
         const wa = e.target.closest('[data-wd-action]');
         if (wa) wdAction(wa.dataset.id, wa.dataset.wdAction);
+        const dm = e.target.closest('[data-user-dm]');
+        if (dm) openDmModal(dm.dataset.userDm);
+        const ts = e.target.closest('[data-session-terminate]');
+        if (ts) terminateSession(ts.dataset.sessionTerminate);
     });
 
     window.addEventListener('resize', () => Object.values(charts).forEach(c => c?.resize?.()));
@@ -797,6 +911,7 @@ async function enterApp() {
     hideLogin();
     $('#admin-name').textContent = TOKEN ? `Admin ${TOKEN}` : 'Admin';
     switchView('dashboard');
+    startIdleTracking();
 }
 
 async function init() {
