@@ -693,7 +693,7 @@ const translations = {
         xHandle: "X (Twitter) handle or profile link",
         youtubeHandle: "YouTube channel or profile link",
         facebookHandle: "Facebook page or profile link",
-        telegramChannel: "Telegram channel or profile link",
+        telegramChannel: "Telegram Channel",
         otherPlatform: "Other platform",
         linkOnly: "Links only, no @ usernames",
         ambFormHeading: "Join the Ambassador Program",
@@ -2750,6 +2750,12 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     } else {
         TranslationUtils.init();
     }
+}
+
+// Expose globally so async/injected content (e.g. bottom nav) can apply translations
+if (typeof window !== 'undefined') {
+    window.TranslationUtils = TranslationUtils;
+    window.translations = translations;
 }
 
 // Export for use in other scripts
