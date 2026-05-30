@@ -4005,53 +4005,122 @@ app.post('/api/validate-amount', requireTelegramAuth, (req, res) => {
     }
 });
 
-// Username validation endpoint (format validation only)
-// Note: Telegram Bot API cannot validate usernames without user interaction due to privacy restrictions
-app.post('/api/validate-usernames', requireTelegramAuth, (req, res) => {
+// Username validation endpoint.
+// Performs strict format validation AND a live existence check against
+// Telegram's Bot API via getChat(@username). getChat succeeds for any
+// PUBLIC username (users with a public @, channels, groups, bots), which
+// is exactly the set that can receive Stars/Premium gifts. Results are
+// cached in-memory to stay well under Telegram's rate limits.
+const usernameLookupCache = new Map(); // name -> { ok, userId, at }
+const USERNAME_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+async function lookupTelegramUsername(name) {
+    const cached = usernameLookupCache.get(name);
+    if (cached && Date.now() - cached.at < USERNAME_CACHE_TTL_MS) {
+        return cached;
+    }
+
+    // Without a bot token we cannot verify existence — degrade gracefully
+    // by reporting "unknown" so the client can fall back to format-only.
+    if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dev_stub') {
+        return { ok: null, reason: 'bot_unavailable', at: Date.now() };
+    }
+
+    try {
+        const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/getChat`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: '@' + name }),
+        });
+        const data = await resp.json().catch(() => ({}));
+
+        if (data && data.ok && data.result && data.result.id) {
+            const entry = {
+                ok: true,
+                userId: String(data.result.id),
+                type: data.result.type,
+                at: Date.now(),
+            };
+            usernameLookupCache.set(name, entry);
+            return entry;
+        }
+
+        // Telegram returns 400 with "chat not found" for non-existent usernames
+        const desc = (data && data.description) || '';
+        const notFound = /chat not found|USERNAME_NOT_OCCUPIED|USERNAME_INVALID/i.test(desc);
+        const entry = {
+            ok: false,
+            reason: notFound ? 'not_found' : (desc || 'unknown_error'),
+            at: Date.now(),
+        };
+        // Only cache definitive not-found results to avoid sticky errors
+        if (notFound) usernameLookupCache.set(name, entry);
+        return entry;
+    } catch (err) {
+        console.error('getChat lookup failed for', name, err && err.message);
+        return { ok: null, reason: 'network_error', at: Date.now() };
+    }
+}
+
+app.post('/api/validate-usernames', requireTelegramAuth, async (req, res) => {
     try {
         const usernames = Array.isArray(req.body?.usernames) ? req.body.usernames : [];
-        console.log('Username validation request:', { usernames });
-        
-        const recipients = [];
-        const seen = new Set();
-        
-        for (const raw of usernames) {
-            if (typeof raw !== 'string') {
-                console.log('Skipping non-string username:', raw);
-                continue;
-            }
-            
-            const name = raw.trim().replace(/^@/, '').toLowerCase();
-            console.log('Processing username:', { raw, trimmed: name });
-            
-            // Format validation: 1-32 chars, letters, digits, underscore
-            // This is the best we can do without user interaction due to Telegram privacy restrictions
-            const isValid = /^[a-z0-9_]{1,32}$/.test(name);
-            if (!isValid) {
-                console.log('Username failed format validation:', name);
-                continue;
-            }
-            
-            if (seen.has(name)) {
-                console.log('Duplicate username:', name);
-                continue;
-            }
-            
-            seen.add(name);
-            // Generate stable pseudo userId from hash (since we can't get real Telegram IDs)
-            const hash = crypto.createHash('sha256').update(name).digest('hex').slice(0, 12);
-            const userId = 'u_' + hash;
-            recipients.push({ username: name, userId });
-            console.log('Added valid recipient:', { username: name, userId });
+        if (usernames.length > 5) {
+            return res.status(400).json({ success: false, error: 'Too many recipients (max 5)' });
         }
-        
-        console.log('Validation result:', { totalRequested: usernames.length, validRecipients: recipients.length });
-        return res.json({ success: true, recipients });
+
+        const recipients = [];
+        const results = [];
+        const seen = new Set();
+
+        for (const raw of usernames) {
+            if (typeof raw !== 'string') continue;
+            const name = raw.trim().replace(/^@/, '').toLowerCase();
+
+            // Telegram username rules: 5-32 chars, [a-z0-9_], starts with a
+            // letter, cannot end with underscore, no double underscores.
+            const formatOk =
+                /^[a-z][a-z0-9_]{3,30}[a-z0-9]$/.test(name) && !/__/.test(name);
+
+            if (!formatOk) {
+                results.push({ username: name, valid: false, reason: 'invalid_format' });
+                continue;
+            }
+            if (seen.has(name)) {
+                results.push({ username: name, valid: false, reason: 'duplicate' });
+                continue;
+            }
+            seen.add(name);
+
+            const lookup = await lookupTelegramUsername(name);
+            if (lookup.ok === true) {
+                recipients.push({ username: name, userId: lookup.userId });
+                results.push({ username: name, valid: true, userId: lookup.userId, type: lookup.type });
+            } else if (lookup.ok === false) {
+                results.push({ username: name, valid: false, reason: lookup.reason });
+            } else {
+                // ok === null: bot unavailable / network — fall back to format-only
+                const hash = crypto.createHash('sha256').update(name).digest('hex').slice(0, 12);
+                const userId = 'u_' + hash;
+                recipients.push({ username: name, userId, unverified: true });
+                results.push({ username: name, valid: true, userId, unverified: true });
+            }
+        }
+
+        const allValid = results.every(r => r.valid);
+        if (!allValid) {
+            // Return 400 with per-username results so the client can surface
+            // which specific recipients failed.
+            return res.status(400).json({ success: false, recipients, results });
+        }
+        return res.json({ success: true, recipients, results });
     } catch (error) {
         console.error('validate-usernames error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
+
 
 app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTestnet, paymentCurrency } = req.body;
