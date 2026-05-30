@@ -668,7 +668,65 @@
     transform: translateY(-50%);
     color: #9ca3af;
     z-index: 1;
-}    
+}
+
+.memo-info-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--text-secondary, #9ca3af);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    user-select: none;
+    transition: background 0.2s;
+}
+.memo-info-btn:hover,
+.memo-info-btn.active {
+    background: var(--brand, #4f46e5);
+}
+.memo-tooltip {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    background: var(--surface-elevated, #f9fafb);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--text-secondary, #4b5563);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    z-index: 20;
+    max-width: 280px;
+    width: max-content;
+    display: none;
+    line-height: 1.5;
+}
+.memo-tooltip.show {
+    display: block;
+}
+.memo-tooltip::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 14px;
+    width: 10px;
+    height: 10px;
+    background: var(--surface-elevated, #f9fafb);
+    border-left: 1px solid var(--border, #e5e7eb);
+    border-top: 1px solid var(--border, #e5e7eb);
+    transform: rotate(45deg);
+}
 </style>
     <script src="/js/global-loader.js?v=1"></script>
 </head>
@@ -749,8 +807,9 @@
                                    onfocus="this.placeholder = ' '"
                                    onblur="if(!this.value) this.placeholder = ' '">
                             <label for="manualWalletMemo" data-translate="memoTag">Memo/Tag (if required)</label>
+                            <div class="memo-info-btn" id="memoInfoBtn" title="Click for info">i</div>
+                            <div class="memo-tooltip" id="memoTooltip" data-translate="memoNote">Most USDT TON transfers do not require a memo/tag. Only enter if your exchange requires it.</div>
                         </div>
-                        <p class="text-sm text-gray-600 mt-1 px-2" data-translate="memoNote">Memo/Tag (Optional): Most USDT TON transfers do not require a memo/tag. Only enter if your exchange requires it.</p>
                     </div>
                 </div>
 
@@ -2181,6 +2240,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     } catch (_) {}
+
+    // Memo info tooltip toggle
+    const memoInfoBtn = document.getElementById('memoInfoBtn');
+    const memoTooltip = document.getElementById('memoTooltip');
+    if (memoInfoBtn && memoTooltip) {
+        memoInfoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            memoTooltip.classList.toggle('show');
+            memoInfoBtn.classList.toggle('active');
+        });
+        document.addEventListener('click', (e) => {
+            if (!memoInfoBtn.contains(e.target) && !memoTooltip.contains(e.target)) {
+                memoTooltip.classList.remove('show');
+                memoInfoBtn.classList.remove('active');
+            }
+        });
+    }
 
     // Bottom nav is auto-loaded by /js/bottomnav-init.js?v=6 when #bottomnav-container exists.
 });
