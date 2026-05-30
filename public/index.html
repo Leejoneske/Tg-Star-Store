@@ -2818,21 +2818,72 @@ function buildRecipientInput(containerId) {
         let debounceTimer = null;
         input.addEventListener('input', () => {
             status.textContent = '';
+            status.className = 'text-xs text-gray-500';
             if (debounceTimer) clearTimeout(debounceTimer);
+
+            const raw = input.value.trim().replace(/^@/, '');
+            if (!raw) {
+                window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
+                return;
+            }
+
+            // Telegram username rules: 5-32 chars, [a-zA-Z0-9_], must start
+            // with a letter, cannot end with underscore, no double underscores.
+            const formatOk = /^[a-zA-Z][a-zA-Z0-9_]{3,30}[a-zA-Z0-9]$/.test(raw) && !/__/.test(raw);
+            if (!formatOk) {
+                status.textContent = TranslationUtils.get('invalidUsernameFormat') || 'Invalid username';
+                status.className = 'text-xs text-red-600';
+                window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
+                return;
+            }
+
+            status.textContent = TranslationUtils.get('checkingUsername') || 'Checking…';
+            status.className = 'text-xs text-gray-500';
+
             debounceTimer = setTimeout(async () => {
-                if (!window.buyPageState.isValidating) {
-                    window.buyPageState.isValidating = true;
-                    try {
-                        await validateRecipients(containerId);
-                    } catch (error) {
-                        console.error('Error validating recipients:', error);
-                        // Show user-friendly error message
-                        status.textContent = TranslationUtils.get('validationError') || 'Validation failed. Please try again.';
-                    } finally {
-                        window.buyPageState.isValidating = false;
+                if (window.buyPageState.isValidating) return;
+                window.buyPageState.isValidating = true;
+                try {
+                    // Server-side existence check via Telegram (preferred)
+                    const result = await validateRecipients(containerId);
+                    const matched = (result?.recipients || []).some(r =>
+                        String(r.username || '').toLowerCase().replace(/^@/, '') === raw.toLowerCase()
+                    );
+
+                    if (!matched) {
+                        // Fallback: probe t.me. Telegram returns a generic page
+                        // for missing users, so we can only detect reachability
+                        // here — combined with strict format checks above, this
+                        // catches obvious mistakes without false negatives.
+                        try {
+                            const res = await fetch(`https://t.me/${encodeURIComponent(raw)}`);
+                            const html = await res.text();
+                            // Real profiles include a tgme_page_title; missing
+                            // accounts return a generic "Telegram: Contact" page
+                            // without that node for the requested username.
+                            const exists = /tgme_page_title[\s\S]*?@?\s*<span[^>]*>\s*@?\s*[a-zA-Z0-9_]+/i.test(html);
+                            if (exists) {
+                                status.textContent = TranslationUtils.get('validUsername') || 'Valid';
+                                status.className = 'text-xs text-green-600';
+                            } else {
+                                status.textContent = TranslationUtils.get('usernameNotFound') || 'Username not found on Telegram';
+                                status.className = 'text-xs text-red-600';
+                                window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
+                            }
+                        } catch {
+                            status.textContent = TranslationUtils.get('validationError') || 'Could not verify username';
+                            status.className = 'text-xs text-red-600';
+                            window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
+                        }
                     }
+                } catch (error) {
+                    console.error('Error validating recipients:', error);
+                    status.textContent = TranslationUtils.get('validationError') || 'Validation failed. Please try again.';
+                    status.className = 'text-xs text-red-600';
+                } finally {
+                    window.buyPageState.isValidating = false;
                 }
-            }, 600); // Increased debounce time
+            }, 600);
         });
 
         removeBtn.addEventListener('click', async (e) => {
