@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/admin.css?v=4">
+    <link rel="stylesheet" href="/css/admin.css?v=5">
 </head>
 <body>
 
@@ -23,41 +23,72 @@
         </div>
     </div>
 
-    <!-- Login -->
-    <div id="login-screen" class="d-none">
-        <div class="login-card">
-            <div class="text-center mb-4">
-                <div class="login-logo"><i class="fas fa-star"></i></div>
-                <h1 class="h5 fw-bold mb-1">StarStore Admin</h1>
-                <p class="text-muted small mb-0">Sign in with your Telegram ID</p>
-            </div>
-
-            <form id="login-form" onsubmit="return false;" novalidate>
-                <div class="mb-3">
-                    <label for="telegram-id" class="form-label small fw-semibold">Telegram ID</label>
-                    <input type="text" id="telegram-id" class="form-control form-control-lg"
-                           inputmode="numeric" autocomplete="off" placeholder="e.g. 123456789">
-                    <div class="form-text">We'll send a 6-digit code to your Telegram.</div>
-                </div>
-
-                <button type="button" id="send-otp-btn" class="btn btn-primary btn-lg w-100 mb-3">
-                    <i class="fas fa-paper-plane me-2"></i>Send code
-                </button>
-
-                <div id="otp-section" class="d-none mb-3">
-                    <label for="otp-input" class="form-label small fw-semibold">Verification code</label>
-                    <div class="input-group input-group-lg">
-                        <input type="text" id="otp-input" class="form-control input-otp" maxlength="6"
-                               inputmode="numeric" placeholder="000000">
-                        <button type="button" id="verify-otp-btn" class="btn btn-primary">
-                            <i class="fas fa-check"></i>
-                        </button>
+    <!-- Login (full-screen) -->
+    <div id="login-screen" class="d-none login-fullscreen">
+        <div class="login-fs-grid">
+            <!-- Brand side -->
+            <aside class="login-fs-brand">
+                <div class="login-fs-brand-inner">
+                    <div class="login-brand-mark">
+                        <div class="login-logo"><i class="fas fa-star"></i></div>
+                        <div class="login-brand-text">
+                            <div class="brand-name">StarStore</div>
+                            <div class="brand-sub">Admin Console</div>
+                        </div>
                     </div>
-                    <div id="otp-timer" class="form-text d-none"></div>
+                    <h2 class="login-headline">Run your store with confidence.</h2>
+                    <p class="login-sub">Orders, withdrawals, broadcasts and live performance — all secured behind Telegram-verified sign-in.</p>
+                    <ul class="login-bullets">
+                        <li><i class="fas fa-shield-halved"></i>End-to-end admin session protection</li>
+                        <li><i class="fas fa-bolt"></i>15-minute idle auto sign-out</li>
+                        <li><i class="fas fa-bell"></i>Real-time login alerts on Telegram</li>
+                    </ul>
+                    <div class="login-foot">© StarStore</div>
                 </div>
+            </aside>
 
-                <div id="login-message" class="alert d-none small mb-0" role="alert"></div>
-            </form>
+            <!-- Form side -->
+            <main class="login-fs-form">
+                <div class="login-fs-form-inner">
+                    <div class="d-lg-none text-center mb-4">
+                        <div class="login-logo mx-auto"><i class="fas fa-star"></i></div>
+                    </div>
+                    <h1 class="h4 fw-bold mb-1">Welcome back</h1>
+                    <p class="text-muted mb-4">Sign in with your Telegram ID to continue.</p>
+
+                    <form id="login-form" onsubmit="return false;" novalidate>
+                        <div class="mb-3">
+                            <label for="telegram-id" class="form-label small fw-semibold">Telegram ID</label>
+                            <input type="text" id="telegram-id" class="form-control form-control-lg"
+                                   inputmode="numeric" autocomplete="off" placeholder="e.g. 123456789">
+                            <div class="form-text">We'll send a 6-digit code to your Telegram.</div>
+                        </div>
+
+                        <button type="button" id="send-otp-btn" class="btn btn-primary btn-lg w-100 mb-3">
+                            <i class="fas fa-paper-plane me-2"></i>Send code
+                        </button>
+
+                        <div id="otp-section" class="d-none mb-3">
+                            <label for="otp-input" class="form-label small fw-semibold">Verification code</label>
+                            <div class="input-group input-group-lg">
+                                <input type="text" id="otp-input" class="form-control input-otp" maxlength="6"
+                                       inputmode="numeric" placeholder="000000">
+                                <button type="button" id="verify-otp-btn" class="btn btn-primary">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </div>
+                            <div id="otp-timer" class="form-text d-none"></div>
+                        </div>
+
+                        <div id="login-message" class="alert d-none small mb-0" role="alert"></div>
+                    </form>
+
+                    <div class="login-security-note small text-muted mt-4">
+                        <i class="fas fa-lock me-1"></i>
+                        Every sign-in attempt is reported to all admins with IP, location and device.
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -88,6 +119,9 @@
                 <div class="sidebar-section-label">Engagement</div>
                 <button class="nav-link admin-nav" data-view="notifications"><i class="fas fa-bell"></i><span>Notifications</span></button>
                 <button class="nav-link admin-nav" data-view="bots"><i class="fas fa-robot"></i><span>Bot Simulator</span></button>
+
+                <div class="sidebar-section-label">Security</div>
+                <button class="nav-link admin-nav" data-view="sessions"><i class="fas fa-shield-halved"></i><span>Admin Sessions</span></button>
             </nav>
 
             <div class="sidebar-footer">
@@ -435,9 +469,46 @@
                     </div>
                 </section>
 
+                <!-- Admin Sessions -->
+                <section id="view-sessions" class="view d-none">
+                    <div class="card">
+                        <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                            <h3 class="card-title me-auto">Active admin sessions</h3>
+                            <span class="text-muted small">Auto-logout after 15 min idle</span>
+                            <button id="sessions-refresh" class="btn btn-light btn-sm"><i class="fas fa-sync-alt"></i></button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="sessions-table" class="table-responsive"></div>
+                        </div>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>
+
+    <!-- Send DM modal -->
+    <div class="modal fade" id="dm-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Send direct message</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Sending to <code id="dm-user-id">—</code></p>
+                    <textarea id="dm-message" class="form-control" rows="5" maxlength="2000" placeholder="Type your message…"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="dm-send"><i class="fas fa-paper-plane me-1"></i>Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Idle warning toast region handled by Toast -->
+
 
     <!-- Confirm modal -->
     <div class="modal fade" id="confirm-modal" tabindex="-1" aria-hidden="true">
@@ -467,6 +538,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/admin/main.js?v=7"></script>
+    <script src="/admin/main.js?v=8"></script>
 </body>
 </html>
