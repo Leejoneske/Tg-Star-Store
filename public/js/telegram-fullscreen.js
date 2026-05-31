@@ -56,12 +56,39 @@ class TelegramFullscreenManager {
             });
         }
 
+        // Listen for safe area / content safe area changes (Bot API 8.0+)
+        if (this.webApp.onEvent) {
+            this.webApp.onEvent('safeAreaChanged', () => this.applySafeAreaVars());
+            this.webApp.onEvent('contentSafeAreaChanged', () => this.applySafeAreaVars());
+            this.webApp.onEvent('viewportChanged', () => this.applySafeAreaVars());
+        }
+        this.applySafeAreaVars();
+
         // Listen for back button
         if (this.webApp.BackButton) {
             this.webApp.BackButton.onClick(() => {
                 this.handleBackButton();
             });
         }
+    }
+
+    applySafeAreaVars() {
+        if (!this.webApp) return;
+        try {
+            const sa = this.webApp.safeAreaInset || {};
+            const csa = this.webApp.contentSafeAreaInset || {};
+            const root = document.documentElement.style;
+            const top = Math.max(Number(sa.top) || 0, Number(csa.top) || 0);
+            const bottom = Math.max(Number(sa.bottom) || 0, Number(csa.bottom) || 0);
+            const left = Math.max(Number(sa.left) || 0, Number(csa.left) || 0);
+            const right = Math.max(Number(sa.right) || 0, Number(csa.right) || 0);
+            root.setProperty('--tg-safe-area-top', top + 'px');
+            root.setProperty('--tg-safe-area-bottom', bottom + 'px');
+            root.setProperty('--tg-safe-area-left', left + 'px');
+            root.setProperty('--tg-safe-area-right', right + 'px');
+            // Also ensure body has bottom padding so fixed nav clears the system bar
+            document.documentElement.style.setProperty('--app-bottom-inset', Math.max(bottom, 0) + 'px');
+        } catch (e) { /* ignore */ }
     }
 
     enableFullscreen() {
