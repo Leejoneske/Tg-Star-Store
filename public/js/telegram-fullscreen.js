@@ -75,6 +75,10 @@ class TelegramFullscreenManager {
     applySafeAreaVars() {
         if (!this.webApp) return;
         try {
+            if (window.StarStoreTelegramViewport && typeof window.StarStoreTelegramViewport.applySafeAreaVars === 'function') {
+                window.StarStoreTelegramViewport.applySafeAreaVars();
+                return;
+            }
             const sa = this.webApp.safeAreaInset || {};
             const csa = this.webApp.contentSafeAreaInset || {};
             const root = document.documentElement.style;
@@ -86,8 +90,7 @@ class TelegramFullscreenManager {
             root.setProperty('--tg-safe-area-bottom', bottom + 'px');
             root.setProperty('--tg-safe-area-left', left + 'px');
             root.setProperty('--tg-safe-area-right', right + 'px');
-            // Also ensure body has bottom padding so fixed nav clears the system bar
-            document.documentElement.style.setProperty('--app-bottom-inset', Math.max(bottom, 0) + 'px');
+            root.setProperty('--app-bottom-inset', bottom + 'px');
         } catch (e) { /* ignore */ }
     }
 
@@ -108,10 +111,12 @@ class TelegramFullscreenManager {
                 this.webApp.MainButton.hide();
             }
 
-            // Do NOT call setBackgroundColor / setHeaderColor / setBottomBarColor.
-            // In light theme on Telegram, forcing these paints a solid band over
-            // the phone's status/navigation bars, producing the "fog" the user sees.
-            // Letting Telegram render its own chrome avoids that artifact.
+            if (typeof this.webApp.requestFullscreen === 'function' && !this.webApp.isFullscreen) {
+                this.webApp.requestFullscreen();
+            }
+            if (this.webApp.requestSafeArea) this.webApp.requestSafeArea();
+            if (this.webApp.requestContentSafeArea) this.webApp.requestContentSafeArea();
+            if (this.webApp.setBottomBarColor) this.webApp.setBottomBarColor('#000000');
 
             this.isFullscreen = true;
             console.log('Fullscreen mode enabled');
