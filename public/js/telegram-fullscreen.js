@@ -108,15 +108,10 @@ class TelegramFullscreenManager {
                 this.webApp.MainButton.hide();
             }
 
-            // Match Telegram's header & background to the WebApp's theme bg_color
-            // Let Telegram handle header rendering naturally to avoid
-            // foggy white band over the phone's status bar in light theme.
-            // Don't override header color - let Telegram use its default.
-            try {
-                if (typeof this.webApp.setBackgroundColor === 'function') {
-                    this.webApp.setBackgroundColor('bg_color');
-                }
-            } catch (_) { /* older Telegram clients */ }
+            // Do NOT call setBackgroundColor / setHeaderColor / setBottomBarColor.
+            // In light theme on Telegram, forcing these paints a solid band over
+            // the phone's status/navigation bars, producing the "fog" the user sees.
+            // Letting Telegram render its own chrome avoids that artifact.
 
             this.isFullscreen = true;
             console.log('Fullscreen mode enabled');
@@ -153,11 +148,7 @@ class TelegramFullscreenManager {
             // Enable immersive mode features
             this.webApp.expand();
             
-            try {
-                if (typeof this.webApp.setBackgroundColor === 'function') {
-                    this.webApp.setBackgroundColor('bg_color');
-                }
-            } catch (_) { /* older Telegram clients */ }
+            // Skip setBackgroundColor — see note in enableFullscreen().
 
             // Set viewport for immersive experience
             this.setImmersiveViewport();
