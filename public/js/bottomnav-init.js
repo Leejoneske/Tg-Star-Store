@@ -2,6 +2,85 @@
 // Shared bottom navigation utilities + auto-injection.
 // Any page that includes <div id="bottomnav-container"></div> in its markup
 // will automatically have /bottomnav.html fetched, injected, and initialized.
+(function initTelegramViewportChrome() {
+    const NATIVE_BOTTOM_BAR_COLOR = '#000000';
+
+    function getWebApp() {
+        return window.Telegram && window.Telegram.WebApp;
+    }
+
+    function readInset(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+
+    function applySafeAreaVars() {
+        const webApp = getWebApp();
+        if (!webApp) return;
+
+        const safe = webApp.safeAreaInset || {};
+        const contentSafe = webApp.contentSafeAreaInset || {};
+        const top = Math.max(readInset(safe.top), readInset(contentSafe.top));
+        const bottom = Math.max(readInset(safe.bottom), readInset(contentSafe.bottom));
+        const left = Math.max(readInset(safe.left), readInset(contentSafe.left));
+        const right = Math.max(readInset(safe.right), readInset(contentSafe.right));
+        const rootStyle = document.documentElement.style;
+
+        rootStyle.setProperty('--tg-safe-area-top', `${top}px`);
+        rootStyle.setProperty('--tg-safe-area-bottom', `${bottom}px`);
+        rootStyle.setProperty('--tg-safe-area-left', `${left}px`);
+        rootStyle.setProperty('--tg-safe-area-right', `${right}px`);
+        rootStyle.setProperty('--app-bottom-inset', `${bottom}px`);
+    }
+
+    function syncTelegramViewport() {
+        const webApp = getWebApp();
+        if (!webApp) return;
+
+        try { webApp.ready && webApp.ready(); } catch (_) {}
+        try { webApp.expand && webApp.expand(); } catch (_) {}
+        try {
+            if (typeof webApp.requestFullscreen === 'function' && !webApp.isFullscreen) {
+                webApp.requestFullscreen();
+            }
+        } catch (_) {}
+        try { webApp.requestSafeArea && webApp.requestSafeArea(); } catch (_) {}
+        try { webApp.requestContentSafeArea && webApp.requestContentSafeArea(); } catch (_) {}
+        // On Android Telegram applies this to the native navigation bar. Keeping it
+        // opaque prevents the light-theme translucent "fog" from returning on reload.
+        try { webApp.setBottomBarColor && webApp.setBottomBarColor(NATIVE_BOTTOM_BAR_COLOR); } catch (_) {}
+
+        applySafeAreaVars();
+        setTimeout(applySafeAreaVars, 80);
+        setTimeout(applySafeAreaVars, 350);
+        setTimeout(applySafeAreaVars, 900);
+    }
+
+    function bindTelegramViewportEvents() {
+        const webApp = getWebApp();
+        if (!webApp || !webApp.onEvent || webApp.__starStoreViewportBound) return;
+        webApp.__starStoreViewportBound = true;
+        ['safeAreaChanged', 'contentSafeAreaChanged', 'viewportChanged', 'fullscreenChanged', 'themeChanged'].forEach((eventName) => {
+            try { webApp.onEvent(eventName, syncTelegramViewport); } catch (_) {}
+        });
+    }
+
+    window.StarStoreTelegramViewport = {
+        sync: syncTelegramViewport,
+        applySafeAreaVars
+    };
+
+    const run = () => {
+        bindTelegramViewportEvents();
+        syncTelegramViewport();
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run, { once: true });
+    } else {
+        run();
+    }
+})();
+
 window.BottomNavUtils = {
     getCurrentPage() {
         const path = window.location.pathname;
@@ -74,6 +153,9 @@ window.BottomNavUtils = {
 
             this.initBottomNav();
             this.setupAmbassadorRedirect();
+            if (window.StarStoreTelegramViewport) {
+                window.StarStoreTelegramViewport.sync();
+            }
 
             // Apply translations to the freshly injected nav
             if (window.TranslationUtils && typeof window.TranslationUtils.applyTranslations === 'function') {
