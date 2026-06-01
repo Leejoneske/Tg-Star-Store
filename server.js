@@ -22287,10 +22287,19 @@ function requireAdmin(req, res, next) {
 
 app.get('/api/admin/csrf', (req, res) => {
 	const sess = getAdminSession(req);
+	const cookies = parseCookies(req.headers.cookie || '');
+	console.log('📋 CSRF endpoint called', {
+		hasSession: !!sess,
+		hasCookie: !!cookies['admin_session'],
+		tgId: sess?.payload?.tgId,
+		sid: sess?.payload?.sid ? sess.payload.sid.slice(0, 8) + '...' : 'none'
+	});
 	if (!sess || !adminIds.includes(sess.payload.tgId)) {
+		console.warn('⚠️ CSRF rejected: invalid session');
 		return res.status(403).json({ error: 'Forbidden' });
 	}
 	touchAdminSession(sess.payload.sid);
+	console.log('✓ CSRF token returned');
 	return res.json({ csrfToken: sess.payload.sid });
 });
 

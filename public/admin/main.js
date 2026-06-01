@@ -88,49 +88,79 @@ let TOKEN = localStorage.getItem('admin_token') || null;
 let CSRF  = sessionStorage.getItem('admin_csrf') || null;
 
 async function fetchCsrfIfNeeded(forceRefresh = false) {
-    if (CSRF && !forceRefresh) return CSRF;
+    if (CSRF && !forceRefresh) {
+        console.log('Using cached CSRF token');
+        return CSRF;
+    }
     try {
+        console.log('Fetching CSRF token from /api/admin/csrf...');
         const res = await fetch('/api/admin/csrf', {
             headers: TOKEN ? { 'x-telegram-id': TOKEN } : {},
             credentials: 'same-origin'
         });
+        
+        console.log('CSRF endpoint response:', res.status, res.statusText);
+        
         if (!res.ok) {
-            console.error('CSRF fetch failed:', res.status, res.statusText);
-            // If 403, session might be invalid
-            if (res.status === 403) {
-                forceAdminLogout('Session expired');
+            console.error('CSRF fetch failed with status:', res.status);
+            // If 401/403, session is invalid - force logout
+            if (res.status === 401 || res.status === 403) {
+                console.error('Session invalid, logging out');
+                forceAdminLogout('Session expired - please sign in again');
                 return null;
             }
-            return CSRF; // Return cached token as fallback
+            // For other errors, return cached token if available
+            console.warn('CSRF endpoint error, using cached token if available');
+            return CSRF;
         }
-        const data = await res.json().catch(() => ({}));
+        
+        const data = await res.json().catch(() => {
+            console.error('Failed to parse CSRF response');
+            return {};
+        });
+        
         if (data && data.csrfToken) {
             CSRF = data.csrfToken;
             try { sessionStorage.setItem('admin_csrf', CSRF); } catch {}
-            console.log('CSRF token refreshed');
+            console.log('✓ CSRF token obtained:', CSRF.slice(0, 8) + '...');
+            return CSRF;
+        } else {
+            console.error('CSRF endpoint returned no token:', data);
             return CSRF;
         }
     } catch (err) {
-        console.error('CSRF fetch error:', err);
+        console.error('CSRF fetch error:', err.message);
+        return CSRF;
     }
-    return CSRF;
 }
 
 async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     if (TOKEN) headers['x-telegram-id'] = TOKEN;
     const method = (opts.method || 'GET').toUpperCase();
+    
+    // For any non-GET request, ensure we have a valid CSRF token
     if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-        if (!CSRF) await fetchCsrfIfNeeded();
-        if (CSRF) headers['x-csrf-token'] = CSRF;
-        else console.warn('No CSRF token available for', method, path);
+        // Always try to fetch fresh token for requests that need it
+        if (!CSRF) {
+            console.log('No cached CSRF, fetching fresh token...');
+            await fetchCsrfIfNeeded(true);  // Force fresh fetch
+        }
+        if (CSRF) {
+            headers['x-csrf-token'] = CSRF;
+            console.log('CSRF token added to request headers');
+        } else {
+            console.error('Failed to obtain CSRF token for', method, path);
+        }
     }
+    
     let res = await fetch(path, { ...opts, headers, credentials: 'same-origin' });
+    
     if (res.status === 403 && method !== 'GET' && method !== 'HEAD') {
         let probe = null;
         try { probe = await res.clone().json(); } catch {}
         if (probe && /csrf/i.test(probe.error || '')) {
-            console.warn('CSRF validation failed, attempting refresh...');
+            console.warn('CSRF validation failed, attempting refresh and retry...');
             CSRF = null;
             try { sessionStorage.removeItem('admin_csrf'); } catch {}
             await fetchCsrfIfNeeded(true);  // Force fresh fetch
@@ -139,10 +169,11 @@ async function api(path, opts = {}) {
                 console.log('Retrying with refreshed CSRF token');
                 res = await fetch(path, { ...opts, headers, credentials: 'same-origin' });
             } else {
-                console.error('Could not obtain CSRF token after refresh');
+                console.error('Could not obtain fresh CSRF token after failure');
             }
         }
     }
+    
     let data = null;
     try { data = await res.json(); } catch { data = null; }
     if (!res.ok) {
