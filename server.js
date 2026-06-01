@@ -3317,11 +3317,9 @@ function formatWalletOverviewHTML(sellOrders, withdrawals) {
     return out.join('\n');
 }
 
-// Background job to verify pending transactions (DISABLED - frontend no longer waits)
-// Orders are now shown as successful immediately after creation.
-// Manual admin processing handles the rest.
-// Re-enable if needed for reconciliation purposes only.
-/*
+// Background job to verify pending transactions - ENABLED for auto-fulfillment
+// Orders transition: pending → processing (after verification) → auto-fulfill
+// Retries up to 5 times over 30 minutes, then marks as failed if verification never succeeds.
 setInterval(async () => {
     try {
         const pendingOrders = await BuyOrder.find({
@@ -3401,7 +3399,6 @@ setInterval(async () => {
         console.error('Background verification error:', error);
     }
 }, 30000);
-*/
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
