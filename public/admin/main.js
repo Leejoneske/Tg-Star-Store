@@ -254,7 +254,8 @@ const VIEW_TITLES = {
     users: 'Users',
     notifications: 'Notifications',
     bots: 'Bot Simulator',
-    sessions: 'Admin Sessions'
+    sessions: 'Admin Sessions',
+    fulfillment: 'Auto-Fulfillment'
 };
 
 let currentView = 'dashboard';
