@@ -22279,6 +22279,7 @@ app.get('/api/admin/csrf', (req, res) => {
 	if (!sess || !adminIds.includes(sess.payload.tgId)) {
 		return res.status(403).json({ error: 'Forbidden' });
 	}
+	touchAdminSession(sess.payload.sid);
 	return res.json({ csrfToken: sess.payload.sid });
 });
 

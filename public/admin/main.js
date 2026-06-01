@@ -94,13 +94,21 @@ async function fetchCsrfIfNeeded(forceRefresh = false) {
             headers: TOKEN ? { 'x-telegram-id': TOKEN } : {},
             credentials: 'same-origin'
         });
-        if (res.ok) {
-            const data = await res.json().catch(() => ({}));
-            if (data && data.csrfToken) {
-                CSRF = data.csrfToken;
-                try { sessionStorage.setItem('admin_csrf', CSRF); } catch {}
-                return CSRF;
+        if (!res.ok) {
+            console.error('CSRF fetch failed:', res.status, res.statusText);
+            // If 403, session might be invalid
+            if (res.status === 403) {
+                forceAdminLogout('Session expired');
+                return null;
             }
+            return CSRF; // Return cached token as fallback
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && data.csrfToken) {
+            CSRF = data.csrfToken;
+            try { sessionStorage.setItem('admin_csrf', CSRF); } catch {}
+            console.log('CSRF token refreshed');
+            return CSRF;
         }
     } catch (err) {
         console.error('CSRF fetch error:', err);
@@ -115,18 +123,23 @@ async function api(path, opts = {}) {
     if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
         if (!CSRF) await fetchCsrfIfNeeded();
         if (CSRF) headers['x-csrf-token'] = CSRF;
+        else console.warn('No CSRF token available for', method, path);
     }
     let res = await fetch(path, { ...opts, headers, credentials: 'same-origin' });
     if (res.status === 403 && method !== 'GET' && method !== 'HEAD') {
         let probe = null;
         try { probe = await res.clone().json(); } catch {}
         if (probe && /csrf/i.test(probe.error || '')) {
+            console.warn('CSRF validation failed, attempting refresh...');
             CSRF = null;
             try { sessionStorage.removeItem('admin_csrf'); } catch {}
             await fetchCsrfIfNeeded(true);  // Force fresh fetch
             if (CSRF) {
                 headers['x-csrf-token'] = CSRF;
+                console.log('Retrying with refreshed CSRF token');
                 res = await fetch(path, { ...opts, headers, credentials: 'same-origin' });
+            } else {
+                console.error('Could not obtain CSRF token after refresh');
             }
         }
     }
