@@ -110,6 +110,7 @@
                 <button class="nav-link admin-nav" data-view="orders"><i class="fas fa-shopping-cart"></i><span>Orders</span></button>
                 <button class="nav-link admin-nav" data-view="withdrawals"><i class="fas fa-credit-card"></i><span>Withdrawals</span></button>
                 <button class="nav-link admin-nav" data-view="users"><i class="fas fa-users"></i><span>Users</span></button>
+                <button class="nav-link admin-nav" data-view="fulfillment"><i class="fas fa-bolt"></i><span>Auto-Fulfillment</span></button>
 
                 <div class="sidebar-section-label">Engagement</div>
                 <button class="nav-link admin-nav" data-view="notifications"><i class="fas fa-bell"></i><span>Notifications</span></button>
@@ -474,6 +475,59 @@
                         </div>
                         <div class="card-body p-0">
                             <div id="sessions-table" class="table-responsive"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-fulfillment" class="view d-none">
+                    <div class="card mb-3">
+                        <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                            <h3 class="card-title me-auto">Auto-Fulfillment</h3>
+                            <button id="ff-refresh" class="btn btn-light btn-sm"><i class="fas fa-sync-alt"></i></button>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="ff-enabled">
+                                <label class="form-check-label" for="ff-enabled"><strong>Enable automatic fulfillment</strong> — when off, all orders require admin to click Complete.</label>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Stars provider (primary)</label>
+                                    <select id="ff-stars-provider" class="form-select"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Stars provider (fallback)</label>
+                                    <select id="ff-fallback-stars-provider" class="form-select"></select>
+                                    <div class="form-text">Used automatically if primary fails.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Premium provider (primary)</label>
+                                    <select id="ff-premium-provider" class="form-select"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Premium provider (fallback)</label>
+                                    <select id="ff-fallback-premium-provider" class="form-select"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Max auto-fulfill amount (USDT)</label>
+                                    <input type="number" id="ff-max-amount" class="form-control" min="0" step="1">
+                                    <div class="form-text">Orders above this go to manual review.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Max retry attempts</label>
+                                    <input type="number" id="ff-max-attempts" class="form-control" min="1" max="10">
+                                </div>
+                            </div>
+                            <div class="mt-3 d-flex gap-2">
+                                <button id="ff-save" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save settings</button>
+                                <button id="ff-health" class="btn btn-outline-secondary"><i class="fas fa-heart-pulse me-1"></i>Check provider health</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">Provider status</h3></div>
+                        <div class="card-body p-0">
+                            <div id="ff-health-table" class="table-responsive p-3 text-muted small">Click "Check provider health" to test connections.</div>
                         </div>
                     </div>
                 </section>
