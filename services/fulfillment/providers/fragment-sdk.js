@@ -32,6 +32,8 @@ function notReady() {
 module.exports = {
     id: 'fragment-sdk',
     label: 'Self-hosted (fragment-tg)',
+    isConfigured,
+
 
     async fulfillStars() { notReady(); },
     async fulfillPremium() { notReady(); },
