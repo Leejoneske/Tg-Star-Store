@@ -8,12 +8,12 @@
  *
  * Env (set as Lovable secrets):
  *   ISTAR_API_KEY            required for live calls
- *   ISTAR_BASE_URL           optional, defaults to https://api.fragmentapi.com
+ *   ISTAR_BASE_URL           optional, defaults to https://v1.fragmentapi.com/api/v1/partner
  *   ISTAR_WEBHOOK_SECRET     required to verify incoming webhooks
  */
 const { FULFILLMENT_STATUS, sanitizeUsername } = require('../types');
 
-const DEFAULT_BASE = 'https://istar.fragmentapi.com';
+const DEFAULT_BASE = 'https://v1.fragmentapi.com/api/v1/partner';
 
 function getConfig() {
     return {
@@ -74,7 +74,7 @@ module.exports = {
 
     async fulfillStars({ username, quantity, orderId }) {
         const u = sanitizeUsername(username);
-        const data = await call('/v1/order/stars', {
+        const data = await call('/order/stars', {
             body: { username: u, quantity: Number(quantity), external_id: String(orderId) },
         });
         return {
@@ -87,7 +87,7 @@ module.exports = {
 
     async fulfillPremium({ username, months, orderId }) {
         const u = sanitizeUsername(username);
-        const data = await call('/v1/order/premium', {
+        const data = await call('/order/premium', {
             body: { username: u, months: Number(months), external_id: String(orderId) },
         });
         return {
@@ -100,7 +100,7 @@ module.exports = {
 
     async getStatus(providerRef) {
         if (!providerRef) return { status: FULFILLMENT_STATUS.NONE };
-        const data = await call(`/v1/order/${encodeURIComponent(providerRef)}`, { method: 'GET' });
+        const data = await call(`/order/${encodeURIComponent(providerRef)}`, { method: 'GET' });
         const s = String(data.status || '').toLowerCase();
         let status = FULFILLMENT_STATUS.IN_PROGRESS;
         if (s === 'completed' || s === 'success' || s === 'delivered') status = FULFILLMENT_STATUS.COMPLETED;
@@ -112,7 +112,7 @@ module.exports = {
         try {
             const { apiKey } = getConfig();
             if (!apiKey) return { ok: false, error: 'ISTAR_API_KEY not set' };
-            const data = await call('/v1/account', { method: 'GET' });
+            const data = await call('/wallet/balance', { method: 'GET' });
             return { ok: true, balance: data.balance ?? null, currency: data.currency || 'TON' };
         } catch (err) {
             return { ok: false, error: err.message };
