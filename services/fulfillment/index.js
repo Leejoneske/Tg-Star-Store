@@ -162,10 +162,29 @@ async function tryAutoFulfill(orderOrId) {
     }
 
     // Try primary, then fallback (if configured and different from primary/manual)
-    const tryOrder = [primaryId];
+    const candidates = [primaryId];
     if (fallbackId && fallbackId !== PROVIDERS.MANUAL && fallbackId !== primaryId) {
-        tryOrder.push(fallbackId);
+        candidates.push(fallbackId);
     }
+    // Skip any provider missing its env-var configuration so we don't waste an attempt
+    const tryOrder = [];
+    for (const pid of candidates) {
+        const p = getProvider(pid);
+        if (typeof p.isConfigured === 'function' && !p.isConfigured()) {
+            await appendLog(order.id, 'warn', `Skipping ${pid}: missing API key / secrets in environment`);
+            continue;
+        }
+        tryOrder.push(pid);
+    }
+    if (tryOrder.length === 0) {
+        await ctx.BuyOrder.findOneAndUpdate(
+            { id: order.id },
+            { $set: { fulfillmentStatus: FULFILLMENT_STATUS.FAILED, fulfillmentError: 'No configured providers' } }
+        );
+        await notifyAdmins(`⚠️ Auto-fulfill skipped (no provider configured)\nOrder #${order.id}\nSelected: ${primaryId} / fallback ${fallbackId}\nAdd the required env vars on the deployment host and retry.`);
+        return { triggered: false, reason: 'no configured providers (missing env vars)' };
+    }
+
 
     let lastError = null;
     for (const providerId of tryOrder) {
@@ -331,11 +350,17 @@ async function runRetryTick() {
 async function healthAll() {
     const out = {};
     for (const [id, p] of Object.entries(providers)) {
-        try { out[id] = await p.healthCheck(); }
-        catch (err) { out[id] = { ok: false, error: err.message }; }
+        try {
+            if (typeof p.isConfigured === 'function' && !p.isConfigured()) {
+                out[id] = { ok: false, configured: false, error: 'Not configured (missing env vars on host)' };
+                continue;
+            }
+            out[id] = { ok: true, configured: true, ...(await p.healthCheck()) };
+        } catch (err) { out[id] = { ok: false, configured: true, error: err.message }; }
     }
     return out;
 }
+
 
 function init(opts) {
     const { mongoose, BuyOrder, bot, adminIds, onAutoComplete } = opts;
