@@ -33,6 +33,7 @@ const app = express();
 app.set('trust proxy', 1);
 const path = require('path');  
 const zlib = require('zlib');
+const fulfillmentService = require('./services/fulfillment');
 
 // Security middleware
 let helmet, rateLimit;
@@ -2032,8 +2033,23 @@ const buyOrderSchema = new mongoose.Schema({
         id: String,
         username: String,
         loginTime: Date
-    }
-});
+    },
+    // Auto-fulfillment fields (provider-based Stars/Premium delivery)
+    fulfillmentProvider: { type: String, default: null },
+    fulfillmentRef: { type: String, default: null },
+    fulfillmentStatus: {
+        type: String,
+        enum: ['none', 'queued', 'in_progress', 'completed', 'failed'],
+        default: 'none'
+    },
+    fulfillmentAttempts: { type: Number, default: 0 },
+    fulfillmentError: { type: String, default: null },
+    fulfillmentLog: [{
+        ts: { type: Date, default: Date.now },
+        level: String,
+        message: String
+    }]
+}, { timestamps: true });
 
 const sellOrderSchema = new mongoose.Schema({
     id: {
@@ -2773,6 +2789,40 @@ if (adminIds.length > 0) {
   console.warn('[ADMIN INIT] No admin IDs found. Set ADMIN_TELEGRAM_IDS or ADMIN_IDS env variable.');
 }
 
+// Initialize auto-fulfillment subsystem (Stars / Premium via pluggable providers)
+fulfillmentService.init({
+    mongoose,
+    BuyOrder,
+    bot,
+    adminIds,
+    onAutoComplete: async (orderId, providerId) => {
+        try {
+            const order = await BuyOrder.findOne({ id: orderId });
+            if (!order) return;
+            if (order.status !== 'completed') {
+                order.status = 'completed';
+                order.dateCompleted = new Date();
+                await order.save();
+            }
+            try {
+                if (order.isPremium) await trackPremiumActivation(order.telegramId);
+                else if (order.stars) await trackStars(order.telegramId, order.stars, 'buy');
+            } catch (trackErr) {
+                console.error(`[fulfillment] tracking error for #${order.id}:`, trackErr.message);
+            }
+            try {
+                const item = order.isPremium ? `${order.premiumDuration}mo Premium` : `${order.stars} Stars`;
+                await bot.sendMessage(order.telegramId, `✅ Order #${order.id} delivered automatically.\n${item} sent to @${order.username}.`);
+            } catch (_) {}
+            for (const adminId of adminIds) {
+                try { await bot.sendMessage(adminId, `🤖 Auto-fulfilled order #${order.id} via ${providerId}.`); } catch (_) {}
+            }
+        } catch (err) {
+            console.error('[fulfillment] onAutoComplete handler error:', err.message);
+        }
+    },
+});
+
 // 🔐 SECURITY: Admin verification and audit logging helpers
 function isUserAdmin(userId) {
     return Array.isArray(adminIds) && adminIds.includes(String(userId).trim());
@@ -3310,6 +3360,17 @@ setInterval(async () => {
                         }
                     } catch (trackError) {
                         console.error(`Failed to track stars for buy order ${order.id}:`, trackError.message);
+                    }
+
+                    // Trigger auto-fulfillment (if enabled in admin settings).
+                    // Idempotent and safe to call always; provider gating happens inside.
+                    try {
+                        const result = await fulfillmentService.tryAutoFulfill(order.id);
+                        if (result.triggered) {
+                            console.log(`[fulfillment] Order ${order.id} -> ${result.providerId} (${result.status})`);
+                        }
+                    } catch (fulfillErr) {
+                        console.error(`[fulfillment] tryAutoFulfill error for ${order.id}:`, fulfillErr.message);
                     }
                 } else {
                     console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5)`);
@@ -20943,6 +21004,57 @@ app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
 });
 
 // Order actions
+// ============= Auto-fulfillment admin endpoints =============
+app.get('/api/admin/fulfillment/settings', requireAdmin, async (req, res) => {
+    try {
+        const settings = await fulfillmentService.getSettings();
+        res.json({ success: true, settings, providers: fulfillmentService.listProviders() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.put('/api/admin/fulfillment/settings', requireAdmin, async (req, res) => {
+    try {
+        const settings = await fulfillmentService.updateSettings(req.body || {});
+        res.json({ success: true, settings });
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/admin/fulfillment/health', requireAdmin, async (req, res) => {
+    try {
+        const health = await fulfillmentService.healthAll();
+        res.json({ success: true, health });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/admin/orders/:id/retry-fulfill', requireAdmin, async (req, res) => {
+    try {
+        const result = await fulfillmentService.retryOrder(req.params.id);
+        res.json({ success: true, result });
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message });
+    }
+});
+
+// Public webhook endpoint for reseller providers (iStar, Qonix).
+// HMAC signature verified inside fulfillmentService.handleWebhook.
+app.post('/api/public/fulfillment/:provider/webhook', async (req, res) => {
+    try {
+        const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+        const sig = req.headers['x-signature'] || req.headers['x-webhook-signature'] || '';
+        const result = await fulfillmentService.handleWebhook(req.params.provider, raw, sig);
+        res.json(result);
+    } catch (err) {
+        const status = err.status || 500;
+        res.status(status).json({ ok: false, error: err.message });
+    }
+});
+
 app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
     try {
         const id = req.params.id;
