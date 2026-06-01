@@ -117,6 +117,15 @@ async function tryAutoFulfill(orderOrId) {
         return { triggered: false, reason: 'amount exceeds max-auto threshold' };
     }
 
+    // Stars minimum quantity guardrail (don't auto-fulfill stars below 50)
+    if (!order.isPremium) {
+        const quantity = Number(order.starsPerRecipient || order.stars);
+        if (quantity < 50) {
+            await appendLog(order.id, 'warn', `Stars quantity ${quantity} below minimum auto-fulfill threshold (50); manual review`);
+            return { triggered: false, reason: 'stars quantity below minimum (50)' };
+        }
+    }
+
     // Pick provider per product type
     const primaryId = order.isPremium ? settings.premiumProvider : settings.starsProvider;
     const fallbackId = order.isPremium ? settings.fallbackPremiumProvider : settings.fallbackStarsProvider;
