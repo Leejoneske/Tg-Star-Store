@@ -923,8 +923,7 @@ function loadView(view) {
 
 async function loadFulfillment() {
     try {
-        const res = await fetch('/api/admin/fulfillment/settings', { credentials: 'same-origin' });
-        const data = await res.json();
+        const data = await api('/api/admin/fulfillment/settings');
         if (!data.success) throw new Error(data.error || 'Failed');
         const { settings, providers } = data;
         const fill = (sel, val) => {
@@ -954,12 +953,10 @@ async function saveFulfillment() {
         maxAttempts: Number($('#ff-max-attempts').value) || 3,
     };
     try {
-        const res = await fetch('/api/admin/fulfillment/settings', {
-            method: 'PUT', credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
+        const data = await api('/api/admin/fulfillment/settings', {
+            method: 'PUT',
             body: JSON.stringify(body),
         });
-        const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Save failed');
         Toast.show('Fulfillment settings saved', 'success');
     } catch (err) {
