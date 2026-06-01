@@ -42,9 +42,15 @@ async function call(path, { method = 'POST', body } = {}) {
     return json;
 }
 
+function isConfigured() {
+    return Boolean(process.env.QONIX_API_KEY);
+}
+
 module.exports = {
     id: 'qonix',
     label: 'Qonix',
+    isConfigured,
+
 
     async fulfillStars({ username, quantity, orderId }) {
         const u = sanitizeUsername(username);
