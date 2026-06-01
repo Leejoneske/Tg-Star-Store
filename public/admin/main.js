@@ -87,8 +87,8 @@ const Confirm = {
 let TOKEN = localStorage.getItem('admin_token') || null;
 let CSRF  = sessionStorage.getItem('admin_csrf') || null;
 
-async function fetchCsrfIfNeeded() {
-    if (CSRF) return CSRF;
+async function fetchCsrfIfNeeded(forceRefresh = false) {
+    if (CSRF && !forceRefresh) return CSRF;
     try {
         const res = await fetch('/api/admin/csrf', {
             headers: TOKEN ? { 'x-telegram-id': TOKEN } : {},
@@ -99,9 +99,12 @@ async function fetchCsrfIfNeeded() {
             if (data && data.csrfToken) {
                 CSRF = data.csrfToken;
                 try { sessionStorage.setItem('admin_csrf', CSRF); } catch {}
+                return CSRF;
             }
         }
-    } catch {}
+    } catch (err) {
+        console.error('CSRF fetch error:', err);
+    }
     return CSRF;
 }
 
@@ -120,7 +123,7 @@ async function api(path, opts = {}) {
         if (probe && /csrf/i.test(probe.error || '')) {
             CSRF = null;
             try { sessionStorage.removeItem('admin_csrf'); } catch {}
-            await fetchCsrfIfNeeded();
+            await fetchCsrfIfNeeded(true);  // Force fresh fetch
             if (CSRF) {
                 headers['x-csrf-token'] = CSRF;
                 res = await fetch(path, { ...opts, headers, credentials: 'same-origin' });
