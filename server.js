@@ -3366,9 +3366,12 @@ setInterval(async () => {
                     // Idempotent and safe to call always; provider gating happens inside.
                     try {
                         const result = await fulfillmentService.tryAutoFulfill(order.id);
-                        if (result.triggered) {
-                            console.log(`[fulfillment] Order ${order.id} -> ${result.providerId} (${result.status})`);
-                        }
+                        console.log(`[fulfillment] Order ${order.id} auto-fulfill attempt:`, {
+                            triggered: result.triggered,
+                            providerId: result.providerId,
+                            status: result.status,
+                            reason: result.reason
+                        });
                     } catch (fulfillErr) {
                         console.error(`[fulfillment] tryAutoFulfill error for ${order.id}:`, fulfillErr.message);
                     }
