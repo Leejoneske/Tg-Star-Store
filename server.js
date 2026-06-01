@@ -20956,7 +20956,7 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 		]);
 
 		const merged = [
-			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, stars: b.stars, status: b.status, dateCreated: b.dateCreated })),
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, stars: b.stars, status: b.status, dateCreated: b.dateCreated, fulfillmentStatus: b.fulfillmentStatus })),
 			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.stars, stars: s.stars, status: s.status, dateCreated: s.dateCreated }))
 		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
 
@@ -20966,6 +20966,25 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 		res.json({ orders, total });
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load orders' });
+	}
+});
+
+// Get full order details including fulfillment logs
+app.get('/api/admin/orders/:id/details', requireAdmin, async (req, res) => {
+	try {
+		const id = req.params.id;
+		let order = await BuyOrder.findOne({ id }).lean();
+		let type = 'buy';
+		if (!order) { 
+			order = await SellOrder.findOne({ id }).lean(); 
+			type = 'sell';
+		}
+		if (!order) {
+			return res.status(404).json({ error: 'Order not found' });
+		}
+		res.json({ success: true, order: { ...order, type }, fulfillmentLog: order.fulfillmentLog || [] });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load order details' });
 	}
 });
 
