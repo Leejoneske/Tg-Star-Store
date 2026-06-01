@@ -22258,7 +22258,17 @@ function requireAdmin(req, res, next) {
 	if (sess && adminIds.includes(sess.payload.tgId)) {
 		if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
 			const csrf = req.headers['x-csrf-token'];
-			if (!csrf || csrf !== sess.payload.sid) {
+			const expected = sess.payload.sid;
+			if (!csrf || csrf !== expected) {
+				console.error('🔐 CSRF check failed', {
+					path: req.path,
+					method: req.method,
+					csrfProvided: !!csrf,
+					csrfValue: csrf ? csrf.slice(0, 8) + '...' : 'none',
+					expectedValue: expected ? expected.slice(0, 8) + '...' : 'none',
+					match: csrf === expected,
+					tgId: sess.payload.tgId
+				});
 				return res.status(403).json({ error: 'CSRF check failed' });
 			}
 		}
@@ -22267,6 +22277,7 @@ function requireAdmin(req, res, next) {
 		req.user = { id: sess.payload.tgId, isAdmin: true };
 		return next();
 	}
+	console.warn('❌ Admin session invalid', { hasSession: !!sess, path: req.path });
 	res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
 	return res.status(401).json({ error: 'Session expired or terminated' });
 }
