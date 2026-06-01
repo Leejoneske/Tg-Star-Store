@@ -913,6 +913,73 @@ function loadView(view) {
         case 'notifications': return;
         case 'bots':          return loadBots();
         case 'sessions':      return loadSessions();
+        case 'fulfillment':   return loadFulfillment();
+    }
+}
+
+async function loadFulfillment() {
+    try {
+        const res = await fetch('/api/admin/fulfillment/settings', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed');
+        const { settings, providers } = data;
+        const fill = (sel, val) => {
+            const el = $(sel); if (!el) return;
+            el.innerHTML = providers.map(p => `<option value="${p.id}" ${p.id === val ? 'selected' : ''}>${escapeHtml(p.label)}</option>`).join('');
+        };
+        fill('#ff-stars-provider', settings.starsProvider);
+        fill('#ff-premium-provider', settings.premiumProvider);
+        fill('#ff-fallback-stars-provider', settings.fallbackStarsProvider);
+        fill('#ff-fallback-premium-provider', settings.fallbackPremiumProvider);
+        $('#ff-enabled').checked = !!settings.autoFulfillEnabled;
+        $('#ff-max-amount').value = settings.maxAutoAmountUsdt ?? 100;
+        $('#ff-max-attempts').value = settings.maxAttempts ?? 3;
+    } catch (err) {
+        Toast.show(`Failed to load fulfillment settings: ${err.message}`, 'error');
+    }
+}
+
+async function saveFulfillment() {
+    const body = {
+        autoFulfillEnabled: $('#ff-enabled').checked,
+        starsProvider: $('#ff-stars-provider').value,
+        premiumProvider: $('#ff-premium-provider').value,
+        fallbackStarsProvider: $('#ff-fallback-stars-provider').value,
+        fallbackPremiumProvider: $('#ff-fallback-premium-provider').value,
+        maxAutoAmountUsdt: Number($('#ff-max-amount').value) || 0,
+        maxAttempts: Number($('#ff-max-attempts').value) || 3,
+    };
+    try {
+        const res = await fetch('/api/admin/fulfillment/settings', {
+            method: 'PUT', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Save failed');
+        Toast.show('Fulfillment settings saved', 'success');
+    } catch (err) {
+        Toast.show(err.message, 'error');
+    }
+}
+
+async function checkFulfillmentHealth() {
+    const target = $('#ff-health-table');
+    if (target) target.innerHTML = '<div class="text-muted small">Checking…</div>';
+    try {
+        const res = await fetch('/api/admin/fulfillment/health', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed');
+        const rows = Object.entries(data.health).map(([id, h]) => `
+            <tr>
+                <td><code>${escapeHtml(id)}</code></td>
+                <td>${h.ok ? '<span class="badge text-bg-success">OK</span>' : '<span class="badge text-bg-danger">FAIL</span>'}</td>
+                <td>${h.balance != null ? escapeHtml(String(h.balance)) + ' ' + escapeHtml(h.currency || '') : '—'}</td>
+                <td class="small text-muted">${escapeHtml(h.error || h.info || '')}</td>
+            </tr>`).join('');
+        target.innerHTML = `<table class="table table-sm align-middle mb-0"><thead><tr><th>Provider</th><th>Status</th><th>Balance</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>`;
+    } catch (err) {
+        target.innerHTML = `<div class="text-danger small">${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -932,6 +999,9 @@ function bindEvents() {
         Auth.clear(); location.reload();
     });
     $('#sessions-refresh')?.addEventListener('click', loadSessions);
+    $('#ff-refresh')?.addEventListener('click', loadFulfillment);
+    $('#ff-save')?.addEventListener('click', saveFulfillment);
+    $('#ff-health')?.addEventListener('click', checkFulfillmentHealth);
     $('#dm-send')?.addEventListener('click', sendDm);
     $('#refresh-activity')?.addEventListener('click', loadDashboard);
 
