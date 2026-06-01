@@ -112,7 +112,7 @@ module.exports = {
         try {
             const { apiKey } = getConfig();
             if (!apiKey) return { ok: false, error: 'ISTAR_API_KEY not set' };
-            const data = await call('/v1/account/balance', { method: 'GET' });
+            const data = await call('/v1/account', { method: 'GET' });
             return { ok: true, balance: data.balance ?? null, currency: data.currency || 'TON' };
         } catch (err) {
             return { ok: false, error: err.message };
