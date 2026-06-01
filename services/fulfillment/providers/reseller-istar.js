@@ -48,9 +48,15 @@ async function call(path, { method = 'POST', body } = {}) {
     return json;
 }
 
+function isConfigured() {
+    return Boolean(process.env.ISTAR_API_KEY);
+}
+
 module.exports = {
     id: 'istar',
     label: 'iStar (fragmentapi.com)',
+    isConfigured,
+
 
     async fulfillStars({ username, quantity, orderId }) {
         const u = sanitizeUsername(username);
