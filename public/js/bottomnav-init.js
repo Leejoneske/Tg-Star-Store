@@ -3,10 +3,21 @@
 // Any page that includes <div id="bottomnav-container"></div> in its markup
 // will automatically have /bottomnav.html fetched, injected, and initialized.
 (function initTelegramViewportChrome() {
-    const NATIVE_BOTTOM_BAR_COLOR = '#000000';
-
     function getWebApp() {
         return window.Telegram && window.Telegram.WebApp;
+    }
+
+    function currentThemeIsDark() {
+        try {
+            if (document.documentElement.getAttribute('data-theme') === 'dark') return true;
+            if (document.body && document.body.getAttribute('data-theme') === 'dark') return true;
+        } catch (_) {}
+        return false;
+    }
+
+    function getNativeBarColor() {
+        // Match the bottom nav background to avoid a contrasting band under the app.
+        return currentThemeIsDark() ? '#000000' : '#ffffff';
     }
 
     function readInset(value) {
@@ -44,9 +55,13 @@
         // avoids broken safe-area padding and overlapping status bar.
         try { webApp.requestSafeArea && webApp.requestSafeArea(); } catch (_) {}
         try { webApp.requestContentSafeArea && webApp.requestContentSafeArea(); } catch (_) {}
-        // On Android Telegram applies this to the native navigation bar. Keeping it
-        // opaque prevents the light-theme translucent "fog" from returning on reload.
-        try { webApp.setBottomBarColor && webApp.setBottomBarColor(NATIVE_BOTTOM_BAR_COLOR); } catch (_) {}
+        // Match Telegram's native top header + bottom navigation bar to the app
+        // theme so the user doesn't see a contrasting dark band on a light app
+        // (or a white "fog" on a dark app).
+        const barColor = getNativeBarColor();
+        try { webApp.setBottomBarColor && webApp.setBottomBarColor(barColor); } catch (_) {}
+        try { webApp.setHeaderColor && webApp.setHeaderColor(barColor); } catch (_) {}
+        try { webApp.setBackgroundColor && webApp.setBackgroundColor(barColor); } catch (_) {}
 
         applySafeAreaVars();
         setTimeout(applySafeAreaVars, 80);
@@ -72,6 +87,7 @@
         bindTelegramViewportEvents();
         syncTelegramViewport();
     };
+    try { window.addEventListener('themechange', syncTelegramViewport); } catch (_) {}
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', run, { once: true });
     } else {
