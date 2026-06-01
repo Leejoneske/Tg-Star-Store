@@ -177,11 +177,17 @@ async function tryAutoFulfill(orderOrId) {
         tryOrder.push(pid);
     }
     if (tryOrder.length === 0) {
+        // Revert the in_progress claim so the order stays awaiting manual review
+        // (we don't mark it failed — admin may still fulfill it manually or fix env vars and retry).
         await ctx.BuyOrder.findOneAndUpdate(
             { id: order.id },
-            { $set: { fulfillmentStatus: FULFILLMENT_STATUS.FAILED, fulfillmentError: 'No configured providers' } }
+            {
+                $set: { fulfillmentStatus: FULFILLMENT_STATUS.QUEUED, fulfillmentError: null },
+                $inc: { fulfillmentAttempts: -1 },
+            }
         );
-        await notifyAdmins(`⚠️ Auto-fulfill skipped (no provider configured)\nOrder #${order.id}\nSelected: ${primaryId} / fallback ${fallbackId}\nAdd the required env vars on the deployment host and retry.`);
+        await appendLog(order.id, 'warn', `No configured providers for ${primaryId}${fallbackId ? ' / ' + fallbackId : ''}. Left pending for manual review.`);
+        await notifyAdmins(`⚠️ Auto-fulfill could not run\nOrder #${order.id}\nReason: provider not configured (missing API key / low balance / network)\nSelected: ${primaryId}${fallbackId ? ' / fallback ' + fallbackId : ''}\nOrder left pending — fulfill manually or set env vars on host and retry.`);
         return { triggered: false, reason: 'no configured providers (missing env vars)' };
     }
 
