@@ -1028,6 +1028,45 @@ async function checkFulfillmentHealth() {
     }
 }
 
+async function loadFulfillmentLogs() {
+    const orderId = $('#ff-log-order-id')?.value?.trim();
+    if (!orderId) {
+        Toast.show('Please enter an order ID', 'warning');
+        return;
+    }
+    const target = $('#ff-logs-display');
+    if (target) target.innerHTML = '<div class="text-muted">Loading…</div>';
+    try {
+        const data = await api(`/api/admin/orders/${orderId}/details`);
+        if (!data.success) throw new Error(data.error || 'Not found');
+        const order = data.order;
+        let html = `<div class="mb-2"><strong>Order ${escapeHtml(order.id)}</strong></div>`;
+        html += `<div class="small mb-2"><code>Status: ${escapeHtml(order.status)} | Type: ${order.isPremium ? 'Premium' : (order.stars ? 'Stars' : 'Unknown')}</code></div>`;
+        
+        if (order.fulfillmentLog && order.fulfillmentLog.length > 0) {
+            html += `<div class="mt-2"><strong>Activity:</strong></div>`;
+            html += '<table class="table table-sm mb-0"><tbody>';
+            order.fulfillmentLog.forEach(entry => {
+                const time = new Date(entry.timestamp).toLocaleString();
+                const levelBadge = {
+                    'info': '<span class="badge text-bg-info">INFO</span>',
+                    'success': '<span class="badge text-bg-success">SUCCESS</span>',
+                    'error': '<span class="badge text-bg-danger">ERROR</span>',
+                    'warning': '<span class="badge text-bg-warning">WARNING</span>'
+                }[entry.level] || `<span class="badge text-bg-secondary">${escapeHtml(entry.level)}</span>`;
+                html += `<tr><td class="text-muted small">${time}</td><td class="text-muted small">${levelBadge}</td><td class="small">${escapeHtml(entry.message)}</td></tr>`;
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<div class="text-muted small mt-2">No fulfillment activity yet.</div>';
+        }
+        
+        if (target) target.innerHTML = html;
+    } catch (err) {
+        if (target) target.innerHTML = `<div class="text-danger small">${escapeHtml(err.message)}</div>`;
+    }
+}
+
 // ---------------------- Wiring ----------------------
 function bindEvents() {
     $('#send-otp-btn')?.addEventListener('click', handleSendOTP);
@@ -1047,6 +1086,9 @@ function bindEvents() {
     $('#ff-refresh')?.addEventListener('click', loadFulfillment);
     $('#ff-save')?.addEventListener('click', saveFulfillment);
     $('#ff-health')?.addEventListener('click', checkFulfillmentHealth);
+    $('#ff-logs-refresh')?.addEventListener('click', loadFulfillmentLogs);
+    $('#ff-log-fetch')?.addEventListener('click', loadFulfillmentLogs);
+    $('#ff-log-order-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') loadFulfillmentLogs(); });
     $('#dm-send')?.addEventListener('click', sendDm);
     $('#refresh-activity')?.addEventListener('click', loadDashboard);
 
