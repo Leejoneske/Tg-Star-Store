@@ -8,6 +8,8 @@ const { FULFILLMENT_STATUS } = require('../types');
 module.exports = {
     id: 'manual',
     label: 'Manual (admin review)',
+    isConfigured: () => true,
+
 
     async fulfillStars({ orderId }) {
         return { ok: true, providerRef: null, status: FULFILLMENT_STATUS.NONE, message: 'Manual: awaiting admin' };
