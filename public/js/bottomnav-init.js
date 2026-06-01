@@ -39,11 +39,9 @@
 
         try { webApp.ready && webApp.ready(); } catch (_) {}
         try { webApp.expand && webApp.expand(); } catch (_) {}
-        try {
-            if (typeof webApp.requestFullscreen === 'function' && !webApp.isFullscreen) {
-                webApp.requestFullscreen();
-            }
-        } catch (_) {}
+        // Intentionally NOT requesting fullscreen — let Telegram render the
+        // mini app in its default viewport (with its own header chrome). This
+        // avoids broken safe-area padding and overlapping status bar.
         try { webApp.requestSafeArea && webApp.requestSafeArea(); } catch (_) {}
         try { webApp.requestContentSafeArea && webApp.requestContentSafeArea(); } catch (_) {}
         // On Android Telegram applies this to the native navigation bar. Keeping it
