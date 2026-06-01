@@ -45,7 +45,15 @@ async function call(path, { method = 'POST', body } = {}) {
     let json = {};
     try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
     if (!res.ok) {
-        const msg = json?.error || json?.message || text || `HTTP ${res.status}`;
+        let msg = json?.error || json?.message || null;
+        if (!msg) {
+            // If HTML response, truncate and indicate it's HTML
+            if (text && text.includes('<')) {
+                msg = `HTTP ${res.status} (HTML response - likely wrong API key, endpoint, or server error)`;
+            } else {
+                msg = text || `HTTP ${res.status}`;
+            }
+        }
         const err = new Error(`iStar ${method} ${path} failed: ${msg}`);
         err.status = res.status;
         err.response = json;
