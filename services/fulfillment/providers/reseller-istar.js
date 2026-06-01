@@ -13,7 +13,7 @@
  */
 const { FULFILLMENT_STATUS, sanitizeUsername } = require('../types');
 
-const DEFAULT_BASE = 'https://api.fragmentapi.com';
+const DEFAULT_BASE = 'https://istar.fragmentapi.com';
 
 function getConfig() {
     return {
@@ -26,15 +26,21 @@ function getConfig() {
 async function call(path, { method = 'POST', body } = {}) {
     const { apiKey, baseUrl } = getConfig();
     if (!apiKey) throw new Error('ISTAR_API_KEY not configured');
-    const res = await fetch(`${baseUrl}${path}`, {
-        method,
-        headers: {
-            'API-Key': apiKey,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-        body: body ? JSON.stringify(body) : undefined,
-    });
+    let res;
+    try {
+        res = await fetch(`${baseUrl}${path}`, {
+            method,
+            headers: {
+                'API-Key': apiKey,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+    } catch (err) {
+        const cause = err?.cause?.code || err?.cause?.message || err?.code || err?.message || 'unknown';
+        throw new Error(`iStar ${method} ${path} network error (${baseUrl}): ${cause}`);
+    }
     const text = await res.text();
     let json = {};
     try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
