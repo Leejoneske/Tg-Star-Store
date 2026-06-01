@@ -59,9 +59,13 @@
         // theme so the user doesn't see a contrasting dark band on a light app
         // (or a white "fog" on a dark app).
         const barColor = getNativeBarColor();
+        // Bottom bar + background follow the app theme so the nav blends in.
         try { webApp.setBottomBarColor && webApp.setBottomBarColor(barColor); } catch (_) {}
-        try { webApp.setHeaderColor && webApp.setHeaderColor(barColor); } catch (_) {}
         try { webApp.setBackgroundColor && webApp.setBackgroundColor(barColor); } catch (_) {}
+        // Header: let Telegram handle it natively (use 'bg_color' sentinel) so
+        // the status-bar area on the phone doesn't get a hardcoded white/black
+        // band that clashes with the device chrome.
+        try { webApp.setHeaderColor && webApp.setHeaderColor('bg_color'); } catch (_) {}
 
         applySafeAreaVars();
         setTimeout(applySafeAreaVars, 80);
