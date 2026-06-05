@@ -123,6 +123,7 @@ try {
 // Email Service for professional notifications (Resend API)
 const emailService = require('./services/email-service');
 const tonTransactionService = require('./services/ton-transaction-service');
+const paymentVerification = require('./services/payment-verification');
 const autoReply = require('./services/auto-reply');
 
 // Admin commands module
@@ -1996,6 +1997,16 @@ const buyOrderSchema = new mongoose.Schema({
     // Payment currency used at checkout: 'TON' (native) or 'USDT' (USDT-TON jetton).
     // Same store wallet address receives both; only the on-chain message type differs.
     paymentCurrency: { type: String, enum: ['TON', 'USDT'], default: 'TON' },
+    // Expected on-chain payment amount, frozen at order creation so a later
+    // TON/USDT rate change cannot reject a legitimate payment. Exactly one is
+    // set depending on paymentCurrency. Stored as strings to avoid float drift.
+    paymentRateSnapshot: { type: Number, default: null },      // TON/USDT rate used (TON payments)
+    expectedPaymentNanoTon: { type: String, default: null },   // nanoTON expected (TON payments)
+    expectedPaymentUsdtUnits: { type: String, default: null }, // USDT units (6 dp) expected (USDT payments)
+    // Identifier of the on-chain transaction that satisfied this order; used to
+    // prevent the same transfer from verifying more than one order.
+    verifiedTxKey: { type: String, default: null, index: true },
+    dateVerified: Date,
     // New fields for "buy for" functionality
     recipients: [{
         username: String,
@@ -3337,16 +3348,23 @@ setInterval(async () => {
                 
                 console.log(`Verifying transaction for order ${order.id} (age: ${orderAgeMinutes}m, attempt: ${order.verificationAttempts + 1})...`);
                 order.verificationAttempts += 1;
-                
-                const isVerified = await verifyTONTransaction(
-                    order.transactionHash,
-                    process.env.WALLET_ADDRESS,
-                    order.amount
-                );
+
+                const verifyResult = await paymentVerification.verifyOrderPayment(order, {
+                    storeAddress: process.env.WALLET_ADDRESS,
+                    // Reject a transfer already used to verify a different order.
+                    isTxUsed: async (txKey) => {
+                        if (!txKey) return false;
+                        const used = await BuyOrder.findOne({ verifiedTxKey: txKey, id: { $ne: order.id } }).select('id').lean();
+                        return !!used;
+                    }
+                });
+                const isVerified = verifyResult.verified;
 
                 if (isVerified) {
                     order.transactionVerified = true;
                     order.status = 'processing';
+                    if (verifyResult.txKey) order.verifiedTxKey = verifyResult.txKey;
+                    order.dateVerified = new Date();
                     console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes`);
                     await order.save();
                     
@@ -3374,9 +3392,14 @@ setInterval(async () => {
                         console.error(`[fulfillment] tryAutoFulfill error for ${order.id}:`, fulfillErr.message);
                     }
                 } else {
-                    console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5)`);
-                    
-                    if (order.verificationAttempts >= 5 && orderAge > 1800000) {
+                    const reason = verifyResult.reason || 'unknown';
+                    console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5): ${reason}`);
+
+                    // Only auto-fail when the chain was reachable and definitively had
+                    // no matching transfer. On API/network errors leave it pending so a
+                    // legitimate payment is never failed because the explorer was down.
+                    const definitiveNoMatch = /no matching/i.test(reason);
+                    if (definitiveNoMatch && order.verificationAttempts >= 5 && orderAge > 1800000) {
                         order.status = 'failed';
                         console.log(`❌ Order ${order.id} marked as failed after ${orderAgeMinutes} minutes and ${order.verificationAttempts} attempts`);
                     }
@@ -3452,233 +3475,12 @@ function decodeReferralCode(code) {
     return null;
 }
 
-async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
-    const maxRetries = 3;
-    const retryDelay = 3000; // 3 seconds
-    
-    // Validate inputs before making API calls
-    if (!transactionHash || !targetAddress || !expectedAmount) {
-        console.error('Invalid verification parameters:', { transactionHash: !!transactionHash, targetAddress: !!targetAddress, expectedAmount: !!expectedAmount });
-        return false;
-    }
-    
-    // If we have a BOC (starts with te6cc), we need to parse it to get the actual transaction hash
-    // For now, we'll use address-based verification instead of hash-based
-    console.log('Verifying transaction using address-based lookup instead of BOC parsing...');
-    
-    // Focus on address-based verification since BOC parsing is complex
-    // Look for recent transactions to the target address with the expected amount
-    const timeWindow = 3600; // 1 hour window
-    const apiEndpoints = [
-        // TON Center API - get recent transactions by address (most reliable)
-        `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=50`,
-        // Alternative TON Center endpoint with time filter
-        `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=20&start_utime=${Math.floor(Date.now() / 1000) - timeWindow}`,
-        // Backup endpoint with smaller limit
-        `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=10`
-    ];
-    
-    for (let endpointIndex = 0; endpointIndex < apiEndpoints.length; endpointIndex++) {
-        const tonApiUrl = apiEndpoints[endpointIndex];
-        
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                console.log(`Trying TON API endpoint ${endpointIndex + 1}, attempt ${attempt}: ${tonApiUrl}`);
-                const response = await fetch(tonApiUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                    timeout: 15000 // 15 second timeout
-                });
+// On-chain payment verification lives in services/payment-verification.js
+// (paymentVerification.verifyOrderPayment). The previous verifyTONTransaction /
+// fallbackTransactionVerification helpers were removed: they compared USDT
+// amounts against nanoTON and auto-passed any well-formed BOC without touching
+// the chain, which let underpaid/replayed payments be auto-fulfilled.
 
-                if (!response.ok) {
-                    // Handle different error codes appropriately
-                    if ((response.status === 503 || response.status === 502 || response.status === 504) && attempt < maxRetries) {
-                        console.log(`TON API temporarily unavailable (${response.status}), retrying in ${retryDelay}ms... (attempt ${attempt}/${maxRetries})`);
-                        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
-                        continue;
-                    }
-                    if (response.status === 429 && attempt < maxRetries) {
-                        console.log(`TON API rate limited (429), retrying in ${retryDelay * 2}ms... (attempt ${attempt}/${maxRetries})`);
-                        await new Promise(resolve => setTimeout(resolve, retryDelay * 2 * attempt));
-                        continue;
-                    }
-                    console.error(`TON API endpoint ${endpointIndex + 1} failed:`, response.status);
-                    break; // Try next endpoint
-                }
-
-                const data = await response.json();
-                console.debug(`API ${endpointIndex + 1}: Response received`);
-                
-                // Handle different API response formats
-                let transactions = [];
-                if (data.result && Array.isArray(data.result)) {
-                    transactions = data.result;
-                } else if (data.transactions && Array.isArray(data.transactions)) {
-                    transactions = data.transactions;
-                } else if (data.transaction) {
-                    transactions = [data.transaction];
-                } else if (data.ok && data.result) {
-                    transactions = Array.isArray(data.result) ? data.result : [data.result];
-                }
-                
-                if (transactions.length === 0) {
-                    console.log(`API ${endpointIndex + 1}: No transactions found`);
-                    break; // Try next endpoint
-                }
-
-                // For address-based verification, find transactions that match our criteria
-                let matchingTransaction = null;
-                
-                // Look for transactions with the expected amount in the last hour
-                const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-                const expectedAmountNano = Math.floor(expectedAmount * 1e9);
-                
-                for (const tx of transactions) {
-                    // Skip transactions older than 1 hour
-                    if (tx.utime < oneHourAgo) continue;
-                    
-                    // Check if transaction has incoming message with expected amount
-                    if (tx.in_msg && tx.in_msg.value) {
-                        const receivedAmount = parseInt(tx.in_msg.value);
-                        
-                        // Allow 5% tolerance for fees
-                        if (receivedAmount >= expectedAmountNano * 0.95 && receivedAmount <= expectedAmountNano * 1.05) {
-                            matchingTransaction = tx;
-                            console.log(`Found matching transaction: amount=${receivedAmount/1e9} TON, time=${new Date(tx.utime * 1000).toISOString()}`);
-                            break;
-                        }
-                    }
-                }
-
-                if (!matchingTransaction) {
-                    console.log(`API ${endpointIndex + 1}: No matching transaction found`);
-                    break; // Try next endpoint
-                }
-
-                const transaction = matchingTransaction;
-                console.debug(`API ${endpointIndex + 1}: Found transaction, verifying...`);
-                
-                // Check if transaction has incoming message
-                if (!transaction.in_msg) {
-                    console.log(`API ${endpointIndex + 1}: Transaction has no incoming message`);
-                    break; // Try next endpoint
-                }
-
-                const receivedAmount = parseInt(transaction.in_msg.value);
-                // expectedAmountNano already declared above
-                
-                console.log(`API ${endpointIndex + 1}: Amount check - received: ${receivedAmount}, expected: ${expectedAmountNano}`);
-                
-                // Allow 5% tolerance for network fees, but ensure minimum amount is met
-                if (receivedAmount < expectedAmountNano * 0.95) {
-                    console.log(`API ${endpointIndex + 1}: Transaction amount too low - received: ${receivedAmount}, minimum required: ${expectedAmountNano * 0.95}`);
-                    break; // Try next endpoint
-                }
-                
-                // Also check for unreasonably high amounts (potential error)
-                if (receivedAmount > expectedAmountNano * 2) {
-                    console.log(`API ${endpointIndex + 1}: Transaction amount suspiciously high - received: ${receivedAmount}, expected: ${expectedAmountNano}`);
-                    // Don't break here, just log warning - user might have overpaid
-                }
-
-                // Destination check not needed since we're querying by target address already
-                console.log(`API ${endpointIndex + 1}: Transaction destination confirmed: ${transaction.in_msg.destination}`);
-
-                const transactionTime = transaction.utime * 1000;
-                const now = Date.now();
-                const timeDiff = now - transactionTime;
-                
-                // Allow transactions up to 30 minutes old (increased from 5 minutes)
-                if (timeDiff > 1800000) {
-                    console.log(`API ${endpointIndex + 1}: Transaction too old: ${Math.floor(timeDiff / 1000)}s ago`);
-                    break; // Try next endpoint
-                }
-                
-                // Warn about future transactions (clock skew)
-                if (timeDiff < -60000) {
-                    console.log(`API ${endpointIndex + 1}: WARNING - Transaction appears to be from the future: ${Math.floor(-timeDiff / 1000)}s`);
-                    // Don't reject, might be clock skew
-                }
-
-                // Log successful verification with transaction details
-                console.log(`Transaction verified successfully: ${transactionHash}`);
-                console.log(`API ${endpointIndex + 1}: Transaction verified successfully - Amount: ${receivedAmount/1e9} TON, Time: ${new Date(transactionTime).toISOString()}`);
-                return true;
-                
-            } catch (error) {
-                if (attempt < maxRetries) {
-                    console.log(`TON API error, retrying in ${retryDelay}ms... (attempt ${attempt}/${maxRetries}):`, error.message);
-                    await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
-                    continue;
-                }
-                console.error(`TON API endpoint ${endpointIndex + 1} error after all retries:`, error.message);
-                break; // Try next endpoint
-            }
-        }
-    }
-    
-    // If all API endpoints failed, use fallback verification
-    return await fallbackTransactionVerification(transactionHash, targetAddress, expectedAmount);
-}
-
-// Fallback verification method when TON APIs are down
-async function fallbackTransactionVerification(transactionHash, targetAddress, expectedAmount) {
-    try {
-        
-        // Basic validation: check if transaction hash looks valid
-        if (!transactionHash || transactionHash.length < 20) {
-            console.log('Fallback verification: Invalid transaction hash format');
-            return false;
-        }
-        
-        // Validate target address format
-        if (!targetAddress || !isValidTONAddress(targetAddress)) {
-            console.log('Fallback verification: Invalid target address format');
-            return false;
-        }
-        
-        // Validate expected amount
-        if (!expectedAmount || expectedAmount <= 0) {
-            console.log('Fallback verification: Invalid expected amount');
-            return false;
-        }
-        
-        // Check if it looks like a TON BOC (Bag of Cells) - starts with 'te6cc'
-        if (transactionHash.startsWith('te6cc')) {
-            console.log('Fallback verification: Valid TON BOC format detected');
-            
-            // Additional validation: BOC should be longer than 100 characters for a real transaction
-            if (transactionHash.length < 100) {
-                console.log('Fallback verification: BOC too short, likely invalid');
-                return false;
-            }
-            
-            // Check for recent timestamp to prevent old transaction reuse
-            const currentTime = Date.now();
-            const maxAge = 10 * 60 * 1000; // 10 minutes
-            
-            console.log('Fallback verification: BOC format validation passed, but verification is limited without API access');
-            console.log('Fallback verification: WARNING - Using reduced security fallback mode');
-            return true;
-        }
-        
-        // Check if it looks like a hex hash
-        if (/^[0-9a-fA-F]{64}$/.test(transactionHash)) {
-            console.log('Fallback verification: Valid hex hash format detected, but cannot verify transaction details');
-            console.log('Fallback verification: WARNING - Using reduced security fallback mode');
-            return true;
-        }
-        
-        console.log('Fallback verification: Unknown hash format, rejecting transaction');
-        return false;
-        
-    } catch (error) {
-        console.error('Fallback verification error:', error.message);
-        return false;
-    }
-}
 // Wallet Address Endpoint
 app.get('/api/get-wallet-address', requireTelegramAuth, (req, res) => {
     try {
@@ -3759,16 +3561,28 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
             });
         }
 
-        // Use tonTransactionService for proper blockchain verification
-        let result;
+        // Already verified (e.g. by the background loop) — report confirmed and exit.
+        if (order.transactionVerified === true) {
+            return res.json({
+                success: true,
+                verified: true,
+                status: 'confirmed',
+                message: 'Transaction finalized on blockchain'
+            });
+        }
+
+        // Currency-aware on-chain verification against the STORE wallet, using the
+        // expected amount frozen on the order (nanoTON for TON, USDT units for jetton).
+        let verifyResult;
         try {
-            // Find transaction by amount and target address (more reliable)
-            // This works even if we don't have a valid transaction hash
-            result = await tonTransactionService.findTransactionByAmountAndTarget(
-                userWalletAddress,
-                order.walletAddress,  // Payment destination
-                order.amount           // Expected amount in USDT
-            );
+            verifyResult = await paymentVerification.verifyOrderPayment(order, {
+                storeAddress: process.env.WALLET_ADDRESS,
+                isTxUsed: async (txKey) => {
+                    if (!txKey) return false;
+                    const used = await BuyOrder.findOne({ verifiedTxKey: txKey, id: { $ne: order.id } }).select('id').lean();
+                    return !!used;
+                }
+            });
         } catch (serviceError) {
             console.error('[TON Service Error]:', serviceError.message);
             // Return pending status so frontend keeps polling
@@ -3780,47 +3594,47 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
             });
         }
 
-        // Return appropriate response based on transaction status
-        if (result.status === 'confirmed') {
-            console.log(`✅ [Order ${orderId}] Transaction CONFIRMED on blockchain`);
-            
-            // Update order status
+        if (verifyResult.verified) {
+            console.log(`✅ [Order ${orderId}] Payment verified on-chain (${order.paymentCurrency || 'TON'})`);
+
+            // Align with the background loop: verified buy orders move to 'processing'.
             try {
                 await BuyOrder.updateOne(
                     { id: orderId },
-                    { 
+                    {
                         transactionVerified: true,
-                        status: 'verified',
+                        status: 'processing',
+                        verifiedTxKey: verifyResult.txKey || null,
                         dateVerified: new Date()
                     }
                 );
-            } catch {}
-            
-            return res.json({ 
-                success: true, 
+            } catch (updErr) {
+                console.error(`[Order ${orderId}] Failed to persist verification:`, updErr.message);
+            }
+
+            // Trigger auto-fulfillment promptly (idempotent; provider gating inside).
+            try {
+                await fulfillmentService.tryAutoFulfill(orderId);
+            } catch (fulfillErr) {
+                console.error(`[fulfillment] tryAutoFulfill error for ${orderId}:`, fulfillErr.message);
+            }
+
+            return res.json({
+                success: true,
                 verified: true,
                 status: 'confirmed',
                 message: 'Transaction finalized on blockchain'
             });
         }
-        
-        if (result.status === 'pending') {
-            console.log(`⏳ [Order ${orderId}] Transaction PENDING - still indexing`);
-            return res.json({ 
-                success: true,
-                verified: false,
-                status: 'pending',
-                message: 'Waiting for blockchain confirmation...'
-            });
-        }
 
-        // Unknown/timeout status - keep polling
-        console.debug(`⏳ [Order ${orderId}] Transaction status unknown - will retry`);
+        // Not yet verified — keep the client polling. (Unverifiable payments stay
+        // pending for retry/manual review rather than being auto-passed.)
+        console.debug(`⏳ [Order ${orderId}] Payment not yet verified: ${verifyResult.reason || 'unknown'}`);
         return res.json({ 
             success: true,
             verified: false,
             status: 'pending',
-            error: 'Blockchain indexing in progress - please wait'
+            message: 'Waiting for blockchain confirmation...'
         });
         
     } catch (error) {
@@ -4712,6 +4526,25 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         // Calculate total based on recipients if applicable
         const quantityMultiplier = isBuyForOthers && totalRecipients > 0 ? totalRecipients : 1;
         amount = Number((basePrice * quantityMultiplier).toFixed(2));
+
+        // Freeze the expected on-chain payment amount so verification compares
+        // like-for-like units regardless of later TON/USDT rate moves.
+        const orderPaymentCurrency = paymentCurrency === 'USDT' ? 'USDT' : 'TON';
+        let paymentRateSnapshot = null;
+        let expectedPaymentNanoTon = null;
+        let expectedPaymentUsdtUnits = null;
+        try {
+            if (orderPaymentCurrency === 'USDT') {
+                const units = paymentVerification.computeExpectedUsdtUnits(amount);
+                expectedPaymentUsdtUnits = units != null ? String(units) : null;
+            } else {
+                paymentRateSnapshot = await paymentVerification.getTonUsdtRate();
+                const nano = paymentVerification.computeExpectedNanoTon(amount, paymentRateSnapshot);
+                expectedPaymentNanoTon = nano != null ? String(nano) : null;
+            }
+        } catch (rateErr) {
+            console.warn(`[${timestamp}] Expected on-chain amount calc failed (will recompute at verify time): ${rateErr.message}`);
+        }
         
         // === CLEANUP EXPIRED ORDERS ===
         // Mark old abandoned/expired pending orders as expired (those past their timeout)
@@ -4760,7 +4593,10 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
             status: 'pending',
             dateCreated: new Date(),
             adminMessages: [],
-            paymentCurrency: paymentCurrency === 'USDT' ? 'USDT' : 'TON',
+            paymentCurrency: orderPaymentCurrency,
+            paymentRateSnapshot,
+            expectedPaymentNanoTon,
+            expectedPaymentUsdtUnits,
             recipients: processedRecipients,
             isBuyForOthers,
             totalRecipients,
