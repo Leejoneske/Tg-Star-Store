@@ -29,6 +29,10 @@ let retryTimer = null;
 
 const DEFAULT_SETTINGS = {
     autoFulfillEnabled: false,
+    // Timestamp auto-fulfill was (most recently) turned on. Orders created
+    // before this are NOT auto-fulfilled, so enabling the feature never sweeps
+    // up a backlog of pre-existing orders. Reset each time it is re-enabled.
+    autoFulfillActivatedAt: null,
     starsProvider: PROVIDERS.MANUAL,
     premiumProvider: PROVIDERS.MANUAL,
     fallbackStarsProvider: PROVIDERS.MANUAL,
@@ -42,6 +46,19 @@ function getProvider(id) {
     return providers[id] || providers[PROVIDERS.MANUAL];
 }
 
+/**
+ * True if an order was created before auto-fulfill was activated and so must
+ * not be auto-fulfilled. Orders with an unknown creation time are not blocked.
+ */
+function predatesActivation(order, settings) {
+    if (!settings || !settings.autoFulfillActivatedAt) return false;
+    const activated = new Date(settings.autoFulfillActivatedAt).getTime();
+    if (!Number.isFinite(activated)) return false;
+    const created = order && order.dateCreated ? new Date(order.dateCreated).getTime() : NaN;
+    if (!Number.isFinite(created)) return false;
+    return created < activated;
+}
+
 async function getSettings() {
     if (!ctx) throw new Error('fulfillment not initialized');
     let doc = await ctx.Settings.findOne({ _id: 'singleton' });
@@ -50,18 +67,42 @@ async function getSettings() {
     }
     // Fill in any missing defaults (schema evolution safety)
     const out = { ...DEFAULT_SETTINGS, ...doc.toObject() };
+    // Backfill an activation time for instances that already had auto-fulfill
+    // enabled before this guard existed, so "henceforth" starts from now rather
+    // than retroactively sweeping the existing backlog.
+    if (out.autoFulfillEnabled && !out.autoFulfillActivatedAt) {
+        const now = new Date();
+        try {
+            await ctx.Settings.findOneAndUpdate(
+                { _id: 'singleton', $or: [{ autoFulfillActivatedAt: null }, { autoFulfillActivatedAt: { $exists: false } }] },
+                { $set: { autoFulfillActivatedAt: now } }
+            );
+        } catch (err) {
+            console.error('[fulfillment] failed to backfill autoFulfillActivatedAt', err.message);
+        }
+        out.autoFulfillActivatedAt = now;
+    }
     return out;
 }
 
 async function updateSettings(patch) {
     if (!ctx) throw new Error('fulfillment not initialized');
-    const allowed = ['autoFulfillEnabled', 'starsProvider', 'premiumProvider', 'fallbackStarsProvider', 'fallbackPremiumProvider', 'maxAutoAmountUsdt', 'requireOnChainConfirm', 'maxAttempts'];
+    const allowed = ['autoFulfillEnabled', 'autoFulfillActivatedAt', 'starsProvider', 'premiumProvider', 'fallbackStarsProvider', 'fallbackPremiumProvider', 'maxAutoAmountUsdt', 'requireOnChainConfirm', 'maxAttempts'];
     const update = {};
     for (const k of allowed) if (k in patch) update[k] = patch[k];
     // Validate provider ids
     for (const k of ['starsProvider', 'premiumProvider', 'fallbackStarsProvider', 'fallbackPremiumProvider']) {
         if (k in update && !providers[update[k]]) {
             throw new Error(`Unknown provider: ${update[k]}`);
+        }
+    }
+    // Stamp the activation time when auto-fulfill transitions off -> on, so only
+    // orders created from this point forward are eligible for auto-fulfillment
+    // (unless the caller explicitly set autoFulfillActivatedAt themselves).
+    if (update.autoFulfillEnabled === true && !('autoFulfillActivatedAt' in update)) {
+        const current = await getSettings();
+        if (!current.autoFulfillEnabled) {
+            update.autoFulfillActivatedAt = new Date();
         }
     }
     await ctx.Settings.findOneAndUpdate(
@@ -94,7 +135,7 @@ async function notifyAdmins(message) {
  * Try to auto-fulfill an order. Idempotent.
  * Returns { triggered, providerId, status, error? }.
  */
-async function tryAutoFulfill(orderOrId) {
+async function tryAutoFulfill(orderOrId, opts = {}) {
     const settings = await getSettings();
     if (!settings.autoFulfillEnabled) return { triggered: false, reason: 'auto-fulfill disabled' };
 
@@ -109,6 +150,14 @@ async function tryAutoFulfill(orderOrId) {
     }
     if (order.fulfillmentStatus === FULFILLMENT_STATUS.IN_PROGRESS) {
         return { triggered: false, reason: 'already in progress' };
+    }
+
+    // Activation cutoff: never auto-fulfill orders created before auto-fulfill
+    // was turned on (admins can still complete them manually). A manual retry
+    // bypasses this via opts.bypassActivationCutoff.
+    if (!opts.bypassActivationCutoff && predatesActivation(order, settings)) {
+        await appendLog(order.id, 'info', `Skipped auto-fulfill: order created ${order.dateCreated ? new Date(order.dateCreated).toISOString() : 'unknown'} predates auto-fulfill activation ${new Date(settings.autoFulfillActivatedAt).toISOString()}`);
+        return { triggered: false, reason: 'order predates auto-fulfill activation' };
     }
 
     // Max-amount guardrail
@@ -310,7 +359,9 @@ async function retryOrder(orderId) {
         { id: orderId },
         { $set: { fulfillmentStatus: FULFILLMENT_STATUS.QUEUED, fulfillmentError: null } }
     );
-    return tryAutoFulfill(orderId);
+    // Manual retry is an explicit admin action, so it is allowed to fulfill
+    // orders that predate auto-fulfill activation.
+    return tryAutoFulfill(orderId, { bypassActivationCutoff: true });
 }
 
 /**
@@ -384,6 +435,7 @@ function init(opts) {
     const settingsSchema = new mongoose.Schema({
         _id: { type: String, default: 'singleton' },
         autoFulfillEnabled: { type: Boolean, default: DEFAULT_SETTINGS.autoFulfillEnabled },
+        autoFulfillActivatedAt: { type: Date, default: DEFAULT_SETTINGS.autoFulfillActivatedAt },
         starsProvider: { type: String, default: DEFAULT_SETTINGS.starsProvider },
         premiumProvider: { type: String, default: DEFAULT_SETTINGS.premiumProvider },
         fallbackStarsProvider: { type: String, default: DEFAULT_SETTINGS.fallbackStarsProvider },
@@ -418,4 +470,5 @@ module.exports = {
     handleWebhook,
     healthAll,
     runRetryTick,
+    predatesActivation,
 };
