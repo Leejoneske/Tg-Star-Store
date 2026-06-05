@@ -20901,7 +20901,7 @@ app.post('/api/admin/orders/:id/retry-fulfill', requireAdmin, async (req, res) =
 app.post('/api/public/fulfillment/:provider/webhook', async (req, res) => {
     try {
         const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
-        const sig = req.headers['x-signature'] || req.headers['x-webhook-signature'] || '';
+        const sig = req.headers['x-istar-signature'] || req.headers['x-signature'] || req.headers['x-webhook-signature'] || '';
         const result = await fulfillmentService.handleWebhook(req.params.provider, raw, sig);
         res.json(result);
     } catch (err) {

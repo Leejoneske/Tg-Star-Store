@@ -399,9 +399,15 @@ async function runRetryTick() {
                     } catch (err) {
                         await appendLog(order.id, 'warn', `poll failed: ${err.message}`);
                     }
+                } else {
+                    // Provider has no status-poll endpoint (e.g. iStar): the order
+                    // was already accepted (has a ref), so completion arrives via
+                    // webhook. Do NOT re-submit — that would double-fulfill.
+                    await appendLog(order.id, 'info', 'Has provider ref but no status poll; awaiting webhook (not re-submitting).');
+                    continue;
                 }
             }
-            // No ref yet, or still in progress: re-trigger
+            // No ref yet: never accepted by the provider, so re-trigger.
             await ctx.BuyOrder.findOneAndUpdate(
                 { id: order.id },
                 { $set: { fulfillmentStatus: FULFILLMENT_STATUS.QUEUED } }

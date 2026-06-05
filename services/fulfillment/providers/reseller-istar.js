@@ -1,10 +1,11 @@
 /**
  * iStar / fragmentapi.com reseller provider.
  *
- * Docs: https://istar.fragmentapi.com/docs (subject to change — verify current endpoints).
+ * Docs: https://istar.fragmentapi.com/docs
  * Auth: API key passed as `API-Key` header.
  * Webhook: configure provider dashboard to POST to /api/public/fulfillment/istar/webhook.
- *          Signed with HMAC-SHA256 using ISTAR_WEBHOOK_SECRET.
+ *          Signed with HMAC-SHA256 using ISTAR_WEBHOOK_SECRET (X-iStar-Signature header).
+ *          iStar has no order-status polling endpoint — completion arrives via webhook.
  *
  * Env (set as Lovable secrets):
  *   ISTAR_API_KEY            required for live calls
@@ -14,6 +15,13 @@
 const { FULFILLMENT_STATUS, sanitizeUsername } = require('../types');
 
 const DEFAULT_BASE = 'https://v1.fragmentapi.com/api/v1/partner';
+
+function mapStatus(raw) {
+    const s = String(raw || '').toLowerCase();
+    if (s === 'completed' || s === 'success' || s === 'delivered') return FULFILLMENT_STATUS.COMPLETED;
+    if (s === 'failed' || s === 'error' || s === 'cancelled' || s === 'expired') return FULFILLMENT_STATUS.FAILED;
+    return FULFILLMENT_STATUS.IN_PROGRESS;
+}
 
 function getConfig() {
     return {
@@ -74,38 +82,39 @@ module.exports = {
 
     async fulfillStars({ username, quantity, orderId }) {
         const u = sanitizeUsername(username);
-        const data = await call('/order/stars', {
-            body: { username: u, quantity: Number(quantity), external_id: String(orderId) },
+        const qty = Number(quantity);
+        // iStar requires a recipient_hash obtained from the recipient lookup.
+        const search = await call(`/star/recipient/search?username=${encodeURIComponent(u)}&quantity=${qty}`, { method: 'GET' });
+        if (!search || search.success === false || !search.recipient) {
+            throw new Error(`iStar recipient lookup failed for @${u}: ${search?.error || search?.message || 'no recipient hash returned'}`);
+        }
+        const data = await call('/orders/star', {
+            body: { username: u, recipient_hash: search.recipient, quantity: qty, wallet_type: 'TON' },
         });
         return {
             ok: true,
-            providerRef: data.id || data.order_id || null,
-            status: FULFILLMENT_STATUS.IN_PROGRESS,
+            providerRef: data.order_id || data.id || null,
+            status: mapStatus(data.status),
             raw: data,
         };
     },
 
     async fulfillPremium({ username, months, orderId }) {
         const u = sanitizeUsername(username);
-        const data = await call('/order/premium', {
-            body: { username: u, months: Number(months), external_id: String(orderId) },
+        const m = Number(months);
+        const search = await call(`/premium/recipient/search?username=${encodeURIComponent(u)}&months=${m}`, { method: 'GET' });
+        if (!search || search.success === false || !search.recipient) {
+            throw new Error(`iStar recipient lookup failed for @${u}: ${search?.error || search?.message || 'no recipient hash returned'}`);
+        }
+        const data = await call('/orders/premium', {
+            body: { username: u, recipient_hash: search.recipient, months: m, wallet_type: 'TON' },
         });
         return {
             ok: true,
-            providerRef: data.id || data.order_id || null,
-            status: FULFILLMENT_STATUS.IN_PROGRESS,
+            providerRef: data.order_id || data.id || null,
+            status: mapStatus(data.status),
             raw: data,
         };
-    },
-
-    async getStatus(providerRef) {
-        if (!providerRef) return { status: FULFILLMENT_STATUS.NONE };
-        const data = await call(`/order/${encodeURIComponent(providerRef)}`, { method: 'GET' });
-        const s = String(data.status || '').toLowerCase();
-        let status = FULFILLMENT_STATUS.IN_PROGRESS;
-        if (s === 'completed' || s === 'success' || s === 'delivered') status = FULFILLMENT_STATUS.COMPLETED;
-        else if (s === 'failed' || s === 'error' || s === 'cancelled') status = FULFILLMENT_STATUS.FAILED;
-        return { status, raw: data };
     },
 
     async healthCheck() {
@@ -136,15 +145,17 @@ module.exports = {
     },
 
     parseWebhookEvent(payload) {
-        const s = String(payload?.status || '').toLowerCase();
-        let status = FULFILLMENT_STATUS.IN_PROGRESS;
-        if (s === 'completed' || s === 'success' || s === 'delivered') status = FULFILLMENT_STATUS.COMPLETED;
-        else if (s === 'failed' || s === 'error' || s === 'cancelled') status = FULFILLMENT_STATUS.FAILED;
+        // iStar payload shape: { event_type, order: { id, status, payload: {...} }, error }
+        const order = payload?.order || {};
+        const evt = String(payload?.event_type || '').toLowerCase();
+        let status = mapStatus(order.status || payload?.status);
+        if (evt === 'order.completed') status = FULFILLMENT_STATUS.COMPLETED;
+        else if (evt === 'order.failed') status = FULFILLMENT_STATUS.FAILED;
         return {
-            providerRef: payload?.id || payload?.order_id || null,
-            externalId: payload?.external_id || null,
+            providerRef: order.id || payload?.id || payload?.order_id || null,
+            externalId: order?.payload?.external_id || payload?.external_id || null,
             status,
-            error: payload?.error || null,
+            error: payload?.error || order?.payload?.reason || null,
         };
     },
 };
