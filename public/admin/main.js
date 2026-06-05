@@ -981,6 +981,14 @@ async function loadFulfillment() {
         $('#ff-enabled').checked = !!settings.autoFulfillEnabled;
         $('#ff-max-amount').value = settings.maxAutoAmountUsdt ?? 100;
         $('#ff-max-attempts').value = settings.maxAttempts ?? 3;
+        const activatedEl = $('#ff-activated-at');
+        if (activatedEl) {
+            if (settings.autoFulfillEnabled && settings.autoFulfillActivatedAt) {
+                activatedEl.textContent = `Only auto-fulfills orders created after ${new Date(settings.autoFulfillActivatedAt).toLocaleString()}. Older orders must be completed manually.`;
+            } else {
+                activatedEl.textContent = '';
+            }
+        }
     } catch (err) {
         Toast.show(`Failed to load fulfillment settings: ${err.message}`, 'error');
     }
