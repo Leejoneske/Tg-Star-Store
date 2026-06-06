@@ -123,20 +123,45 @@ async function verifyTonPayment(opts = {}) {
     }
 
     const txs = Array.isArray(data && data.result) ? data.result : [];
+    console.debug(`[TON Verify] Found ${txs.length} transactions, looking for TON transfers to ${storeAddress}, expected: ${expected} nanoTON`);
+    
     for (const tx of txs) {
         const utime = Number(tx.utime || 0);
-        if (sinceUtime && utime < sinceUtime) continue;
+        if (sinceUtime && utime < sinceUtime) {
+            console.debug(`[TON Verify] Skipped: utime ${utime} is before sinceUtime ${sinceUtime}`);
+            continue;
+        }
+        
         const inMsg = tx.in_msg;
-        if (!inMsg || inMsg.value == null) continue;
+        if (!inMsg || inMsg.value == null) {
+            console.debug(`[TON Verify] Skipped: no in_msg or value`);
+            continue;
+        }
+        
         // A native TON transfer has no jetton body; jetton transfers carry a body
         // and (typically) zero TON value. Require a real TON value here.
         const received = Number(inMsg.value);
-        if (!(received > 0)) continue;
-        if (!amountWithinTolerance(received, expected)) continue;
+        if (!(received > 0)) {
+            console.debug(`[TON Verify] Skipped: no positive value (received=${received})`);
+            continue;
+        }
+        
+        if (!amountWithinTolerance(received, expected)) {
+            console.debug(`[TON Verify] Skipped: amount ${received} outside tolerance (expected ${expected}, range: ${expected * 0.97}-${expected * 2})`);
+            continue;
+        }
+        
         const txKey = `${(tx.transaction_id && tx.transaction_id.lt) || tx.lt || ''}:${(tx.transaction_id && tx.transaction_id.hash) || tx.hash || ''}`;
-        if (isTxUsed && await isTxUsed(txKey)) continue;
+        if (isTxUsed && await isTxUsed(txKey)) {
+            console.debug(`[TON Verify] Skipped: transaction ${txKey} already used`);
+            continue;
+        }
+        
+        console.debug(`[TON Verify] Match found: received=${received}, txKey=${txKey}, utime=${utime}`);
         return { verified: true, txKey, receivedNanoTon: received, utime };
     }
+    
+    console.debug(`[TON Verify] No matching TON transfer found for store ${storeAddress}`);
     return { verified: false, reason: 'no matching TON transfer found' };
 }
 
@@ -163,19 +188,54 @@ async function verifyUsdtPayment(opts = {}) {
     }
 
     const ops = Array.isArray(data && data.operations) ? data.operations : [];
+    console.debug(`[USDT Verify] Found ${ops.length} operations, looking for USDT transfers to ${storeAddress}, expected: ${expected} units`);
+    
     for (const op of ops) {
-        if (op.operation !== 'transfer') continue;
+        console.debug(`[USDT Verify] Checking operation: type=${op.operation}, lt=${op.lt}, amount=${op.amount}`);
+        
+        if (op.operation !== 'transfer') {
+            console.debug(`[USDT Verify] Skipped: operation type is '${op.operation}', not 'transfer'`);
+            continue;
+        }
+        
         const utime = Number(op.utime || 0);
-        if (sinceUtime && utime < sinceUtime) continue;
-        if (!sameAddress(op.jetton && op.jetton.address, USDT_JETTON_MASTER)) continue;
+        if (sinceUtime && utime < sinceUtime) {
+            console.debug(`[USDT Verify] Skipped: utime ${utime} is before sinceUtime ${sinceUtime}`);
+            continue;
+        }
+        
+        const jettonAddr = op.jetton && op.jetton.address;
+        const destAddr = op.destination && op.destination.address;
+        console.debug(`[USDT Verify] Jetton address: ${jettonAddr}, Expected: ${USDT_JETTON_MASTER}, Destination: ${destAddr}`);
+        
+        if (!sameAddress(jettonAddr, USDT_JETTON_MASTER)) {
+            console.debug(`[USDT Verify] Skipped: jetton address mismatch`);
+            continue;
+        }
+        
         // Incoming transfer: store wallet must be the destination.
-        if (!sameAddress(op.destination && op.destination.address, storeAddress)) continue;
+        if (!sameAddress(destAddr, storeAddress)) {
+            console.debug(`[USDT Verify] Skipped: destination ${destAddr} does not match store ${storeAddress}`);
+            continue;
+        }
+        
         const received = Number(op.amount);
-        if (!amountWithinTolerance(received, expected, { lowerPct: 0.01 })) continue;
+        if (!amountWithinTolerance(received, expected, { lowerPct: 0.01 })) {
+            console.debug(`[USDT Verify] Skipped: amount ${received} outside tolerance (expected ${expected}, range: ${expected * 0.99}-${expected * 2})`);
+            continue;
+        }
+        
         const txKey = `${op.lt || ''}:${op.transaction_hash || ''}`;
-        if (isTxUsed && await isTxUsed(txKey)) continue;
+        if (isTxUsed && await isTxUsed(txKey)) {
+            console.debug(`[USDT Verify] Skipped: transaction ${txKey} already used`);
+            continue;
+        }
+        
+        console.debug(`[USDT Verify] Match found: received=${received}, txKey=${txKey}, utime=${utime}`);
         return { verified: true, txKey, receivedUnits: received, utime };
     }
+    
+    console.debug(`[USDT Verify] No matching USDT transfer found for store ${storeAddress}`);
     return { verified: false, reason: 'no matching USDT transfer found' };
 }
 
