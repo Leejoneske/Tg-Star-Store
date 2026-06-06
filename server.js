@@ -4618,7 +4618,10 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         }
         
         // SUCCESS LOG - Easy to grep and debug order creation
-        console.log(`[${timestamp}] ORDER CREATED | OrderID: ${order.id} | User: ${telegramId} (@${username}) |  Wallet: ${walletAddress.slice(0, 20)}... | Amount: ${amount} USDT | Stars: ${stars || 'premium'} | Status: pending`);
+        const paymentDetails = orderPaymentCurrency === 'USDT' 
+            ? `USDT | Expected: ${expectedPaymentUsdtUnits || 'N/A'} units`
+            : `TON | Expected: ${expectedPaymentNanoTon || 'N/A'} nanoTON`;
+        console.log(`[${timestamp}] ORDER CREATED | OrderID: ${order.id} | User: ${telegramId} (@${username}) | Wallet: ${walletAddress.slice(0, 20)}... | Amount: ${amount} USDT | Payment: ${paymentDetails} | Stars: ${stars || 'premium'} | Status: pending`);
 
         // === ADMIN NOTIFICATION PHASE (CRITICAL) ===
         console.log(`[${timestamp}] ENTERING ADMIN NOTIFICATION PHASE | Order: ${order.id}`);
