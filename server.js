@@ -3347,6 +3347,7 @@ setInterval(async () => {
                 const orderAgeMinutes = Math.floor(orderAge / 60000);
                 
                 console.log(`Verifying transaction for order ${order.id} (age: ${orderAgeMinutes}m, attempt: ${order.verificationAttempts + 1})...`);
+                console.log(`  Currency: ${order.paymentCurrency || 'TON'} | Expected: ${order.paymentCurrency === 'USDT' ? order.expectedPaymentUsdtUnits + ' USDT units (6dp)' : order.expectedPaymentNanoTon + ' nanoTON (9dp)'} | Amount: ${order.amount} USDT`);
                 order.verificationAttempts += 1;
 
                 const verifyResult = await paymentVerification.verifyOrderPayment(order, {
@@ -3365,7 +3366,7 @@ setInterval(async () => {
                     order.status = 'processing';
                     if (verifyResult.txKey) order.verifiedTxKey = verifyResult.txKey;
                     order.dateVerified = new Date();
-                    console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes`);
+                    console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes | Currency: ${order.paymentCurrency || 'TON'} | Verified TX: ${verifyResult.txKey || 'N/A'}`);
                     await order.save();
                     
                     try {
@@ -3393,7 +3394,7 @@ setInterval(async () => {
                     }
                 } else {
                     const reason = verifyResult.reason || 'unknown';
-                    console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5): ${reason}`);
+                    console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5) | Currency: ${order.paymentCurrency || 'TON'} | Expected: ${order.paymentCurrency === 'USDT' ? order.expectedPaymentUsdtUnits + ' USDT units' : order.expectedPaymentNanoTon + ' nanoTON'} | Reason: ${reason}`);
 
                     // Only auto-fail when the chain was reachable and definitively had
                     // no matching transfer. On API/network errors leave it pending so a
@@ -3401,7 +3402,7 @@ setInterval(async () => {
                     const definitiveNoMatch = /no matching/i.test(reason);
                     if (definitiveNoMatch && order.verificationAttempts >= 5 && orderAge > 1800000) {
                         order.status = 'failed';
-                        console.log(`❌ Order ${order.id} marked as failed after ${orderAgeMinutes} minutes and ${order.verificationAttempts} attempts`);
+                        console.log(`❌ Order ${order.id} marked as failed after ${orderAgeMinutes} minutes and ${order.verificationAttempts} attempts | Reason: ${reason}`);
                     }
                 }
                 
@@ -7249,13 +7250,26 @@ bot.on('callback_query', async (query) => {
                 // Try to update the button inline (change only buttons without changing text)
                 try {
                     console.log(`[BUY ORDER LOGIN] Updating inline buttons for current message`);
-                    await bot.editMessageReplyMarkup(actionKeyboard, {
-                        chat_id: query.message.chat.id,
-                        message_id: query.message.message_id
-                    });
-                    console.log(`[BUY ORDER LOGIN] ✅ Updated inline buttons`);
+                    
+                    // Skip update if buttons are already identical (prevents "message is not modified" error)
+                    const currentMarkup = query.message?.reply_markup;
+                    const buttonsEqual = currentMarkup?.inline_keyboard && 
+                        JSON.stringify(currentMarkup.inline_keyboard) === JSON.stringify(actionKeyboard.inline_keyboard);
+                    
+                    if (buttonsEqual) {
+                        console.log(`[BUY ORDER LOGIN] Buttons already match, skipping update`);
+                    } else {
+                        await bot.editMessageReplyMarkup(actionKeyboard, {
+                            chat_id: query.message.chat.id,
+                            message_id: query.message.message_id
+                        });
+                        console.log(`[BUY ORDER LOGIN] ✅ Updated inline buttons`);
+                    }
                 } catch (err) {
-                    console.warn(`[BUY ORDER LOGIN] Could not update inline buttons:`, err.message || err);
+                    // Silently ignore "message is not modified" errors - they're harmless
+                    if (!err.message || !err.message.includes('message is not modified')) {
+                        console.warn(`[BUY ORDER LOGIN] Could not update inline buttons:`, err.message || err);
+                    }
                 }
 
                 await bot.answerCallbackQuery(query.id, { text: `✅ You're now processing this order` });
@@ -10044,8 +10058,11 @@ async function repairStuckReferrals(userId) {
                     
                     // Send audit notification to admins
                     try {
-                        const adminIds = ['852842945', '5843755611', '5902903648', '7070816262'];
-                        const adminMessage = `🔧 <b>AUTOMATIC REPAIR: Balance Recovered</b>\n\n` +
+                        // Use configured admin IDs instead of hardcoded
+                        if (!adminIds || adminIds.length === 0) {
+                            console.warn('[REPAIR] No admin IDs configured, skipping notification');
+                        } else {
+                            const adminMessage = `🔧 <b>AUTOMATIC REPAIR: Balance Recovered</b>\n\n` +
                             `<b>Referrer:</b> @${referrer?.username || 'unknown'} (ID: ${referral.referrerUserId})\n` +
                             `<b>Referred User:</b> @${referredUser?.username || 'unknown'} (ID: ${referral.referredUserId})\n` +
                             `<b>Total Stars:</b> ${totalStars}\n` +
@@ -10062,6 +10079,7 @@ async function repairStuckReferrals(userId) {
                             } catch (adminErr) {
                                 console.error(`[REPAIR] Failed to notify admin ${adminId}:`, adminErr.message);
                             }
+                        }
                         }
                     } catch (err) {
                         console.error(`[REPAIR] Error sending admin notifications:`, err.message);
