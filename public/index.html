@@ -4045,13 +4045,38 @@ async function handlePurchase(item) {
             // 1) Look up the sender's USDT jetton wallet via tonapi.io
             let senderJettonWallet;
             try {
+                console.log(`[USDT Jetton Lookup] Fetching wallet info for ${currentWalletAddress} | Master: ${USDT_JETTON_MASTER}`);
                 const r = await fetch(`https://tonapi.io/v2/accounts/${currentWalletAddress}/jettons/${USDT_JETTON_MASTER}`);
-                if (!r.ok) throw new Error(`tonapi ${r.status}`);
+                console.log(`[USDT Jetton Lookup] API response status: ${r.status}`);
+                
+                if (!r.ok) {
+                    if (r.status === 404) {
+                        console.warn('[USDT Jetton Lookup] 404: Wallet does not have USDT jetton wallet yet (not initialized)');
+                        throw new Error('wallet_not_initialized');
+                    }
+                    throw new Error(`tonapi HTTP ${r.status}`);
+                }
+                
                 const j = await r.json();
-                senderJettonWallet = j?.wallet_address?.address || j?.jetton_wallet?.address;
-                if (!senderJettonWallet) throw new Error('No USDT jetton wallet found for this address');
+                console.log('[USDT Jetton Lookup] API response:', JSON.stringify(j, null, 2).slice(0, 500));
+                
+                senderJettonWallet = j?.wallet_address?.address || j?.jetton_wallet?.address || j?.address;
+                if (!senderJettonWallet) {
+                    console.warn('[USDT Jetton Lookup] Response received but no wallet address found in:', Object.keys(j));
+                    throw new Error('response_format_mismatch');
+                }
+                console.log(`[USDT Jetton Lookup] Found jetton wallet: ${senderJettonWallet}`);
             } catch (err) {
-                console.error('Jetton wallet lookup failed:', err);
+                console.error('[USDT Jetton Lookup] Failed:', err.message);
+                
+                // Provide specific error messages based on failure type
+                if (err.message === 'wallet_not_initialized') {
+                    throw new Error('Your wallet has not received any USDT yet. You need to transfer some USDT-TON to your wallet first.');
+                }
+                if (err.message === 'response_format_mismatch') {
+                    throw new Error('Unexpected API response format. Try again in a moment or contact support.');
+                }
+                
                 throw new Error('Could not find your USDT-TON balance. Make sure your wallet holds USDT-TON and try again.');
             }
             const { Address, beginCell, toNano } = window.TonCore;
