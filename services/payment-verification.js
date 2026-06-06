@@ -188,7 +188,11 @@ async function verifyUsdtPayment(opts = {}) {
     }
 
     const ops = Array.isArray(data && data.operations) ? data.operations : [];
-    console.debug(`[USDT Verify] Found ${ops.length} operations, looking for USDT transfers to ${storeAddress}, expected: ${expected} units`);
+    console.debug(`[USDT Verify] Found ${ops.length} operations, looking for USDT transfers to ${storeAddress}, expected: ${expected} units (${(expected / 1e6).toFixed(2)} USDT)`);
+    
+    // Track mismatches for better error reporting
+    let closestMismatch = null;
+    let closestMismatchDistance = Infinity;
     
     for (const op of ops) {
         console.debug(`[USDT Verify] Checking operation: type=${op.operation}, lt=${op.lt}, amount=${op.amount}`);
@@ -220,8 +224,18 @@ async function verifyUsdtPayment(opts = {}) {
         }
         
         const received = Number(op.amount);
+        const receivedUsdt = received / 1e6;
+        const expectedUsdt = expected / 1e6;
+        const pctDiff = Math.abs(received - expected) / expected * 100;
+        
         if (!amountWithinTolerance(received, expected, { lowerPct: 0.01 })) {
-            console.debug(`[USDT Verify] Skipped: amount ${received} outside tolerance (expected ${expected}, range: ${expected * 0.99}-${expected * 2})`);
+            console.warn(`[USDT Verify] Amount mismatch: received ${received} units (${receivedUsdt.toFixed(2)} USDT, ${pctDiff.toFixed(1)}% off) vs expected ${expected} units (${expectedUsdt.toFixed(2)} USDT)`);
+            // Track the closest mismatch for error reporting
+            const distance = Math.abs(received - expected);
+            if (distance < closestMismatchDistance) {
+                closestMismatchDistance = distance;
+                closestMismatch = { received, receivedUsdt, expectedUsdt, pctDiff };
+            }
             continue;
         }
         
@@ -235,7 +249,14 @@ async function verifyUsdtPayment(opts = {}) {
         return { verified: true, txKey, receivedUnits: received, utime };
     }
     
-    console.debug(`[USDT Verify] No matching USDT transfer found for store ${storeAddress}`);
+    // Provide detailed error if we found a close mismatch
+    if (closestMismatch) {
+        const msg = `Found USDT transfer of ${closestMismatch.receivedUsdt.toFixed(2)} USDT (expected ${closestMismatch.expectedUsdt.toFixed(2)} USDT, ${closestMismatch.pctDiff.toFixed(1)}% off). Please send the exact amount.`;
+        console.warn(`[USDT Verify] ${msg}`);
+        return { verified: false, reason: msg };
+    }
+    
+    console.warn(`[USDT Verify] No matching USDT transfer found for store ${storeAddress}. Expected: ${expected} units (${(expected / 1e6).toFixed(2)} USDT)`);
     return { verified: false, reason: 'no matching USDT transfer found' };
 }
 

@@ -3976,6 +3976,20 @@ async function handlePurchase(item) {
             const storeOwnerFriendly = Address.parse(storeOwnerAddress).toString({ urlSafe: true, bounceable: true });
             const senderFriendly = Address.parse(currentWalletAddress).toString({ urlSafe: true, bounceable: false });
             const usdtUnits = BigInt(Math.ceil(totalAmountUsdt * 1_000_000));
+            
+            // Pre-flight validation: ensure totalAmountUsdt is still the expected amount
+            if (!Number.isFinite(totalAmountUsdt) || totalAmountUsdt <= 0) {
+                console.error('[USDT SECURITY] Invalid totalAmountUsdt after quote fetch:', totalAmountUsdt);
+                throw new Error('Invalid amount calculated. Please refresh and try again.');
+            }
+            
+            // Additional sanity check: verify the units calculation matches expected
+            const unitsAsUsdt = Number(usdtUnits) / 1_000_000;
+            if (Math.abs(unitsAsUsdt - totalAmountUsdt) > 0.01) {
+                console.error('[USDT CALCULATION] Units calculation mismatch:', { totalAmountUsdt, usdtUnits, unitsAsUsdt });
+                throw new Error('Amount calculation error. Please try again.');
+            }
+            
             const body = beginCell()
                 .storeUint(0xf8a7ea5, 32)                       // jetton transfer op
                 .storeUint(0, 64)                                // query_id
@@ -3997,7 +4011,7 @@ async function handlePurchase(item) {
                     payload: payloadB64
                 }]
             };
-            console.log(`💵 USDT Transfer | USDT: ${totalAmountUsdt} | units: ${usdtUnits} | jettonWallet: ${senderJettonWalletFriendly}`);
+            console.log(`[USDT TX READY] Amount: ${totalAmountUsdt} USDT | Units: ${usdtUnits} | JettonWallet: ${senderJettonWalletFriendly.slice(0,20)}... | Destination: ${storeOwnerFriendly.slice(0,20)}...`);
         } else {
             // Native TON payment (default)
             const tonToUsdtRate = rateQuick || await fetchCurrentRate();
@@ -4109,7 +4123,10 @@ async function handlePurchase(item) {
                 }
                 
                 // Log successful order creation with full details
-                console.log(`[ORDER SUCCESS] OrderID: ${response.order.id} | Amount stored on server: ${response.order.amount} USDT | Amount sent from frontend: ${totalAmountUsdt} USDT | Match: ${response.order.amount === totalAmountUsdt ? '✅ YES' : '❌ NO - MISMATCH!'}`);
+                console.log(`[ORDER SUCCESS] OrderID: ${response.order.id} | Method: ${payMethod} | Amount server: ${response.order.amount} USDT | Amount frontend: ${totalAmountUsdt} USDT | Match: ${response.order.amount === totalAmountUsdt ? '✅ YES' : '❌ NO - MISMATCH!'}`);
+                if (payMethod === 'USDT' && response.order.expectedPaymentUsdtUnits) {
+                    console.log(`[USDT UNITS] Expected: ${response.order.expectedPaymentUsdtUnits} units | USDT: ${(Number(response.order.expectedPaymentUsdtUnits) / 1e6).toFixed(2)}`);
+                }
                 
                 // Order is created = success. Show confirmation immediately.
                 // (Payment was already confirmed by wallet app and has left user's wallet)
