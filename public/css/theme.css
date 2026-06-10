@@ -165,11 +165,10 @@ header, footer {
 
 header {
 	/* FIX: was `transparent` — caused content to bleed under status bar on
-	   light theme because dark mode accidentally got an opaque bg via the
-	   [data-theme="dark"] header override, but light mode did not.
-	   Also add safe-area padding here in case header is position: fixed/sticky. */
+	   light theme. Body already applies safe-area-inset-top padding, so
+	   do NOT add it again here, otherwise on devices with a notch/dynamic
+	   island the header is pushed down twice and covers the phone status bar. */
 	background: var(--surface-muted);
-	padding-top: env(safe-area-inset-top, 0px);
 }
 
 footer {
