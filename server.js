@@ -11884,7 +11884,7 @@ async function handleReferralActivation(tracker) {
 
         if (tracker.referral) {
             await Referral.findByIdAndUpdate(tracker.referral, {
-                status: 'completed',
+                status: 'active',
                 dateActivated: new Date()
             });
         }
