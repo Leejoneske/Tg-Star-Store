@@ -4042,43 +4042,48 @@ async function handlePurchase(item) {
             }
             // USDT-TON Jetton master (mainnet)
             const USDT_JETTON_MASTER = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
-            // 1) Look up the sender's USDT jetton wallet via tonapi.io
+            // 1) Look up the sender's USDT jetton wallet — try tonapi.io first,
+            //    fall back to toncenter v3 if tonapi rate-limits / errors out so
+            //    legitimate USDT holders are never falsely told they have none.
             let senderJettonWallet;
+            const lookupViaTonapi = async () => {
+                const r = await fetch(`https://tonapi.io/v2/accounts/${currentWalletAddress}/jettons/${USDT_JETTON_MASTER}`);
+                console.log(`[USDT Jetton Lookup] tonapi status: ${r.status}`);
+                if (!r.ok) throw new Error(`tonapi_${r.status}`);
+                const j = await r.json();
+                const addr = j?.wallet_address?.address || j?.jetton_wallet?.address || j?.address;
+                if (!addr) throw new Error('tonapi_no_address');
+                return addr;
+            };
+            const lookupViaToncenter = async () => {
+                const url = `https://toncenter.com/api/v3/jetton/wallets?owner_address=${encodeURIComponent(currentWalletAddress)}&jetton_address=${encodeURIComponent(USDT_JETTON_MASTER)}&limit=1`;
+                const r = await fetch(url);
+                console.log(`[USDT Jetton Lookup] toncenter status: ${r.status}`);
+                if (!r.ok) throw new Error(`toncenter_${r.status}`);
+                const j = await r.json();
+                const w = (j?.jetton_wallets || [])[0];
+                if (!w?.address) throw new Error('toncenter_no_address');
+                return w.address;
+            };
             try {
                 console.log(`[USDT Jetton Lookup] Fetching wallet info for ${currentWalletAddress} | Master: ${USDT_JETTON_MASTER}`);
-                const r = await fetch(`https://tonapi.io/v2/accounts/${currentWalletAddress}/jettons/${USDT_JETTON_MASTER}`);
-                console.log(`[USDT Jetton Lookup] API response status: ${r.status}`);
-                
-                if (!r.ok) {
-                    if (r.status === 404) {
-                        console.warn('[USDT Jetton Lookup] 404: Wallet does not have USDT jetton wallet yet (not initialized)');
-                        throw new Error('wallet_not_initialized');
-                    }
-                    throw new Error(`tonapi HTTP ${r.status}`);
-                }
-                
-                const j = await r.json();
-                console.log('[USDT Jetton Lookup] API response:', JSON.stringify(j, null, 2).slice(0, 500));
-                
-                senderJettonWallet = j?.wallet_address?.address || j?.jetton_wallet?.address || j?.address;
-                if (!senderJettonWallet) {
-                    console.warn('[USDT Jetton Lookup] Response received but no wallet address found in:', Object.keys(j));
-                    throw new Error('response_format_mismatch');
+                try {
+                    senderJettonWallet = await lookupViaTonapi();
+                } catch (primaryErr) {
+                    console.warn('[USDT Jetton Lookup] tonapi failed, trying toncenter:', primaryErr.message);
+                    senderJettonWallet = await lookupViaToncenter();
                 }
                 console.log(`[USDT Jetton Lookup] Found jetton wallet: ${senderJettonWallet}`);
             } catch (err) {
-                console.error('[USDT Jetton Lookup] Failed:', err.message);
-                
-                // Provide specific error messages based on failure type
-                if (err.message === 'wallet_not_initialized') {
-                    throw new Error('Your wallet has not received any USDT yet. You need to transfer some USDT-TON to your wallet first.');
+                console.error('[USDT Jetton Lookup] All providers failed:', err.message);
+                // Only treat as "no USDT" when BOTH providers explicitly returned 404 / no address.
+                const isNotInitialized = /404|no_address/.test(err.message);
+                if (isNotInitialized) {
+                    throw new Error('Your wallet has not received any USDT-TON yet. Send some USDT (TON network) to your wallet and try again.');
                 }
-                if (err.message === 'response_format_mismatch') {
-                    throw new Error('Unexpected API response format. Try again in a moment or contact support.');
-                }
-                
-                throw new Error('Could not find your USDT-TON balance. Make sure your wallet holds USDT-TON and try again.');
+                throw new Error('Could not verify your USDT-TON balance right now. Please retry in a few seconds.');
             }
+
             const { Address, beginCell, toNano } = window.TonCore;
             // Normalize all addresses to user-friendly bounceable form for TonConnect
             const senderJettonWalletFriendly = Address.parse(senderJettonWallet).toString({ urlSafe: true, bounceable: true });
