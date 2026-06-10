@@ -4046,38 +4046,69 @@ async function handlePurchase(item) {
             //    fall back to toncenter v3 if tonapi rate-limits / errors out so
             //    legitimate USDT holders are never falsely told they have none.
             let senderJettonWallet;
+            const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+            const withRetry = async (label, fn, attempts = 2) => {
+                let lastErr;
+                for (let i = 0; i < attempts; i++) {
+                    try { return await fn(); }
+                    catch (e) {
+                        lastErr = e;
+                        console.warn(`[USDT Jetton Lookup] ${label} attempt ${i + 1} failed: ${e.message}`);
+                        // Don't retry definitive 404 (wallet really doesn't exist)
+                        if (/_404$|_no_address$/.test(e.message)) break;
+                        await sleep(400 * (i + 1));
+                    }
+                }
+                throw lastErr;
+            };
             const lookupViaTonapi = async () => {
                 const r = await fetch(`https://tonapi.io/v2/accounts/${currentWalletAddress}/jettons/${USDT_JETTON_MASTER}`);
-                console.log(`[USDT Jetton Lookup] tonapi status: ${r.status}`);
                 if (!r.ok) throw new Error(`tonapi_${r.status}`);
                 const j = await r.json();
                 const addr = j?.wallet_address?.address || j?.jetton_wallet?.address || j?.address;
                 if (!addr) throw new Error('tonapi_no_address');
                 return addr;
             };
-            const lookupViaToncenter = async () => {
+            const lookupViaToncenterV3 = async () => {
                 const url = `https://toncenter.com/api/v3/jetton/wallets?owner_address=${encodeURIComponent(currentWalletAddress)}&jetton_address=${encodeURIComponent(USDT_JETTON_MASTER)}&limit=1`;
                 const r = await fetch(url);
-                console.log(`[USDT Jetton Lookup] toncenter status: ${r.status}`);
-                if (!r.ok) throw new Error(`toncenter_${r.status}`);
+                if (!r.ok) throw new Error(`toncenterV3_${r.status}`);
                 const j = await r.json();
                 const w = (j?.jetton_wallets || [])[0];
-                if (!w?.address) throw new Error('toncenter_no_address');
+                if (!w?.address) throw new Error('toncenterV3_no_address');
                 return w.address;
             };
+            // Deterministic fallback: ask the jetton master contract to compute
+            // the user's jetton wallet via get_wallet_address get-method. Works
+            // even if the wallet has not been deployed yet — sending will then
+            // fail gracefully on-chain if the user truly has no USDT.
+            const lookupViaTonapiGetMethod = async () => {
+                const url = `https://tonapi.io/v2/blockchain/accounts/${USDT_JETTON_MASTER}/methods/get_wallet_address?args=${encodeURIComponent(currentWalletAddress)}`;
+                const r = await fetch(url);
+                if (!r.ok) throw new Error(`tonapiGM_${r.status}`);
+                const j = await r.json();
+                const addr = j?.decoded?.jetton_wallet_address
+                    || j?.stack?.[0]?.cell
+                    || j?.stack?.[0]?.value
+                    || null;
+                if (!addr) throw new Error('tonapiGM_no_address');
+                return addr;
+            };
             try {
-                console.log(`[USDT Jetton Lookup] Fetching wallet info for ${currentWalletAddress} | Master: ${USDT_JETTON_MASTER}`);
+                console.log(`[USDT Jetton Lookup] Fetching wallet for ${currentWalletAddress} | Master: ${USDT_JETTON_MASTER}`);
                 try {
-                    senderJettonWallet = await lookupViaTonapi();
-                } catch (primaryErr) {
-                    console.warn('[USDT Jetton Lookup] tonapi failed, trying toncenter:', primaryErr.message);
-                    senderJettonWallet = await lookupViaToncenter();
+                    senderJettonWallet = await withRetry('tonapi', lookupViaTonapi);
+                } catch (e1) {
+                    try {
+                        senderJettonWallet = await withRetry('toncenterV3', lookupViaToncenterV3);
+                    } catch (e2) {
+                        senderJettonWallet = await withRetry('tonapi-getmethod', lookupViaTonapiGetMethod);
+                    }
                 }
                 console.log(`[USDT Jetton Lookup] Found jetton wallet: ${senderJettonWallet}`);
             } catch (err) {
                 console.error('[USDT Jetton Lookup] All providers failed:', err.message);
-                // Only treat as "no USDT" when BOTH providers explicitly returned 404 / no address.
-                const isNotInitialized = /404|no_address/.test(err.message);
+                const isNotInitialized = /_404|_no_address/.test(err.message);
                 if (isNotInitialized) {
                     throw new Error('Your wallet has not received any USDT-TON yet. Send some USDT (TON network) to your wallet and try again.');
                 }
