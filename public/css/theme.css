@@ -138,8 +138,10 @@ html { color-scheme: light dark; scrollbar-gutter: stable; }
 body {
 	background: var(--surface-muted);
 	color: var(--text);
-	/* FIX: pad body top so content never slides under the phone status bar */
-	padding-top: env(safe-area-inset-top, 0px);
+	/* Respect BOTH the device safe-area (notch/dynamic island) AND the
+	   Telegram Mini App safe-area variable, so the phone status bar is
+	   never obscured by the page when Telegram extends the viewport. */
+	padding-top: max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px));
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	transition: background-color .2s ease, color .2s ease;
