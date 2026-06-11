@@ -59,18 +59,34 @@
         // theme so the user doesn't see a contrasting dark band on a light app
         // (or a white "fog" on a dark app).
         const barColor = getNativeBarColor();
+        const isDark = currentThemeIsDark();
         // Bottom bar + background follow the app theme so the nav blends in.
         try { webApp.setBottomBarColor && webApp.setBottomBarColor(barColor); } catch (_) {}
         try { webApp.setBackgroundColor && webApp.setBackgroundColor(barColor); } catch (_) {}
-        // Header: let Telegram handle it natively (use 'bg_color' sentinel) so
-        // the status-bar area on the phone doesn't get a hardcoded white/black
-        // band that clashes with the device chrome.
-        try { webApp.setHeaderColor && webApp.setHeaderColor('bg_color'); } catch (_) {}
+        // Header: must match the APP theme (not the user's Telegram theme),
+        // otherwise a light Telegram theme paints a white band behind the phone
+        // status bar and the icons (battery, time) become unreadable — the
+        // "fog" the user reported. Pass an explicit hex tied to our theme so
+        // the OS picks the right status-bar foreground (dark icons on light
+        // app, light icons on dark app).
+        try { webApp.setHeaderColor && webApp.setHeaderColor(isDark ? '#000000' : '#ffffff'); } catch (_) {}
 
         applySafeAreaVars();
         setTimeout(applySafeAreaVars, 80);
         setTimeout(applySafeAreaVars, 350);
         setTimeout(applySafeAreaVars, 900);
+    }
+
+    // Re-sync whenever the app theme flips (light <-> dark) so the Telegram
+    // header band stays in step and the phone status bar icons remain visible.
+    try {
+        window.addEventListener('themechange', function () { try { syncTelegramViewport(); } catch (_) {} });
+        const mo = new MutationObserver(function () { try { syncTelegramViewport(); } catch (_) {} });
+        mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        if (document.body) mo.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+    } catch (_) {}
+    {
+        // no-op block to keep diff scoped
     }
 
     function bindTelegramViewportEvents() {
