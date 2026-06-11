@@ -55,21 +55,12 @@
         // avoids broken safe-area padding and overlapping status bar.
         try { webApp.requestSafeArea && webApp.requestSafeArea(); } catch (_) {}
         try { webApp.requestContentSafeArea && webApp.requestContentSafeArea(); } catch (_) {}
-        // Match Telegram's native top header + bottom navigation bar to the app
-        // theme so the user doesn't see a contrasting dark band on a light app
-        // (or a white "fog" on a dark app).
-        const barColor = getNativeBarColor();
-        const isDark = currentThemeIsDark();
-        // Bottom bar + background follow the app theme so the nav blends in.
-        try { webApp.setBottomBarColor && webApp.setBottomBarColor(barColor); } catch (_) {}
-        try { webApp.setBackgroundColor && webApp.setBackgroundColor(barColor); } catch (_) {}
-        // Header: must match the APP theme (not the user's Telegram theme),
-        // otherwise a light Telegram theme paints a white band behind the phone
-        // status bar and the icons (battery, time) become unreadable — the
-        // "fog" the user reported. Pass an explicit hex tied to our theme so
-        // the OS picks the right status-bar foreground (dark icons on light
-        // app, light icons on dark app).
-        try { webApp.setHeaderColor && webApp.setHeaderColor(isDark ? '#000000' : '#ffffff'); } catch (_) {}
+        // IMPORTANT: Do NOT call setHeaderColor / setBackgroundColor /
+        // setBottomBarColor here. Forcing these in light theme paints a solid
+        // (and on some clients translucent/blurred) band over the phone's
+        // status bar — the "fog" the user reported, which hides the OS
+        // battery / time icons. Let Telegram render its own chrome and let
+        // iOS/Android draw the native status bar above it normally.
 
         applySafeAreaVars();
         setTimeout(applySafeAreaVars, 80);
