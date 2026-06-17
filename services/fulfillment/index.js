@@ -152,6 +152,14 @@ async function tryAutoFulfill(orderOrId, opts = {}) {
         return { triggered: false, reason: 'already in progress' };
     }
 
+    // SECURITY: Never auto-fulfill an order that hasn't been verified on-chain.
+    // This is the last line of defense against testnet orders, replay attacks,
+    // or orders that slipped through without a confirmed blockchain transaction.
+    if (!order.transactionVerified) {
+        await appendLog(order.id, 'warn', 'Auto-fulfill blocked: transactionVerified is false. Payment not confirmed on-chain.');
+        return { triggered: false, reason: 'payment not verified on-chain' };
+    }
+
     // Activation cutoff: never auto-fulfill orders created before auto-fulfill
     // was turned on (admins can still complete them manually). A manual retry
     // bypasses this via opts.bypassActivationCutoff.
