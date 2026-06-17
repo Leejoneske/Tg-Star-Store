@@ -4367,12 +4367,15 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
         }
         console.log(`[${timestamp}] VALIDATION: Ban checks OK. Checking duplicate orders...`);
 
-        // Check for recent duplicate orders
-        const existingOrder = transactionHash ? await BuyOrder.findOne({ transactionHash }) : null;
-        if (existingOrder) {
-            const isRecent = existingOrder.dateCreated && (Date.now() - new Date(existingOrder.dateCreated).getTime()) < 600000;
-            if (isRecent) {
+        // Check for duplicate transaction hash - PERMANENT block (no time window)
+        // A transactionHash must never be used to create more than one order, ever.
+        // Removing the 10-minute window closes the replay attack where the same
+        // on-chain tx could be reused after the window expired.
+        if (transactionHash) {
+            const existingOrder = await BuyOrder.findOne({ transactionHash });
+            if (existingOrder) {
                 processingRequests.delete(requestKey);
+                console.warn(`[${timestamp}] SECURITY: Rejected duplicate transactionHash ${transactionHash.slice(0,20)}... already used by order ${existingOrder.id}`);
                 return res.status(400).json({ error: 'This transaction has already been processed' });
             }
         }
@@ -4439,12 +4442,16 @@ async function processOrderCreationInternal(req, res, telegramId, username, star
 
         // Wallet validation
         console.log(`[${timestamp}] VALIDATION: Wallet validation (testnet=${isTestnet}, admin=${requesterIsAdmin})...`);
-        if (isTestnet === true && !requesterIsAdmin) {
+        // Block testnet: check both boolean true AND string 'true' (covers JSON parsing edge cases)
+        // Also detect testnet wallet addresses by their 't' prefix (tEQ..., tUQ...)
+        const isTestnetWallet = walletAddress && /^t(EQ|UQ)/i.test(walletAddress.trim());
+        if ((isTestnet === true || isTestnet === 'true' || isTestnetWallet) && !requesterIsAdmin) {
             processingRequests.delete(requestKey);
+            console.warn(`[${timestamp}] SECURITY: Testnet order blocked | User: ${telegramId} | isTestnet: ${isTestnet} | wallet: ${walletAddress ? walletAddress.slice(0,20) + '...' : 'N/A'}`);
             const err = new Error('Testnet is not supported');
             err.isValidationError = true;
             err.statusCode = 400;
-            err.responseBody = { error: 'Testnet is not supported' };
+            err.responseBody = { error: 'Testnet is not supported. Please use a mainnet TON wallet.' };
             throw err;
         }
 
