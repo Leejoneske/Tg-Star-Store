@@ -1,5 +1,3 @@
-
-
 require('dotenv').config();
 
 // Process resilience: prevent crash from unhandled background errors (e.g., Mongoose buffer timeouts when DB unavailable in dev)
@@ -3965,11 +3963,26 @@ async function lookupTelegramUsername(name) {
             }
             const text = await resp.text().catch(() => '');
             const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // Extract display name from og:title or tgme_page_title
+            let displayName = null;
+            const ogTitleMatch = text.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i)
+                || text.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/i);
+            if (ogTitleMatch) displayName = ogTitleMatch[1].replace(/\s*on Telegram$/i, '').trim();
+            if (!displayName) {
+                const titleMatch = text.match(/class="tgme_page_title"[^>]*>([^<]+)</i);
+                if (titleMatch) displayName = titleMatch[1].trim();
+            }
+            // Extract photo from og:image
+            let photoUrl = null;
+            const ogImageMatch = text.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
+                || text.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i);
+            if (ogImageMatch && !/\.svg/i.test(ogImageMatch[1])) photoUrl = ogImageMatch[1];
+
             if (resp.ok && (new RegExp(`Telegram: (Contact|Channel|Group).*@${escaped}`, 'i').test(text) || new RegExp(`property="og:title"[^>]+@${escaped}`, 'i').test(text))) {
-                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true };
+                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true, firstName: displayName, photoUrl };
             }
             if (/tgme_page_title|tgme_page_extra|tgme_username_link/i.test(text) && new RegExp(`@${escaped}`, 'i').test(text)) {
-                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true };
+                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true, firstName: displayName, photoUrl };
             }
             return null;
         } catch (_) {
@@ -3998,10 +4011,29 @@ async function lookupTelegramUsername(name) {
         const data = await resp.json().catch(() => ({}));
 
         if (data && data.ok && data.result && data.result.id) {
+            const result = data.result;
+            // Try to get profile photo URL via getFile
+            let photoUrl = null;
+            try {
+                if (result.photo && result.photo.small_file_id) {
+                    const fileResp = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ file_id: result.photo.small_file_id }),
+                    });
+                    const fileData = await fileResp.json().catch(() => ({}));
+                    if (fileData?.ok && fileData?.result?.file_path) {
+                        photoUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileData.result.file_path}`;
+                    }
+                }
+            } catch (_) {}
             const entry = {
                 ok: true,
-                userId: String(data.result.id),
-                type: data.result.type,
+                userId: String(result.id),
+                type: result.type,
+                firstName: result.first_name || null,
+                lastName: result.last_name || null,
+                photoUrl,
                 at: Date.now(),
             };
             usernameLookupCache.set(name, entry);
@@ -4063,8 +4095,8 @@ app.post('/api/validate-usernames', requireTelegramAuth, async (req, res) => {
 
             const lookup = await lookupTelegramUsername(name);
             if (lookup.ok === true) {
-                recipients.push({ username: name, userId: lookup.userId });
-                results.push({ username: name, valid: true, userId: lookup.userId, type: lookup.type });
+                recipients.push({ username: name, userId: lookup.userId, firstName: lookup.firstName || null, lastName: lookup.lastName || null, photoUrl: lookup.photoUrl || null });
+                results.push({ username: name, valid: true, userId: lookup.userId, type: lookup.type, firstName: lookup.firstName || null, lastName: lookup.lastName || null, photoUrl: lookup.photoUrl || null });
             } else if (lookup.ok === false) {
                 results.push({ username: name, valid: false, reason: lookup.reason });
             } else {
