@@ -3950,13 +3950,24 @@ async function lookupTelegramUsername(name) {
         return cached;
     }
 
+    // Helper: fetch with a timeout so we never hang indefinitely
+    async function fetchWithTimeout(url, options, ms = 5000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        try {
+            return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
     async function lookupPublicTelegramPage(username) {
         try {
-            const resp = await fetch(`https://t.me/${encodeURIComponent(username)}`, {
+            const resp = await fetchWithTimeout(`https://t.me/${encodeURIComponent(username)}`, {
                 method: 'GET',
                 redirect: 'manual',
                 headers: { 'User-Agent': 'Mozilla/5.0 StarStore username validation' }
-            });
+            }, 5000);
             const location = resp.headers?.get?.('location') || '';
             if (resp.status >= 300 && resp.status < 400 && /telegram\.org\/?$/i.test(location)) {
                 return { ok: false, reason: 'not_found', at: Date.now(), source: 't.me' };
@@ -4001,67 +4012,83 @@ async function lookupTelegramUsername(name) {
         return { ok: null, reason: 'bot_unavailable', at: Date.now() };
     }
 
-    try {
-        const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/getChat`;
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: '@' + name }),
-        });
-        const data = await resp.json().catch(() => ({}));
+    // Retry the bot API + t.me fallback up to 2 times on transient network errors
+    const MAX_LOOKUP_RETRIES = 2;
+    let lastNetworkError = null;
 
-        if (data && data.ok && data.result && data.result.id) {
-            const result = data.result;
-            // Try to get profile photo URL via getFile
-            let photoUrl = null;
-            try {
-                if (result.photo && result.photo.small_file_id) {
-                    const fileResp = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ file_id: result.photo.small_file_id }),
-                    });
-                    const fileData = await fileResp.json().catch(() => ({}));
-                    if (fileData?.ok && fileData?.result?.file_path) {
-                        photoUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileData.result.file_path}`;
+    for (let attempt = 1; attempt <= MAX_LOOKUP_RETRIES; attempt++) {
+        try {
+            const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/getChat`;
+            const resp = await fetchWithTimeout(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: '@' + name }),
+            }, 6000);
+            const data = await resp.json().catch(() => ({}));
+
+            if (data && data.ok && data.result && data.result.id) {
+                const result = data.result;
+                // Try to get profile photo URL via getFile
+                let photoUrl = null;
+                try {
+                    if (result.photo && result.photo.small_file_id) {
+                        const fileResp = await fetchWithTimeout(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ file_id: result.photo.small_file_id }),
+                        }, 4000);
+                        const fileData = await fileResp.json().catch(() => ({}));
+                        if (fileData?.ok && fileData?.result?.file_path) {
+                            photoUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileData.result.file_path}`;
+                        }
                     }
-                }
-            } catch (_) {}
-            const entry = {
-                ok: true,
-                userId: String(result.id),
-                type: result.type,
-                firstName: result.first_name || null,
-                lastName: result.last_name || null,
-                photoUrl,
-                at: Date.now(),
-            };
-            usernameLookupCache.set(name, entry);
+                } catch (_) {}
+                const entry = {
+                    ok: true,
+                    userId: String(result.id),
+                    type: result.type,
+                    firstName: result.first_name || null,
+                    lastName: result.last_name || null,
+                    photoUrl,
+                    at: Date.now(),
+                };
+                usernameLookupCache.set(name, entry);
+                return entry;
+            }
+
+            // Bot API getChat can fail for valid user usernames the bot has never
+            // interacted with, so confirm with the public t.me page before rejecting.
+            const pageLookup = await lookupPublicTelegramPage(name);
+            if (pageLookup?.ok === true) {
+                usernameLookupCache.set(name, pageLookup);
+                return pageLookup;
+            }
+
+            // Telegram returns 400 with "chat not found" for non-existent usernames
+            const desc = (data && data.description) || '';
+            const notFound = /chat not found|USERNAME_NOT_OCCUPIED|USERNAME_INVALID/i.test(desc);
+            const entry = pageLookup?.ok === false
+                ? pageLookup
+                : { ok: false, reason: notFound ? 'not_found' : (desc || 'unknown_error'), at: Date.now() };
+            // Only cache definitive not-found results to avoid sticky errors
+            if (notFound) usernameLookupCache.set(name, entry);
             return entry;
-        }
 
-        // Bot API getChat can fail for valid user usernames the bot has never
-        // interacted with, so confirm with the public t.me page before rejecting.
-        const pageLookup = await lookupPublicTelegramPage(name);
-        if (pageLookup?.ok === true) {
-            usernameLookupCache.set(name, pageLookup);
-            return pageLookup;
+        } catch (err) {
+            lastNetworkError = err;
+            console.warn(`lookupTelegramUsername attempt ${attempt}/${MAX_LOOKUP_RETRIES} failed for @${name}:`, err && err.message);
+            if (attempt < MAX_LOOKUP_RETRIES) {
+                // Short wait before retry: 800ms first, 1600ms second
+                await new Promise(r => setTimeout(r, 800 * attempt));
+            }
         }
-
-        // Telegram returns 400 with "chat not found" for non-existent usernames
-        const desc = (data && data.description) || '';
-        const notFound = /chat not found|USERNAME_NOT_OCCUPIED|USERNAME_INVALID/i.test(desc);
-        const entry = pageLookup?.ok === false
-            ? pageLookup
-            : { ok: false, reason: notFound ? 'not_found' : (desc || 'unknown_error'), at: Date.now() };
-        // Only cache definitive not-found results to avoid sticky errors
-        if (notFound) usernameLookupCache.set(name, entry);
-        return entry;
-    } catch (err) {
-        console.error('getChat lookup failed for', name, err && err.message);
-        return { ok: null, reason: 'network_error', at: Date.now() };
     }
+
+    // All retries exhausted — return a retryable error, never silently pass
+    console.error(`lookupTelegramUsername: all ${MAX_LOOKUP_RETRIES} attempts failed for @${name}`, lastNetworkError && lastNetworkError.message);
+    return { ok: null, reason: 'network_error', at: Date.now() };
 }
+
 
 app.post('/api/validate-usernames', requireTelegramAuth, async (req, res) => {
     try {
@@ -4100,11 +4127,9 @@ app.post('/api/validate-usernames', requireTelegramAuth, async (req, res) => {
             } else if (lookup.ok === false) {
                 results.push({ username: name, valid: false, reason: lookup.reason });
             } else {
-                // ok === null: bot unavailable / network — fall back to format-only
-                const hash = crypto.createHash('sha256').update(name).digest('hex').slice(0, 12);
-                const userId = 'u_' + hash;
-                recipients.push({ username: name, userId, unverified: true });
-                results.push({ username: name, valid: true, userId, unverified: true });
+                // ok === null: transient network/bot error after all retries — do NOT silently pass.
+                // Return a retriable error so the frontend can retry automatically.
+                results.push({ username: name, valid: false, reason: 'retry_later' });
             }
         }
 
