@@ -3175,20 +3175,6 @@ async function validateRecipients(containerId) {
 
     }
 }
-        // Show user-friendly error message
-        container.querySelectorAll('input').forEach(input => {
-            const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
-            if (statusEl) {
-                statusEl.textContent = TranslationUtils.get('validationError') || 'Validation failed';
-                statusEl.className = 'text-xs text-red-600';
-            }
-        });
-        const detail = { count: 0 };
-        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
-        return { recipients: [] };
-
-    }
-}
 
 // Helper function to update validation status
 function updateValidationStatus(container, result) {
