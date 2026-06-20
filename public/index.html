@@ -2783,13 +2783,51 @@ function buildRecipientInput(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
+    // Fragment-style profile card shown below the input when valid
+    function renderProfileCard(idx, profile) {
+        const existing = container.querySelector(`.profile-card[data-card="${idx}"]`);
+        if (existing) existing.remove();
+        if (!profile) return;
+        const card = document.createElement('div');
+        card.className = 'profile-card';
+        card.setAttribute('data-card', idx);
+        card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #c7e0ff;border-radius:10px;margin-top:6px;';
+        const avatarHtml = profile.photoUrl
+            ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`
+            : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`;
+        const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username;
+        card.innerHTML = `
+            ${avatarHtml}
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</div>
+                <div style="font-size:12px;color:#555;">@${profile.username}</div>
+            </div>
+            <svg style="width:18px;height:18px;color:#22c55e;flex-shrink:0;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+        `;
+        // insert card right after the row it belongs to
+        const row = container.querySelector(`div[data-row-idx="${idx}"]`);
+        if (row && row.nextSibling) {
+            container.insertBefore(card, row.nextSibling);
+        } else {
+            container.appendChild(card);
+        }
+    }
+
+    function clearProfileCard(idx) {
+        const existing = container.querySelector(`.profile-card[data-card="${idx}"]`);
+        if (existing) existing.remove();
+    }
+
     const makeRow = (idx) => {
         const row = document.createElement('div');
         row.className = 'flex items-center gap-2';
+        row.setAttribute('data-row-idx', idx);
         row.innerHTML = `
-            <input type="text" class="flex-1 px-3 py-2 border rounded-md text-sm" placeholder="@username" data-idx="${idx}" />
-            <span class="text-xs text-gray-500" data-status="${idx}"></span>
-            <button class="px-2 py-2 text-xs border rounded-md" data-remove="${idx}">Remove</button>
+            <div style="flex:1;position:relative;">
+                <input type="text" class="flex-1 px-3 py-2 border rounded-md text-sm" style="width:100%;box-sizing:border-box;" placeholder="@username" data-idx="${idx}" />
+                <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;" data-status="${idx}"></span>
+            </div>
+            <button style="padding:7px 10px;font-size:12px;border:1px solid #e0e0e0;border-radius:8px;background:#f9f9f9;color:#666;cursor:pointer;white-space:nowrap;flex-shrink:0;" data-remove="${idx}">✕</button>
         `;
         return row;
     };
@@ -2812,8 +2850,9 @@ function buildRecipientInput(containerId) {
 
         let debounceTimer = null;
         input.addEventListener('input', () => {
+            clearProfileCard(idx);
             status.textContent = '';
-            status.className = 'text-xs text-gray-500';
+            status.style.color = '#999';
             if (debounceTimer) clearTimeout(debounceTimer);
 
             const raw = normalizeTelegramUsername(input.value);
@@ -2822,48 +2861,56 @@ function buildRecipientInput(containerId) {
                 return;
             }
 
-            // Telegram username rules: 5-32 chars, [a-zA-Z0-9_], must start
-            // with a letter, cannot end with underscore, no double underscores.
             if (!isTelegramUsernameFormatValid(raw)) {
-                status.textContent = TranslationUtils.get('invalidUsernameFormat') || 'Invalid username';
-                status.className = 'text-xs text-red-600';
+                status.textContent = '✕ Invalid format';
+                status.style.color = '#dc2626';
                 window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
                 return;
             }
 
-            status.textContent = TranslationUtils.get('checkingUsername') || 'Checking…';
-            status.className = 'text-xs text-gray-500';
+            status.textContent = '⏳';
+            status.style.color = '#999';
 
             debounceTimer = setTimeout(async () => {
                 if (window.buyPageState.isValidating) return;
                 window.buyPageState.isValidating = true;
                 try {
-                    // Server-side existence check via Telegram (preferred)
                     const result = await validateRecipients(containerId);
+                    const matched = (result?.recipients || []).find(r => normalizeTelegramUsername(r.username) === raw);
                     const resultRow = (result?.results || []).find(r => normalizeTelegramUsername(r.username) === raw);
-                    const matched = (result?.recipients || []).some(r => normalizeTelegramUsername(r.username) === raw);
                     if (matched) {
-                        status.textContent = TranslationUtils.get('validUsername') || 'Valid';
-                        status.className = 'text-xs text-green-600';
+                        status.textContent = '';
+                        // Show Fragment-style profile card
+                        renderProfileCard(idx, {
+                            username: matched.username,
+                            firstName: matched.firstName || null,
+                            lastName: matched.lastName || null,
+                            photoUrl: matched.photoUrl || null,
+                        });
                     } else {
-                        status.textContent = resultRow?.reason === 'not_found'
-                            ? (TranslationUtils.get('usernameNotFound') || 'Username not found on Telegram')
-                            : (TranslationUtils.get('invalidUsernameFormat') || 'Invalid username');
-                        status.className = 'text-xs text-red-600';
+                        clearProfileCard(idx);
+                        const reason = resultRow?.reason;
+                        status.textContent = reason === 'not_found'
+                            ? '✕ Not found'
+                            : reason === 'duplicate'
+                            ? '✕ Duplicate'
+                            : '✕ Invalid';
+                        status.style.color = '#dc2626';
                         window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
                     }
                 } catch (error) {
                     console.error('Error validating recipients:', error);
-                    status.textContent = TranslationUtils.get('validationError') || 'Validation failed. Please try again.';
-                    status.className = 'text-xs text-red-600';
+                    status.textContent = '⚠ Retry';
+                    status.style.color = '#dc2626';
                 } finally {
                     window.buyPageState.isValidating = false;
                 }
-            }, 600);
+            }, 700);
         });
 
         removeBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            clearProfileCard(idx);
             container.removeChild(row);
             state.rows = state.rows.filter(r => r !== idx);
             await validateRecipients(containerId);
@@ -2910,36 +2957,39 @@ function initRecipientsUI() {
     // Update package button text and validation based on "buy for" selection
     function updatePackageButtons() {
         const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value || 'self';
-        const packageButtons = document.querySelectorAll('.package-btn');
+        // Select all star package buy buttons (they have data-item with stars field, inside starsSection)
+        const packageButtons = document.querySelectorAll('#starsSection button[data-item]');
         
         packageButtons.forEach(btn => {
             try {
                 const itemData = JSON.parse(btn.getAttribute('data-item'));
                 const stars = itemData.stars;
+                if (itemData.isPremium) return; // skip premium buttons
                 
                 if (buyForValue === 'others') {
                     // For buying for others, only allow packages >= 50 stars
                     if (stars < 50) {
                         btn.disabled = true;
-                        btn.textContent = TranslationUtils.get('min50ForOthers') || 'Min 50 for others';
-                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                        btn.style.opacity = '0.45';
+                        btn.style.cursor = 'not-allowed';
+                        btn.querySelector('span') && (btn.querySelector('span').textContent = 'Min 50 ⭐');
                     } else {
                         btn.disabled = false;
-                        btn.textContent = TranslationUtils.get('buyGiftCta') || 'Buy Gift';
-                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        btn.style.opacity = '';
+                        btn.style.cursor = '';
+                        btn.querySelector('span') && (btn.querySelector('span').textContent = '🎁 Gift');
                     }
                 } else {
-                    // For self-purchase, allow all packages
                     btn.disabled = false;
-                    btn.textContent = TranslationUtils.get('buyNowCta') || 'Buy Now';
-                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.style.opacity = '';
+                    btn.style.cursor = '';
+                    // Restore original label from data-translate
+                    const key = btn.getAttribute('data-translate');
+                    const label = key === 'buygift' ? 'Buy' : 'Buy';
+                    btn.querySelector('span') && (btn.querySelector('span').textContent = label);
                 }
             } catch (error) {
                 console.error('Error updating package button:', error);
-                // Default to enabled state for self-purchase
-                btn.disabled = false;
-                btn.textContent = TranslationUtils.get('buyNowCta') || 'Buy Now';
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         });
     }
@@ -3044,16 +3094,19 @@ async function validateRecipients(containerId) {
             const mapByName = new Map(results.map(r => [normalizeTelegramUsername(r.username), r]));
             container.querySelectorAll('input').forEach(input => {
                 const name = normalizeTelegramUsername(input.value);
-                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+                const idx = input.getAttribute('data-idx');
+                const statusEl = container.querySelector(`span[data-status="${idx}"]`);
                 if (!statusEl) return;
                 const r = mapByName.get(name);
                 if (r?.valid) {
-                    valid.push({ username: r.username, userId: r.userId });
-                    statusEl.textContent = 'Valid';
-                    statusEl.className = 'text-xs text-green-600';
+                    valid.push({ username: r.username, userId: r.userId, firstName: r.firstName || null, lastName: r.lastName || null, photoUrl: r.photoUrl || null });
+                    statusEl.textContent = '';
+                    _renderProfileCardGlobal(container, idx, { username: r.username, firstName: r.firstName || null, lastName: r.lastName || null, photoUrl: r.photoUrl || null });
                 } else {
-                    statusEl.textContent = r?.reason === 'not_found' ? 'Username not found on Telegram' : 'Invalid';
-                    statusEl.className = 'text-xs text-red-600';
+                    const existing = container.querySelector(`.profile-card[data-card="${idx}"]`);
+                    if (existing) existing.remove();
+                    statusEl.textContent = r?.reason === 'not_found' ? '✕ Not found' : r?.reason === 'duplicate' ? '✕ Duplicate' : '✕ Invalid';
+                    statusEl.style.color = '#dc2626';
                 }
             });
             const detail = { count: valid.length };
@@ -3113,17 +3166,63 @@ function updateValidationStatus(container, result) {
     const resultByName = new Map((result.results || []).map(r => [normalizeTelegramUsername(r.username), r]));
     container.querySelectorAll('input').forEach(input => {
         const name = normalizeTelegramUsername(input.value);
-        const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+        const idx = input.getAttribute('data-idx');
+        const statusEl = container.querySelector(`span[data-status="${idx}"]`);
         if (!statusEl) return;
-        if (mapByName.has(name)) {
-            statusEl.textContent = 'Valid';
-            statusEl.className = 'text-xs text-green-600';
+        const recipient = mapByName.get(name);
+        if (recipient) {
+            statusEl.textContent = '';
+            // Render profile card if not already shown
+            if (!container.querySelector(`.profile-card[data-card="${idx}"]`)) {
+                // buildRecipientInput's renderProfileCard is scoped — call global helper
+                _renderProfileCardGlobal(container, idx, {
+                    username: recipient.username,
+                    firstName: recipient.firstName || null,
+                    lastName: recipient.lastName || null,
+                    photoUrl: recipient.photoUrl || null,
+                });
+            }
         } else {
+            // Clear any stale profile card
+            const existing = container.querySelector(`.profile-card[data-card="${idx}"]`);
+            if (existing) existing.remove();
             const row = resultByName.get(name);
-            statusEl.textContent = row?.reason === 'not_found' ? 'Username not found on Telegram' : 'Invalid';
-            statusEl.className = 'text-xs text-red-600';
+            const reason = row?.reason;
+            statusEl.textContent = reason === 'not_found' ? '✕ Not found'
+                : reason === 'duplicate' ? '✕ Duplicate'
+                : name ? '✕ Invalid' : '';
+            statusEl.style.color = '#dc2626';
         }
     });
+}
+
+// Global helper so updateValidationStatus can render profile cards
+function _renderProfileCardGlobal(container, idx, profile) {
+    const existing = container.querySelector(`.profile-card[data-card="${idx}"]`);
+    if (existing) existing.remove();
+    if (!profile) return;
+    const card = document.createElement('div');
+    card.className = 'profile-card';
+    card.setAttribute('data-card', idx);
+    card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #c7e0ff;border-radius:10px;margin-top:6px;';
+    const avatarHtml = profile.photoUrl
+        ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`
+        : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`;
+    const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username;
+    card.innerHTML = `
+        ${avatarHtml}
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</div>
+            <div style="font-size:12px;color:#555;">@${profile.username}</div>
+        </div>
+        <svg style="width:18px;height:18px;color:#22c55e;flex-shrink:0;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+    `;
+    const row = container.querySelector(`div[data-row-idx="${idx}"]`);
+    if (row && row.nextSibling) {
+        container.insertBefore(card, row.nextSibling);
+    } else {
+        container.appendChild(card);
+    }
 }
 
 function initCustomStars() {
