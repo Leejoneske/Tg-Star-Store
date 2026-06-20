@@ -2875,7 +2875,21 @@ function buildRecipientInput(containerId) {
                 if (window.buyPageState.isValidating) return;
                 window.buyPageState.isValidating = true;
                 try {
-                    const result = await validateRecipients(containerId);
+                    // Auto-retry up to 2 times if server hits a transient network error
+                    const MAX_RETRIES = 2;
+                    let result = null;
+                    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                        result = await validateRecipients(containerId);
+                        const resultRow = (result?.results || []).find(r => normalizeTelegramUsername(r.username) === raw);
+                        // If this username got retry_later, wait and try again
+                        if (resultRow?.reason === 'retry_later' && attempt < MAX_RETRIES) {
+                            status.textContent = '⏳ Checking…';
+                            status.style.color = '#999';
+                            await new Promise(r => setTimeout(r, 1500));
+                            continue;
+                        }
+                        break;
+                    }
                     const matched = (result?.recipients || []).find(r => normalizeTelegramUsername(r.username) === raw);
                     const resultRow = (result?.results || []).find(r => normalizeTelegramUsername(r.username) === raw);
                     if (matched) {
@@ -2890,18 +2904,36 @@ function buildRecipientInput(containerId) {
                     } else {
                         clearProfileCard(idx);
                         const reason = resultRow?.reason;
-                        status.textContent = reason === 'not_found'
-                            ? '✕ Not found'
-                            : reason === 'duplicate'
-                            ? '✕ Duplicate'
-                            : '✕ Invalid';
-                        status.style.color = '#dc2626';
+                        if (reason === 'retry_later') {
+                            status.textContent = '⚠ Check failed — tap to retry';
+                            status.style.color = '#f59e0b';
+                            // Allow clicking the status to re-trigger validation
+                            status.style.cursor = 'pointer';
+                            status.onclick = () => {
+                                status.onclick = null;
+                                status.style.cursor = '';
+                                input.dispatchEvent(new Event('input'));
+                            };
+                        } else {
+                            status.textContent = reason === 'not_found'
+                                ? '✕ Not found'
+                                : reason === 'duplicate'
+                                ? '✕ Duplicate'
+                                : '✕ Invalid';
+                            status.style.color = '#dc2626';
+                        }
                         window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
                     }
                 } catch (error) {
                     console.error('Error validating recipients:', error);
-                    status.textContent = '⚠ Retry';
-                    status.style.color = '#dc2626';
+                    status.textContent = '⚠ Check failed — tap to retry';
+                    status.style.color = '#f59e0b';
+                    status.style.cursor = 'pointer';
+                    status.onclick = () => {
+                        status.onclick = null;
+                        status.style.cursor = '';
+                        input.dispatchEvent(new Event('input'));
+                    };
                 } finally {
                     window.buyPageState.isValidating = false;
                 }
@@ -3114,37 +3146,35 @@ async function validateRecipients(containerId) {
             return { recipients: valid, results };
         }
 
-        // Endpoint unavailable (no backend / network error) — fall back to
-        // strict format validation so users can still proceed.
+        // Endpoint unavailable (no backend / network error) — mark as retry_later,
+        // never silently pass format-only validation.
         const status = e?.response?.status;
         const endpointMissing = !status || status === 404 || status === 405 || status >= 500;
         if (endpointMissing) {
-            const valid = [];
             const fallbackResults = [];
             container.querySelectorAll('input').forEach(input => {
                 const name = normalizeTelegramUsername(input.value);
-                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
-                const formatOk = isTelegramUsernameFormatValid(name);
-                if (formatOk) {
-                    const hash = Array.from(name).reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
-                    const userId = 'u_' + Math.abs(hash).toString(16);
-                    valid.push({ username: name, userId, unverified: true });
-                    fallbackResults.push({ username: name, valid: true, userId, unverified: true });
-                    if (statusEl) {
-                        statusEl.textContent = 'Valid';
-                        statusEl.className = 'text-xs text-green-600';
-                    }
-                } else if (statusEl) {
-                    fallbackResults.push({ username: name, valid: false, reason: 'invalid_format' });
-                    statusEl.textContent = 'Invalid username';
-                    statusEl.className = 'text-xs text-red-600';
-                }
+                if (name) fallbackResults.push({ username: name, valid: false, reason: 'retry_later' });
             });
-            const detail = { count: valid.length };
+            const detail = { count: 0 };
             window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
-            return { recipients: valid, results: fallbackResults };
+            return { recipients: [], results: fallbackResults };
         }
 
+        // Show user-friendly error message
+        container.querySelectorAll('input').forEach(input => {
+            const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+            if (statusEl) {
+                statusEl.textContent = TranslationUtils.get('validationError') || 'Validation failed';
+                statusEl.className = 'text-xs text-red-600';
+            }
+        });
+        const detail = { count: 0 };
+        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+        return { recipients: [] };
+
+    }
+}
         // Show user-friendly error message
         container.querySelectorAll('input').forEach(input => {
             const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
