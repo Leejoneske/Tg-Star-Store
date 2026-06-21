@@ -209,22 +209,39 @@ async function tryAutoFulfill(orderOrId, opts = {}) {
         return { triggered: false, reason: 'already claimed by another worker' };
     }
 
-    const username = sanitizeUsername(order.username);
-
-    async function callProvider(providerId) {
-        const provider = getProvider(providerId);
+    // Build the list of fulfillment targets.
+    // For "buy for others" orders each recipient gets their own delivery.
+    // For self-purchase orders the single target is the buyer's own username.
+    let targets; // Array of { username, quantity (stars) | months (premium) }
+    if (order.isBuyForOthers && Array.isArray(order.recipients) && order.recipients.length > 0) {
         if (order.isPremium) {
-            return provider.fulfillPremium({
-                username,
+            targets = order.recipients.map(r => ({
+                username: r.username,
                 months: Number(order.premiumDurationPerRecipient || order.premiumDuration),
-                orderId: order.id,
-            });
+            }));
+        } else {
+            targets = order.recipients.map(r => ({
+                username: r.username,
+                quantity: Number(r.starsReceived || order.starsPerRecipient),
+            }));
         }
-        return provider.fulfillStars({
-            username,
-            quantity: Number(order.starsPerRecipient || order.stars),
-            orderId: order.id,
-        });
+    } else {
+        // Self-purchase — single target is the buyer
+        const buyerUsername = sanitizeUsername(order.username);
+        if (order.isPremium) {
+            targets = [{ username: buyerUsername, months: Number(order.premiumDurationPerRecipient || order.premiumDuration) }];
+        } else {
+            targets = [{ username: buyerUsername, quantity: Number(order.starsPerRecipient || order.stars) }];
+        }
+    }
+
+    async function callProviderForTarget(providerId, target) {
+        const provider = getProvider(providerId);
+        const username = sanitizeUsername(target.username);
+        if (order.isPremium) {
+            return provider.fulfillPremium({ username, months: target.months, orderId: order.id });
+        }
+        return provider.fulfillStars({ username, quantity: target.quantity, orderId: order.id });
     }
 
     // Try primary, then fallback (if configured and different from primary/manual)
@@ -257,43 +274,95 @@ async function tryAutoFulfill(orderOrId, opts = {}) {
         return { triggered: false, reason: 'no configured providers (missing env vars)' };
     }
 
+    // Fulfill each target (recipient) in sequence.
+    // We track per-recipient results so partial failures surface clearly.
+    const recipientResults = []; // { username, ok, providerRef, status, error }
+    let usedProviderId = primaryId;
 
-    let lastError = null;
-    for (const providerId of tryOrder) {
-        await appendLog(order.id, 'info', `Auto-fulfill attempt via ${providerId} (try #${claimed.fulfillmentAttempts})`);
-        try {
-            const result = await callProvider(providerId);
-            await ctx.BuyOrder.findOneAndUpdate(
-                { id: order.id },
-                {
-                    $set: {
-                        fulfillmentProvider: providerId,
-                        fulfillmentRef: result.providerRef || null,
-                        fulfillmentStatus: result.status || FULFILLMENT_STATUS.IN_PROGRESS,
-                        fulfillmentError: null,
-                    },
-                }
-            );
-            await appendLog(order.id, 'info', `Provider ${providerId} accepted. Ref=${result.providerRef || '-'} status=${result.status}`);
-            if (result.status === FULFILLMENT_STATUS.COMPLETED) {
-                await markOrderCompleted(order.id, providerId);
+    for (const target of targets) {
+        let targetSuccess = false;
+        let lastTargetError = null;
+
+        for (const providerId of tryOrder) {
+            await appendLog(order.id, 'info', `Fulfilling @${target.username} via ${providerId} (try #${claimed.fulfillmentAttempts})`);
+            try {
+                const result = await callProviderForTarget(providerId, target);
+                usedProviderId = providerId;
+                await appendLog(order.id, 'info', `@${target.username}: provider ${providerId} accepted. Ref=${result.providerRef || '-'} status=${result.status}`);
+                recipientResults.push({ username: target.username, ok: true, providerRef: result.providerRef || null, status: result.status });
+                targetSuccess = true;
+                break;
+            } catch (err) {
+                lastTargetError = err;
+                const errMsg = String(err.message || err).slice(0, 500);
+                await appendLog(order.id, 'warn', `@${target.username}: provider ${providerId} failed: ${errMsg}`);
             }
-            return { triggered: true, providerId, status: result.status, failoverUsed: providerId !== primaryId };
-        } catch (err) {
-            lastError = err;
-            const errMsg = String(err.message || err).slice(0, 500);
-            await appendLog(order.id, 'warn', `Provider ${providerId} failed: ${errMsg}`);
+        }
+
+        if (!targetSuccess) {
+            recipientResults.push({ username: target.username, ok: false, error: String(lastTargetError?.message || lastTargetError || 'unknown').slice(0, 300) });
         }
     }
 
-    // All providers failed
-    const errMsg = String(lastError?.message || lastError || 'unknown').slice(0, 500);
+    // Assess overall outcome
+    const allSucceeded = recipientResults.every(r => r.ok);
+    const anySucceeded = recipientResults.some(r => r.ok);
+    const failedRecipients = recipientResults.filter(r => !r.ok);
+    const succeededRecipients = recipientResults.filter(r => r.ok);
+
+    // Compose a fulfillmentRef summarising all provider refs (comma-separated)
+    const combinedRef = recipientResults
+        .filter(r => r.providerRef)
+        .map(r => `${r.username}:${r.providerRef}`)
+        .join(',') || null;
+
+    if (allSucceeded) {
+        const allCompleted = recipientResults.every(r => r.status === FULFILLMENT_STATUS.COMPLETED);
+        await ctx.BuyOrder.findOneAndUpdate(
+            { id: order.id },
+            {
+                $set: {
+                    fulfillmentProvider: usedProviderId,
+                    fulfillmentRef: combinedRef,
+                    fulfillmentStatus: allCompleted ? FULFILLMENT_STATUS.COMPLETED : FULFILLMENT_STATUS.IN_PROGRESS,
+                    fulfillmentError: null,
+                },
+            }
+        );
+        if (allCompleted) {
+            await markOrderCompleted(order.id, usedProviderId);
+        }
+        return { triggered: true, providerId: usedProviderId, status: allCompleted ? FULFILLMENT_STATUS.COMPLETED : FULFILLMENT_STATUS.IN_PROGRESS, failoverUsed: usedProviderId !== primaryId };
+    }
+
+    if (anySucceeded) {
+        // Partial failure — some recipients delivered, some not
+        const errSummary = failedRecipients.map(r => `@${r.username}: ${r.error}`).join('; ');
+        const okSummary = succeededRecipients.map(r => `@${r.username}`).join(', ');
+        await ctx.BuyOrder.findOneAndUpdate(
+            { id: order.id },
+            {
+                $set: {
+                    fulfillmentProvider: usedProviderId,
+                    fulfillmentRef: combinedRef,
+                    fulfillmentStatus: FULFILLMENT_STATUS.FAILED,
+                    fulfillmentError: `Partial: delivered to ${okSummary}. Failed: ${errSummary}`,
+                },
+            }
+        );
+        await appendLog(order.id, 'error', `Partial fulfillment: ${succeededRecipients.length}/${targets.length} delivered. Failed: ${errSummary}`);
+        await notifyAdmins(`⚠️ Partial auto-fulfill failure\nOrder #${order.id}\nDelivered to: ${okSummary}\nFailed:\n${failedRecipients.map(r => `  @${r.username}: ${r.error}`).join('\n')}\n\nManual action needed for failed recipients.`);
+        return { triggered: true, providerId: usedProviderId, status: FULFILLMENT_STATUS.FAILED, partialFailure: true, failedRecipients };
+    }
+
+    // All recipients failed
+    const errMsg = failedRecipients.map(r => `@${r.username}: ${r.error}`).join('; ').slice(0, 500);
     await ctx.BuyOrder.findOneAndUpdate(
         { id: order.id },
         { $set: { fulfillmentStatus: FULFILLMENT_STATUS.FAILED, fulfillmentError: errMsg } }
     );
-    await appendLog(order.id, 'error', `All providers failed. Last error: ${errMsg}`);
-    await notifyAdmins(`⚠️ Auto-fulfill failed (primary + fallback)\nOrder #${order.id}\nTried: ${tryOrder.join(', ')}\nError: ${errMsg}\n\nManual action may be needed.`);
+    await appendLog(order.id, 'error', `All providers failed for all recipients. ${errMsg}`);
+    await notifyAdmins(`⚠️ Auto-fulfill failed (primary + fallback)\nOrder #${order.id}\nTried: ${tryOrder.join(', ')}\nRecipients: ${targets.map(t => `@${t.username}`).join(', ')}\nError: ${errMsg}\n\nManual action may be needed.`);
     return { triggered: true, providerId: primaryId, status: FULFILLMENT_STATUS.FAILED, error: errMsg };
 }
 
