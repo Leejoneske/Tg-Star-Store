@@ -2808,23 +2808,92 @@ fulfillmentService.init({
         try {
             const order = await BuyOrder.findOne({ id: orderId });
             if (!order) return;
+
+            // Mark completed if not already
             if (order.status !== 'completed') {
                 order.status = 'completed';
                 order.dateCompleted = new Date();
+                // Record that this was auto-fulfilled by the system, not a human admin
+                order.processingAdmin = { id: 'SYSTEM', username: 'SYSTEM' };
                 await order.save();
             }
+
+            // Track stars / premium activation (same as human admin complete)
             try {
                 if (order.isPremium) await trackPremiumActivation(order.telegramId);
                 else if (order.stars) await trackStars(order.telegramId, order.stars, 'buy');
             } catch (trackErr) {
                 console.error(`[fulfillment] tracking error for #${order.id}:`, trackErr.message);
             }
+
+            // Handle recipient gift notifications for "buy for others" orders
+            if (order.isBuyForOthers && Array.isArray(order.recipients) && order.recipients.length > 0) {
+                for (const recipient of order.recipients) {
+                    try {
+                        const template = await NotificationTemplate.create({
+                            title: 'Gift Received! 🎁',
+                            message: `You received ${order.isPremium ? `${order.premiumDurationPerRecipient} months Premium` : `${recipient.starsReceived} Stars`} from @${order.username}!`,
+                            audience: 'user',
+                            targetUserId: recipient.userId || 'anonymous',
+                            icon: 'fa-gift',
+                            priority: 1,
+                            createdBy: 'system_gift',
+                        });
+                        await UserNotification.create({ userId: recipient.userId || 'anonymous', templateId: template._id, read: false });
+                    } catch (notifErr) {
+                        console.error(`[fulfillment] gift notification error for ${recipient.username}:`, notifErr.message);
+                    }
+                }
+            }
+
+            // Notify the buyer
             try {
-                const item = order.isPremium ? `${order.premiumDuration}mo Premium` : `${order.stars} Stars`;
-                await bot.sendMessage(order.telegramId, `✅ Order #${order.id} delivered automatically.\n${item} sent to @${order.username}.`);
+                const item = order.isPremium
+                    ? `${order.premiumDuration}mo Premium`
+                    : `${order.stars} Stars`;
+                const recipientNote = order.isBuyForOthers && order.recipients?.length
+                    ? `\nDelivered to: ${order.recipients.map(r => `@${r.username}`).join(', ')}`
+                    : `\n${item} sent to @${order.username}.`;
+                await bot.sendMessage(order.telegramId, `✅ Order #${order.id} has been delivered automatically.\n${recipientNote}\n\nThank you for choosing StarStore!`);
             } catch (_) {}
-            for (const adminId of adminIds) {
-                try { await bot.sendMessage(adminId, `🤖 Auto-fulfilled order #${order.id} via ${providerId}.`); } catch (_) {}
+
+            // Update ALL admin message panels to show "✅ Completed — Processed by: SYSTEM"
+            // This removes the Login/Complete/Decline buttons so admins don't need to touch it.
+            if (Array.isArray(order.adminMessages) && order.adminMessages.length > 0) {
+                const statusText = '✅ Completed';
+                const processedBy = 'Processed by: 🤖 SYSTEM (auto-fulfilled via ' + providerId + ')';
+                const staticButton = {
+                    inline_keyboard: [[{
+                        text: '✅ Completed (Auto)',
+                        callback_data: `processed_${order.id}_${Date.now()}`,
+                    }]],
+                };
+                await Promise.allSettled(order.adminMessages.map(async (adminMsg) => {
+                    try {
+                        const updatedText = `${adminMsg.originalText}\n\n${statusText}\n${processedBy}`;
+                        if (updatedText.length <= 4000) {
+                            await bot.editMessageText(updatedText, {
+                                chat_id: adminMsg.adminId,
+                                message_id: adminMsg.messageId,
+                                reply_markup: staticButton,
+                            });
+                        } else {
+                            // Text too long — just replace the buttons
+                            await bot.editMessageReplyMarkup(staticButton, {
+                                chat_id: adminMsg.adminId,
+                                message_id: adminMsg.messageId,
+                            });
+                        }
+                    } catch (editErr) {
+                        // Message may have been deleted or is too old — not critical
+                        console.warn(`[fulfillment] could not update admin message for order #${order.id}:`, editErr.message);
+                    }
+                }));
+            } else {
+                // No admin messages stored — fall back to plain notification
+                for (const adminId of adminIds) {
+                    try { await bot.sendMessage(adminId, `🤖 Auto-fulfilled order #${order.id} via ${providerId}.\n✅ Completed by SYSTEM`); } catch (_) {}
+                }
             }
         } catch (err) {
             console.error('[fulfillment] onAutoComplete handler error:', err.message);
