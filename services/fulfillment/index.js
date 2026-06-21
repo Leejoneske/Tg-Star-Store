@@ -310,11 +310,23 @@ async function tryAutoFulfill(orderOrId, opts = {}) {
     const failedRecipients = recipientResults.filter(r => !r.ok);
     const succeededRecipients = recipientResults.filter(r => r.ok);
 
-    // Compose a fulfillmentRef summarising all provider refs (comma-separated)
-    const combinedRef = recipientResults
-        .filter(r => r.providerRef)
-        .map(r => `${r.username}:${r.providerRef}`)
-        .join(',') || null;
+    // fulfillmentRef = first provider ref (kept simple for webhook lookup backward-compat).
+    // Per-recipient refs are stored on the recipients array entries themselves.
+    const primaryRef = recipientResults.find(r => r.providerRef)?.providerRef || null;
+
+    // Stamp each recipient entry in the order with its individual providerRef so
+    // the webhook can find the order even when multiple recipients were fulfilled.
+    if (order.isBuyForOthers && Array.isArray(order.recipients) && order.recipients.length > 0) {
+        const refMap = new Map(recipientResults.map(r => [r.username, r.providerRef || null]));
+        await ctx.BuyOrder.findOneAndUpdate(
+            { id: order.id },
+            {
+                $set: Object.fromEntries(
+                    order.recipients.map((r, i) => [`recipients.${i}.providerRef`, refMap.get(r.username) || null])
+                ),
+            }
+        );
+    }
 
     if (allSucceeded) {
         const allCompleted = recipientResults.every(r => r.status === FULFILLMENT_STATUS.COMPLETED);
@@ -323,7 +335,7 @@ async function tryAutoFulfill(orderOrId, opts = {}) {
             {
                 $set: {
                     fulfillmentProvider: usedProviderId,
-                    fulfillmentRef: combinedRef,
+                    fulfillmentRef: primaryRef,
                     fulfillmentStatus: allCompleted ? FULFILLMENT_STATUS.COMPLETED : FULFILLMENT_STATUS.IN_PROGRESS,
                     fulfillmentError: null,
                 },
@@ -405,10 +417,17 @@ async function handleWebhook(providerId, rawBody, signatureHeader) {
         return { ok: true, ignored: true };
     }
 
-    const query = evt.externalId
-        ? { id: evt.externalId }
-        : { fulfillmentRef: evt.providerRef };
-    const order = await ctx.BuyOrder.findOne(query);
+    let order = null;
+    if (evt.externalId) {
+        order = await ctx.BuyOrder.findOne({ id: evt.externalId });
+    } else if (evt.providerRef) {
+        // Primary lookup: direct fulfillmentRef match (single recipient or self-purchase)
+        order = await ctx.BuyOrder.findOne({ fulfillmentRef: evt.providerRef });
+        // Fallback: search inside per-recipient providerRef entries (multi-recipient orders)
+        if (!order) {
+            order = await ctx.BuyOrder.findOne({ 'recipients.providerRef': evt.providerRef });
+        }
+    }
     if (!order) return { ok: true, ignored: true, reason: 'order not found' };
 
     await appendLog(order.id, 'info', `Webhook ${providerId}: status=${evt.status}`);
@@ -457,34 +476,51 @@ async function runRetryTick() {
         }).limit(20);
 
         for (const order of stuck) {
-            if (order.fulfillmentRef && order.fulfillmentProvider) {
+            if (order.fulfillmentProvider) {
                 const p = providers[order.fulfillmentProvider];
                 if (p?.getStatus) {
-                    try {
-                        const s = await p.getStatus(order.fulfillmentRef);
-                        if (s.status === FULFILLMENT_STATUS.COMPLETED) {
-                            await markOrderCompleted(order.id, order.fulfillmentProvider);
-                            continue;
-                        }
-                        if (s.status === FULFILLMENT_STATUS.FAILED) {
-                            await ctx.BuyOrder.findOneAndUpdate(
-                                { id: order.id },
-                                { $set: { fulfillmentStatus: FULFILLMENT_STATUS.FAILED, fulfillmentError: 'poll: provider reported failure' } }
+                    // For multi-recipient orders poll each recipient ref individually.
+                    // For self-purchase poll the single fulfillmentRef.
+                    const refsToCheck = (order.isBuyForOthers && Array.isArray(order.recipients) && order.recipients.length > 0)
+                        ? order.recipients.filter(r => r.providerRef).map(r => r.providerRef)
+                        : (order.fulfillmentRef ? [order.fulfillmentRef] : []);
+
+                    if (refsToCheck.length > 0) {
+                        try {
+                            const statuses = await Promise.all(
+                                refsToCheck.map(ref => p.getStatus(ref).catch(() => ({ status: FULFILLMENT_STATUS.IN_PROGRESS })))
                             );
-                            continue;
+                            const allDone  = statuses.every(s => s.status === FULFILLMENT_STATUS.COMPLETED);
+                            const anyFailed = statuses.some(s => s.status === FULFILLMENT_STATUS.FAILED);
+                            if (allDone) {
+                                await markOrderCompleted(order.id, order.fulfillmentProvider);
+                                continue;
+                            }
+                            if (anyFailed) {
+                                await ctx.BuyOrder.findOneAndUpdate(
+                                    { id: order.id },
+                                    { $set: { fulfillmentStatus: FULFILLMENT_STATUS.FAILED, fulfillmentError: 'poll: provider reported failure' } }
+                                );
+                                continue;
+                            }
+                        } catch (err) {
+                            await appendLog(order.id, 'warn', `poll failed: ${err.message}`);
                         }
-                    } catch (err) {
-                        await appendLog(order.id, 'warn', `poll failed: ${err.message}`);
+                        // Still in_progress — keep waiting, do NOT re-submit
+                        continue;
+                    } else {
+                        // Provider has no refs yet but has getStatus — awaiting webhook
+                        await appendLog(order.id, 'info', 'Has provider but no refs yet; awaiting webhook (not re-submitting).');
+                        continue;
                     }
                 } else {
-                    // Provider has no status-poll endpoint (e.g. iStar): the order
-                    // was already accepted (has a ref), so completion arrives via
-                    // webhook. Do NOT re-submit — that would double-fulfill.
+                    // Provider has no status-poll endpoint (e.g. iStar): completion arrives via webhook.
+                    // Do NOT re-submit — that would double-fulfill.
                     await appendLog(order.id, 'info', 'Has provider ref but no status poll; awaiting webhook (not re-submitting).');
                     continue;
                 }
             }
-            // No ref yet: never accepted by the provider, so re-trigger.
+            // No provider claimed yet — re-trigger
             await ctx.BuyOrder.findOneAndUpdate(
                 { id: order.id },
                 { $set: { fulfillmentStatus: FULFILLMENT_STATUS.QUEUED } }
