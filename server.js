@@ -2010,6 +2010,7 @@ const buyOrderSchema = new mongoose.Schema({
         username: String,
         userId: String,
         starsReceived: Number,
+        providerRef: String,
         premiumDurationReceived: Number
     }],
     isBuyForOthers: {
