@@ -140,28 +140,149 @@ async function sendAmbassadorApplicationDenied(email, username) {
 }
 
 /**
- * Ambassador Approved - Notify User with Referral Link
+ * Ambassador Approved - Notify User with Referral Link and full tier breakdown
  */
 async function sendAmbassadorApproved(email, username, referralCode, referralLink) {
     const content = `
 <h2>You're In! 🎉</h2>
 <p>Hey ${username || 'there'},</p>
-<p>Your application got approved! You're officially part of the StarStore ambassador crew now.</p>
+<p>Your application has been approved. You're officially part of the StarStore Ambassador Program.</p>
 <div class="success-box">
     <p><strong>Your Referral Link:</strong></p>
     <p><span class="highlight"><code>${referralLink}</code></span></p>
-    <p>Share this link with your audience to earn commissions on every referral.</p>
+    <p>Share this link with your audience. Every person who signs up and transacts through it counts as a referral and earns you rewards.</p>
 </div>
-<h3 style="margin-top: 24px; font-size: 16px;">Next Steps:</h3>
-<ol style="padding-left: 20px;">
-    <li>Log into your dashboard</li>
-    <li>Add your wallet address (this is where we'll send your money)</li>
-    <li>Start sharing your code</li>
-    <li>Watch the earnings flow in</li>
-</ol>
+
 <div class="divider"></div>
-<p><strong>Pro tip:</strong> Higher-tier ambassadors earn more. Build your network and level up.</p>
-<p style="margin-top: 24px;">Welcome aboard! 🚀</p>
+<h3 style="margin-top: 0; margin-bottom: 16px; font-size: 17px; color: #212529;">Ambassador Levels &amp; Benefits</h3>
+<p style="color: #6c757d; font-size: 14px; margin-bottom: 20px;">Your rewards grow as you bring in more referrals. Here's exactly what each level unlocks:</p>
+
+<!-- Level 1 -->
+<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border:1px solid #e9ecef; border-radius:8px; overflow:hidden;">
+    <tr style="background:#f3f0ff;">
+        <td style="padding:12px 16px;" colspan="2">
+            <strong style="font-size:15px; color:#5b21b6;">Explorer — Level 1</strong>
+            <span style="float:right; font-size:13px; color:#7c3aed; font-weight:600;">30 Referrals</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:10px 16px; vertical-align:top; width:50%; border-top:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Requirements</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>30+ successful referrals/month</li>
+                <li>Avg. 350+ Stars per referral</li>
+            </ul>
+        </td>
+        <td style="padding:10px 16px; vertical-align:top; border-top:1px solid #e9ecef; border-left:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Benefits</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>$30 minimum monthly earnings</li>
+                <li>50 free Stars monthly</li>
+                <li>Priority recognition</li>
+            </ul>
+        </td>
+    </tr>
+</table>
+
+<!-- Level 2 -->
+<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border:1px solid #e9ecef; border-radius:8px; overflow:hidden;">
+    <tr style="background:#ecfdf5;">
+        <td style="padding:12px 16px;" colspan="2">
+            <strong style="font-size:15px; color:#065f46;">Connector — Level 2</strong>
+            <span style="float:right; font-size:13px; color:#059669; font-weight:600;">50 Referrals</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:10px 16px; vertical-align:top; width:50%; border-top:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Requirements</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>50+ successful referrals/month</li>
+                <li>Avg. 400+ Stars per referral</li>
+            </ul>
+        </td>
+        <td style="padding:10px 16px; vertical-align:top; border-top:1px solid #e9ecef; border-left:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Benefits</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>$60+ monthly earnings</li>
+                <li>100 free Stars monthly</li>
+                <li>VIP Ambassador status</li>
+                <li>Early access to campaigns</li>
+                <li>Priority support</li>
+            </ul>
+        </td>
+    </tr>
+</table>
+
+<!-- Level 3 -->
+<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border:1px solid #e9ecef; border-radius:8px; overflow:hidden;">
+    <tr style="background:#eff6ff;">
+        <td style="padding:12px 16px;" colspan="2">
+            <strong style="font-size:15px; color:#1e40af;">Pioneer — Level 3</strong>
+            <span style="float:right; font-size:13px; color:#2563eb; font-weight:600;">70 Referrals</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:10px 16px; vertical-align:top; width:50%; border-top:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Requirements</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>70+ successful referrals/month</li>
+                <li>Avg. 450+ Stars per referral</li>
+            </ul>
+        </td>
+        <td style="padding:10px 16px; vertical-align:top; border-top:1px solid #e9ecef; border-left:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Benefits</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>$80+ monthly earnings</li>
+                <li>150 free Stars monthly</li>
+                <li>Co-marketing opportunities</li>
+                <li>Featured Ambassador spotlight</li>
+                <li>Priority support</li>
+            </ul>
+        </td>
+    </tr>
+</table>
+
+<!-- Level 4 -->
+<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border:1px solid #e9ecef; border-radius:8px; overflow:hidden;">
+    <tr style="background:#fffbeb;">
+        <td style="padding:12px 16px;" colspan="2">
+            <strong style="font-size:15px; color:#92400e;">Elite — Level 4</strong>
+            <span style="float:right; font-size:13px; color:#d97706; font-weight:600;">100 Referrals</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:10px 16px; vertical-align:top; width:50%; border-top:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Requirements</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>100+ successful referrals/month</li>
+                <li>Avg. 500+ Stars per referral</li>
+            </ul>
+        </td>
+        <td style="padding:10px 16px; vertical-align:top; border-top:1px solid #e9ecef; border-left:1px solid #e9ecef;">
+            <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:#374151;">Benefits</p>
+            <ul style="margin:0; padding-left:16px; font-size:13px; color:#6b7280;">
+                <li>$110+ monthly earnings</li>
+                <li>200 free Stars monthly</li>
+                <li>Revenue-sharing opportunities</li>
+                <li>Strategic partnerships</li>
+                <li>Exclusive campaigns &amp; previews</li>
+            </ul>
+        </td>
+    </tr>
+</table>
+
+<div class="divider"></div>
+<h3 style="margin-top: 0; font-size: 16px; color: #212529;">Getting Started</h3>
+<ol style="padding-left: 20px; color: #495057;">
+    <li style="margin-bottom:8px;">Open StarStore and go to your Ambassador page</li>
+    <li style="margin-bottom:8px;">Add your TON wallet address — this is where your monthly payouts go</li>
+    <li style="margin-bottom:8px;">Start sharing your referral link</li>
+    <li style="margin-bottom:8px;">Payouts are processed automatically at the start of each month</li>
+</ol>
+<div class="info-box" style="margin-top:20px;">
+    <p style="margin:0; font-size:14px;">Want to learn more about the program, suggest changes to pricing, or explore partnership opportunities? Visit the Ambassador Hub: <a href="https://amb.starstore.app" style="color:#007bff; font-weight:500;">amb.starstore.app</a></p>
+</div>
+<p style="margin-top: 24px;">Welcome to the team! 🚀</p>
     `;
     
     return sendEmail(email, 'Ambassador Application Approved - StarStore', getEmailTemplate('You\'re Approved!', content));
