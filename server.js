@@ -10725,14 +10725,19 @@ app.post('/api/ambassador/update-earnings', requireTelegramAuth, async (req, res
             return res.status(404).json({ success: false, error: 'Ambassador not found' });
         }
         
-        // Count total referrals from March 1st onwards (filter to active/completed like referral stats)
-        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        // Count current-month active non-withdrawn referrals — this matches what the
+        // auto-withdrawal scheduler will actually pay out, preventing zero-balance records.
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         const totalReferrals = await Referral.countDocuments({
             referrerUserId: userId,
             $or: [
-                { dateReferred: { $gte: marchFirstDate } },
-                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
-            ]
+                { dateReferred: { $gte: monthStart, $lt: monthEnd } },
+                { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
+            ],
+            status: 'active',
+            withdrawn: { $ne: true }
         });
         
         // Recalculate earnings for all tiers based on current referral count
@@ -20542,7 +20547,9 @@ app.listen(PORT, async () => {
               withdrawn: { $ne: true }
             });
 
-            const availableBalance = availableReferrals * 0.5;
+            // Use tier-aware earnings so the withdrawal amount matches what update-earnings stores.
+            const monthLevelEarnings = recalculateLevelEarnings(availableReferrals);
+            const availableBalance = getTotalAmbassiadorEarnings(monthLevelEarnings);
 
             // Skip if balance is below minimum withdrawal (0.5 USDT)
             if (availableBalance < 0.5) {
@@ -20624,7 +20631,7 @@ app.listen(PORT, async () => {
               amount: availableBalance,
               ambassadorLevel: ambassador.ambassadorCurrentLevel || 0,
               ambassadorReferralCount: availableReferrals,
-              ambassadorLevelBreakdown: ambassador.ambassadorLevelEarnings || {},
+              ambassadorLevelBreakdown: monthLevelEarnings,
               ambassadorMonth: now.toISOString().substring(0, 7),
               walletAddress: ambassador.ambassadorWalletAddress,
               referralIds: referralsToWithdraw.map(r => r._id.toString()),
