@@ -170,12 +170,6 @@
             font-size: 11px; font-weight: 700;
             color: #b08a00; letter-spacing: 0.4px; text-transform: uppercase;
         }
-        .badge-dot {
-            width: 6px; height: 6px; background: #F5C842;
-            border-radius: 50%;
-            animation: blink 2s ease-in-out infinite;
-        }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
         /* HERO */
         .hero { padding: 24px 24px 20px; }
@@ -547,7 +541,6 @@
     <header class="page-header">
         <h1 class="header-title">Ambassador</h1>
         <div class="header-badge">
-            <div class="badge-dot"></div>
             <span id="currentTierLabel">Explorer</span>
         </div>
     </header>
@@ -612,7 +605,7 @@
             </div>
             <div class="ppc-meta-item">
                 <div class="ppc-meta-val" id="avgTransaction">0</div>
-                <div class="ppc-meta-key" data-translate="ambassadorAvgStars">Avg. Stars/Tx</div>
+                <div class="ppc-meta-key" data-translate="ambassadorAvgStars">Avg. Stars/Ref</div>
             </div>
         </div>
     </div>
@@ -653,27 +646,21 @@
                 <div class="tier-benefits-preview">
                     <div class="benefit-chip"><i class="fas fa-check"></i> $30+ earnings</div>
                     <div class="benefit-chip"><i class="fas fa-check"></i> 50 free Stars</div>
-                    <div class="benefit-chip"><i class="fas fa-check"></i> Priority badge</div>
                 </div>
                 <div class="tier-expand-hint"><i class="fas fa-chevron-down"></i> Tap to see full details</div>
                 <div class="tier-detail" id="detail-tier-1">
                     <div class="detail-section">
                         <div class="detail-section-title">Requirements / month</div>
                         <div class="detail-list">
-                            <div class="detail-item req">30+ successful transactions</div>
-                            <div class="detail-item req">4 social media posts</div>
-                            <div class="detail-item req">Avg. 350+ Stars per transaction</div>
-                            <div class="detail-item req">Active in community</div>
+                            <div class="detail-item req">30+ successful referrals</div>
+                            <div class="detail-item req">Avg. 350+ Stars per referral</div>
                         </div>
                     </div>
                     <div class="detail-section">
                         <div class="detail-section-title">Benefits</div>
                         <div class="detail-list">
                             <div class="detail-item ben">$30 minimum monthly earnings</div>
-                            <div class="detail-item ben">Priority badge notification</div>
                             <div class="detail-item ben">50 free Stars monthly</div>
-                            <div class="detail-item ben">Access to ambassador group</div>
-                            <div class="detail-item ben">Basic analytics dashboard</div>
                         </div>
                     </div>
                 </div>
@@ -698,9 +685,8 @@
                     <div class="detail-section">
                         <div class="detail-section-title">Requirements / month</div>
                         <div class="detail-list">
-                            <div class="detail-item req">50+ transactions</div>
-                            <div class="detail-item req">6 social posts</div>
-                            <div class="detail-item req">Avg. 400+ Stars per transaction</div>
+                            <div class="detail-item req">50+ successful referrals</div>
+                            <div class="detail-item req">Avg. 400+ Stars per referral</div>
                         </div>
                     </div>
                     <div class="detail-section">
@@ -733,17 +719,14 @@
                     <div class="detail-section">
                         <div class="detail-section-title">Requirements / month</div>
                         <div class="detail-list">
-                            <div class="detail-item req">70+ transactions</div>
-                            <div class="detail-item req">8 social posts (incl. 1 video)</div>
-                            <div class="detail-item req">Avg. 450+ Stars per transaction</div>
-                            <div class="detail-item req">Mentor 1 Level 1 ambassador</div>
+                            <div class="detail-item req">70+ successful referrals</div>
+                            <div class="detail-item req">Avg. 450+ Stars per referral</div>
                         </div>
                     </div>
                     <div class="detail-section">
                         <div class="detail-section-title">Benefits</div>
                         <div class="detail-list">
                             <div class="detail-item ben">$80+ monthly earnings</div>
-                            <div class="detail-item ben">Achievement badge</div>
                             <div class="detail-item ben">150 free Stars monthly</div>
                             <div class="detail-item ben">Priority support</div>
                             <div class="detail-item ben">Co-marketing opportunities</div>
@@ -771,17 +754,14 @@
                     <div class="detail-section">
                         <div class="detail-section-title">Requirements / month</div>
                         <div class="detail-list">
-                            <div class="detail-item req">100+ transactions</div>
-                            <div class="detail-item req">10 social posts (incl. 2 videos)</div>
-                            <div class="detail-item req">Avg. 500+ Stars per transaction</div>
-                            <div class="detail-item req">Lead monthly community event</div>
+                            <div class="detail-item req">100+ successful referrals</div>
+                            <div class="detail-item req">Avg. 500+ Stars per referral</div>
                         </div>
                     </div>
                     <div class="detail-section">
                         <div class="detail-section-title">Benefits</div>
                         <div class="detail-list">
                             <div class="detail-item ben">$110+ monthly earnings</div>
-                            <div class="detail-item ben">Elite status badge</div>
                             <div class="detail-item ben">200 free Stars monthly</div>
                             <div class="detail-item ben">Revenue share participation</div>
                         </div>
@@ -1425,4 +1405,3 @@
 <script src="/js/version-display.js?v=3"></script>
 </body>
 </html>
-
