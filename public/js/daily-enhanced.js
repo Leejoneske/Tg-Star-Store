@@ -13,6 +13,7 @@ class DailyRewardsSystem {
         this.currentLeaderboardTab = 'global';
         this.leaderboardUpdateInterval = null;
         this.cachedData = null;
+        this._achievementsChecked = false;
     }
 
     async init() {
@@ -389,7 +390,8 @@ class DailyRewardsSystem {
                 }
             }
 
-            // Refresh data
+            // Refresh data — reset flag so newly earned achievements can fire
+            this._achievementsChecked = false;
             await this.hydrateFromAPI();
             
         } catch (error) {
@@ -1000,6 +1002,9 @@ class DailyRewardsSystem {
     }
 
     checkAndUnlockAchievements(data) {
+        if (this._achievementsChecked) return;
+        this._achievementsChecked = true;
+
         const streak = data.streak || 0;
         const points = data.totalPoints || 0;
         
