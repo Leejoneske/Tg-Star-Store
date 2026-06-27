@@ -1202,7 +1202,7 @@
                     <section class="clean-card">
                         <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="customStars">Custom Stars</div>
                         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" style="flex: 1; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: #f9f9f9;" data-translate-placeholder="enterStars" />
+                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" style="flex: 1; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: #f9f9f9;" data-translate-placeholder="enterStars" onkeydown="if(event.key==='.'||event.key===','||event.key==='-'||event.key==='e'||event.key==='E')event.preventDefault();" />
                             <button id="buyCustomStars" style="background: #007AFF; color: white; padding: 12px 20px; border-radius: 10px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: opacity 0.2s, transform 0.2s; flex-shrink: 0;" data-translate="buy">
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
@@ -3347,8 +3347,8 @@ function initCustomStars() {
                 const ton = rate ? (q.totalAmount / rate) : null;
                 setQuoteFeedback(
                     ton
-                        ? `✅ Total: ${q.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} · Unit: ${q.unitAmount} USDT`
-                        : `✅ Total: ${q.totalAmount} USDT for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} · Unit: ${q.unitAmount} USDT`,
+                        ? `Total: ${q.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'}`
+                        : `Total: ${q.totalAmount} USDT for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'}`,
                     'success'
                 );
             } else {
@@ -3413,7 +3413,8 @@ function initCustomStars() {
         }
         
         // Validate input and recipients then proceed to buy using custom stars
-        const val = Number(input.value || 0);
+        const val = Math.floor(Number(input.value || 0));
+        input.value = val || ''; // reflect the floored value back
         const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
         
         if (buyForValue === 'others') {
@@ -3469,6 +3470,10 @@ function initCustomStars() {
     }
 
     input.addEventListener('input', () => {
+        // Force integer — strip decimals that may slip through on paste
+        if (input.value.includes('.') || input.value.includes(',')) {
+            input.value = Math.floor(Number(input.value)) || '';
+        }
         // Real-time validation feedback via quoteText only
         const val = Number(input.value || 0);
 
