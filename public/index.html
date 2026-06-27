@@ -1201,7 +1201,7 @@
                     <!-- Custom Stars Section -->
                     <section class="clean-card">
                         <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="customStars">Custom Stars</div>
-                        <div style="display: flex; gap: 8px; margin-bottom: 4px;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                             <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" style="flex: 1; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: #f9f9f9;" data-translate-placeholder="enterStars" />
                             <button id="buyCustomStars" style="background: #007AFF; color: white; padding: 12px 20px; border-radius: 10px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: opacity 0.2s, transform 0.2s; flex-shrink: 0;" data-translate="buy">
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1210,9 +1210,8 @@
                                 <span>Buy</span>
                             </button>
                         </div>
-                        <div id="customStarsError" style="font-size: 12px; color: #dc2626; margin-bottom: 6px; display: none;"></div>
                         <div style="font-size: 12px; color: #666; margin-bottom: 8px;" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
-                        <div style="font-size: 13px; color: #000; font-weight: 500;" id="customStarsQuote"></div>
+                        <div id="customStarsQuote" style="font-size: 13px; font-weight: 500; min-height: 18px;"></div>
                         <div id="starsDistribution" style="margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 10px; display: none;">
                             <div style="font-size: 12px; font-weight: 600; color: #000; margin-bottom: 8px;" data-translate="starsDistribution">Stars Distribution:</div>
                             <div id="distributionList" style="display: flex; flex-direction: column; gap: 4px;"></div>
@@ -3300,9 +3299,9 @@ function initCustomStars() {
             if (!val || val < 50 * recipientsCount) {
                 if (recipientsCount > 0) {
                     const minStars = 50 * recipientsCount;
-                    quoteText.textContent = `⚠️ Need at least ${minStars} stars for ${recipientsCount} recipient(s)`;
+                    setQuoteFeedback(`⛔ Need at least ${minStars} stars for ${recipientsCount} recipient(s)`, 'error');
                 } else {
-                    quoteText.textContent = '';
+                    setQuoteFeedback('', 'clear');
                 }
                 if (distributionDiv) distributionDiv.style.display = 'none';
                 return;
@@ -3310,7 +3309,7 @@ function initCustomStars() {
         } else {
             // For self-purchase, manual input enforces minimum 50 stars
             if (!val || val < 50) {
-                quoteText.textContent = '⚠️ Manual input requires at least 50 stars. Use a package below for smaller amounts.';
+                setQuoteFeedback('', 'clear');
                 if (distributionDiv) distributionDiv.style.display = 'none';
                 return;
             }
@@ -3346,15 +3345,18 @@ function initCustomStars() {
             if (q.success) {
                 const rate = await getRateCached();
                 const ton = rate ? (q.totalAmount / rate) : null;
-                quoteText.textContent = ton
-                    ? `Total: ${q.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.unitAmount} USDT)`
-                    : `Total: ${q.totalAmount} USDT for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.unitAmount} USDT)`;
+                setQuoteFeedback(
+                    ton
+                        ? `✅ Total: ${q.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} · Unit: ${q.unitAmount} USDT`
+                        : `✅ Total: ${q.totalAmount} USDT for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} · Unit: ${q.unitAmount} USDT`,
+                    'success'
+                );
             } else {
-                quoteText.textContent = TranslationUtils.get('quoteUnavailable') || 'Quote unavailable. Please try again.';
+                setQuoteFeedback('⚠️ ' + (TranslationUtils.get('quoteUnavailable') || 'Quote unavailable. Please try again.'), 'warning');
             }
         } catch (error) {
             console.error('Error fetching quote:', error);
-            quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+            setQuoteFeedback('⚠️ ' + (TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.'), 'warning');
         }
         
         // Update package prices only if recipients changed
@@ -3450,22 +3452,36 @@ function initCustomStars() {
 
     let debounceTimer = null;
     
+    // Helper: set quoteText with colour and optional border state
+    function setQuoteFeedback(message, type) {
+        // type: 'error' | 'warning' | 'info' | 'success' | 'clear'
+        const colours = {
+            error:   { text: '#dc2626', border: '#dc2626', bg: 'transparent' },
+            warning: { text: '#d97706', border: '#f59e0b', bg: 'transparent' },
+            info:    { text: '#2563eb', border: '#e0e0e0', bg: 'transparent' },
+            success: { text: '#059669', border: '#e0e0e0', bg: 'transparent' },
+            clear:   { text: '#000',    border: '#e0e0e0', bg: 'transparent' }
+        };
+        const c = colours[type] || colours.clear;
+        quoteText.textContent = message;
+        quoteText.style.color = c.text;
+        input.style.borderColor = c.border;
+    }
+
     input.addEventListener('input', () => {
-        // Real-time validation feedback
+        // Real-time validation feedback via quoteText only
         const val = Number(input.value || 0);
-        const errorDiv = document.getElementById('customStarsError');
-        
-        if (val > 0 && val < 50) {
-            errorDiv.textContent = 'Minimum 50 stars required for manual input';
-            errorDiv.style.display = 'block';
-            input.style.borderColor = '#dc2626';
+
+        if (input.value === '' || val === 0) {
+            setQuoteFeedback('', 'clear');
+        } else if (val > 0 && val < 50) {
+            setQuoteFeedback('⛔ Minimum 50 stars required. Use a package below for smaller amounts.', 'error');
+            return; // skip debounce — no quote needed
         } else if (val > 1000000) {
-            errorDiv.textContent = 'Maximum 1,000,000 stars allowed';
-            errorDiv.style.display = 'block';
-            input.style.borderColor = '#dc2626';
+            setQuoteFeedback('⛔ Maximum 1,000,000 stars allowed.', 'error');
+            return;
         } else {
-            errorDiv.style.display = 'none';
-            input.style.borderColor = '#e0e0e0';
+            setQuoteFeedback('', 'clear');
         }
         
         if (debounceTimer) clearTimeout(debounceTimer);
@@ -3477,7 +3493,7 @@ function initCustomStars() {
                 } catch (error) {
                     console.error('Error refreshing quote:', error);
                     // Show user-friendly error message
-                    quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                    setQuoteFeedback('⚠️ ' + (TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.'), 'warning');
                 } finally {
                     window.buyPageState.isRefreshing = false;
                 }
@@ -3495,7 +3511,7 @@ function initCustomStars() {
                     await refreshQuote();
                 } catch (error) {
                     console.error('Error refreshing quote on recipients change:', error);
-                    quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                    setQuoteFeedback('⚠️ ' + (TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.'), 'warning');
                 } finally {
                     window.buyPageState.isRefreshing = false;
                 }
@@ -3513,7 +3529,7 @@ function initCustomStars() {
                         await refreshQuote();
                     } catch (error) {
                         console.error('Error refreshing quote on selection change:', error);
-                        quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                        setQuoteFeedback('⚠️ ' + (TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.'), 'warning');
                     } finally {
                         window.buyPageState.isRefreshing = false;
                     }
@@ -3532,7 +3548,7 @@ function initCustomStars() {
                         await refreshQuote();
                     } catch (error) {
                         console.error('Error refreshing quote on premium change:', error);
-                        quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                        setQuoteFeedback('⚠️ ' + (TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.'), 'warning');
                     } finally {
                         window.buyPageState.isRefreshing = false;
                     }
