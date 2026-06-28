@@ -83,14 +83,17 @@ module.exports = {
     async fulfillStars({ username, quantity, orderId }) {
         const u = sanitizeUsername(username);
         const qty = Number(quantity);
+        console.log(`[iStar] fulfillStars start | order=${orderId} username=@${u} quantity=${qty}`);
         // iStar requires a recipient_hash obtained from the recipient lookup.
         const search = await call(`/star/recipient/search?username=${encodeURIComponent(u)}&quantity=${qty}`, { method: 'GET' });
+        console.log(`[iStar] recipient search response | username=@${u}:`, JSON.stringify(search));
         if (!search || search.success === false || !search.recipient) {
             throw new Error(`iStar recipient lookup failed for @${u}: ${search?.error || search?.message || 'no recipient hash returned'}`);
         }
-        const data = await call('/orders/star', {
-            body: { username: u, recipient_hash: search.recipient, quantity: qty, wallet_type: 'TON' },
-        });
+        const orderBody = { username: u, recipient_hash: search.recipient, quantity: qty, wallet_type: 'TON' };
+        console.log(`[iStar] POST /orders/star body:`, JSON.stringify(orderBody));
+        const data = await call('/orders/star', { body: orderBody });
+        console.log(`[iStar] POST /orders/star response:`, JSON.stringify(data));
         return {
             ok: true,
             providerRef: data.order_id || data.id || null,
