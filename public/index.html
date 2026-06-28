@@ -2823,8 +2823,9 @@ function buildRecipientInput(containerId) {
         row.className = 'flex items-center gap-2';
         row.setAttribute('data-row-idx', idx);
         row.innerHTML = `
-            <div style="flex:1;position:relative;">
-                <input type="text" class="flex-1 px-3 py-2 border rounded-md text-sm" style="width:100%;box-sizing:border-box;" placeholder="@username" data-idx="${idx}" />
+            <div style="flex:1;position:relative;display:flex;align-items:center;border:1px solid #e0e0e0;border-radius:8px;background:#fff;overflow:hidden;">
+                <span style="padding:0 4px 0 10px;font-size:14px;color:#555;font-weight:500;flex-shrink:0;">@</span>
+                <input type="text" class="flex-1 px-3 py-2 border-0 text-sm" style="width:100%;box-sizing:border-box;outline:none;background:transparent;padding-left:2px;" placeholder="username" data-idx="${idx}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
                 <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;" data-status="${idx}"></span>
             </div>
             <button style="padding:7px 10px;font-size:12px;border:1px solid #e0e0e0;border-radius:8px;background:#f9f9f9;color:#666;cursor:pointer;white-space:nowrap;flex-shrink:0;" data-remove="${idx}">✕</button>
@@ -2850,6 +2851,10 @@ function buildRecipientInput(containerId) {
 
         let debounceTimer = null;
         input.addEventListener('input', () => {
+            // Strip any @ the user types — the @ prefix is shown as a fixed label
+            if (input.value.startsWith('@')) {
+                input.value = input.value.replace(/^@+/, '');
+            }
             clearProfileCard(idx);
             status.textContent = '';
             status.style.color = '#999';
@@ -2921,8 +2926,10 @@ function buildRecipientInput(containerId) {
                                 ? '✕ Not a user account'
                                 : reason === 'duplicate'
                                 ? '✕ Duplicate'
+                                : reason === 'retry_later'
+                                ? '⚠ Try again'
                                 : '✕ Invalid';
-                            status.style.color = '#dc2626';
+                            status.style.color = reason === 'retry_later' ? '#d97706' : '#dc2626';
                         }
                         window.dispatchEvent(new CustomEvent('recipientsChanged', { detail: { count: 0 } }));
                     }
