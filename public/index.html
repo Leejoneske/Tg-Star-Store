@@ -2825,7 +2825,7 @@ function buildRecipientInput(containerId) {
         row.innerHTML = `
             <div style="flex:1;position:relative;display:flex;align-items:center;border:1px solid #e0e0e0;border-radius:8px;background:#fff;overflow:hidden;">
                 <span style="padding:0 4px 0 10px;font-size:14px;color:#555;font-weight:500;flex-shrink:0;">@</span>
-                <input type="text" class="flex-1 px-3 py-2 border-0 text-sm" style="width:100%;box-sizing:border-box;outline:none;background:transparent;padding-left:2px;" placeholder="username" data-idx="${idx}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+                <input type="text" style="flex:1;width:100%;box-sizing:border-box;outline:none;background:transparent;padding:10px 32px 10px 2px;font-size:14px;border:none;" placeholder="username" data-idx="${idx}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
                 <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;" data-status="${idx}"></span>
             </div>
             <button style="padding:7px 10px;font-size:12px;border:1px solid #e0e0e0;border-radius:8px;background:#f9f9f9;color:#666;cursor:pointer;white-space:nowrap;flex-shrink:0;" data-remove="${idx}">✕</button>
@@ -2877,8 +2877,9 @@ function buildRecipientInput(containerId) {
             status.style.color = '#999';
 
             debounceTimer = setTimeout(async () => {
-                if (window.buyPageState.isValidating) return;
-                window.buyPageState.isValidating = true;
+                const validatingKey = `isValidating_${idx}`;
+                if (window.buyPageState[validatingKey]) return;
+                window.buyPageState[validatingKey] = true;
                 try {
                     // Auto-retry up to 2 times if server hits a transient network error
                     const MAX_RETRIES = 2;
@@ -2944,7 +2945,7 @@ function buildRecipientInput(containerId) {
                         input.dispatchEvent(new Event('input'));
                     };
                 } finally {
-                    window.buyPageState.isValidating = false;
+                    window.buyPageState[validatingKey] = false;
                 }
             }, 700);
         });
@@ -3523,6 +3524,13 @@ function initCustomStars() {
         // small delay to allow DOM status updates
         setTimeout(async () => {
             if (!window.buyPageState.isRefreshing) {
+                // Only refresh quote if the user has actually typed something in the stars input
+                // Prevents the minimum-stars error from flashing when recipient validation completes
+                const starsVal = Number(input.value || 0);
+                if (!input.value || starsVal === 0) {
+                    setQuoteFeedback('', 'clear');
+                    return;
+                }
                 window.buyPageState.isRefreshing = true;
                 try {
                     await refreshQuote();
