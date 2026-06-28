@@ -55,13 +55,13 @@ async function call(path, { method = 'POST', body } = {}) {
     if (!res.ok) {
         let msg = json?.error || json?.message || null;
         if (!msg) {
-            // If HTML response, truncate and indicate it's HTML
             if (text && text.includes('<')) {
                 msg = `HTTP ${res.status} (HTML response - likely wrong API key, endpoint, or server error)`;
             } else {
                 msg = text || `HTTP ${res.status}`;
             }
         }
+        console.log(`[iStar] call() HTTP ${res.status} for ${method} ${path} | raw:`, text?.slice(0, 500));
         const err = new Error(`iStar ${method} ${path} failed: ${msg}`);
         err.status = res.status;
         err.response = json;
@@ -92,7 +92,13 @@ module.exports = {
         }
         const orderBody = { username: u, recipient_hash: search.recipient, quantity: qty, wallet_type: 'TON' };
         console.log(`[iStar] POST /orders/star body:`, JSON.stringify(orderBody));
-        const data = await call('/orders/star', { body: orderBody });
+        let data;
+        try {
+            data = await call('/orders/star', { body: orderBody });
+        } catch (err) {
+            console.log(`[iStar] POST /orders/star FAILED | status=${err.status} | response:`, JSON.stringify(err.response), `| message:`, err.message);
+            throw err;
+        }
         console.log(`[iStar] POST /orders/star response:`, JSON.stringify(data));
         return {
             ok: true,
