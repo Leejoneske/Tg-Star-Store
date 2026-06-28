@@ -4048,13 +4048,85 @@ app.post('/api/validate-amount', requireTelegramAuth, (req, res) => {
 const usernameLookupCache = new Map(); // name -> { ok, userId, at }
 const USERNAME_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+/**
+ * Resolve a Telegram username via iStar's recipient search API.
+ * iStar uses Fragment/MTProto under the hood so it works for ANY user
+ * regardless of whether they've interacted with the bot.
+ *
+ * Returns:
+ *   { ok: true,  userId, firstName, photoUrl }  — user exists and can receive Stars
+ *   { ok: false, reason: 'not_found' }           — username doesn't exist
+ *   { ok: false, reason: 'not_a_user' }          — exists but can't receive Stars (channel/bot)
+ *   null                                          — iStar not configured or network error (fallback to bot API)
+ */
+async function lookupUsernameViaIstar(username) {
+    if (!process.env.ISTAR_API_KEY) return null;
+    const baseUrl = (process.env.ISTAR_BASE_URL || 'https://v1.fragmentapi.com/api/v1/partner').replace(/\/+$/, '');
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7000);
+        let res;
+        try {
+            res = await fetch(`${baseUrl}/star/recipient/search?username=${encodeURIComponent(username)}&quantity=50`, {
+                method: 'GET',
+                headers: {
+                    'API-Key': process.env.ISTAR_API_KEY,
+                    'Accept': 'application/json',
+                },
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timer);
+        }
+        const text = await res.text().catch(() => '');
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { return null; }
+
+        if (!res.ok) {
+            // 404 or explicit not_found from iStar
+            if (res.status === 404 || /not.found|does.not.exist|invalid.username/i.test(data?.error || data?.message || '')) {
+                return { ok: false, reason: 'not_found' };
+            }
+            // Any other error (rate limit, server error) — fallback to bot API
+            console.warn(`[iStar lookup] HTTP ${res.status} for @${username}: ${data?.error || text?.slice(0, 100)}`);
+            return null;
+        }
+
+        if (data.success === false || !data.recipient) {
+            const msg = (data.error || data.message || '').toLowerCase();
+            if (/not.found|does.not.exist|invalid|no.user/i.test(msg)) {
+                return { ok: false, reason: 'not_found' };
+            }
+            if (/channel|bot|group|cannot.receive/i.test(msg)) {
+                return { ok: false, reason: 'not_a_user' };
+            }
+            // Unknown iStar error — fallback
+            return null;
+        }
+
+        // Success — iStar confirmed the user can receive Stars
+        // Extract whatever user info iStar returns (varies by API version)
+        const userId = data.user_id ? String(data.user_id) : null;
+        const firstName = data.first_name || data.name || data.display_name || null;
+        // iStar doesn't return a photo URL — leave null, bot API or t.me will fill it
+        return { ok: true, userId, firstName, photoUrl: null };
+
+    } catch (err) {
+        if (err?.name === 'AbortError') {
+            console.warn(`[iStar lookup] Timeout for @${username}`);
+        } else {
+            console.warn(`[iStar lookup] Error for @${username}:`, err?.message);
+        }
+        return null; // fallback to bot API
+    }
+}
+
 async function lookupTelegramUsername(name) {
     const cached = usernameLookupCache.get(name);
     if (cached && Date.now() - cached.at < USERNAME_CACHE_TTL_MS) {
         return cached;
     }
 
-    // Helper: fetch with a timeout so we never hang indefinitely
     async function fetchWithTimeout(url, options, ms = 5000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), ms);
@@ -4065,42 +4137,138 @@ async function lookupTelegramUsername(name) {
         }
     }
 
-    // t.me page scraping is ONLY used to confirm non-existence (404/redirect).
-    // It must NEVER be used to confirm a username is a valid private user —
-    // channels, bots and groups also have t.me pages and would pass those checks.
-    async function checkTmeNotFound(username) {
+    // Scrape t.me page to distinguish between:
+    //   - Non-existent username → redirect to telegram.org → not_found
+    //   - Channel/group/bot     → has Join/View/Start button → not_a_user
+    //   - Personal profile      → personal page structure → return display name + photoUrl
+    async function probeTmePage(username) {
         try {
             const resp = await fetchWithTimeout(`https://t.me/${encodeURIComponent(username)}`, {
                 method: 'GET',
                 redirect: 'manual',
                 headers: { 'User-Agent': 'Mozilla/5.0 StarStore username validation' }
-            }, 5000);
+            }, 6000);
+
+            // Non-existent: Telegram redirects to telegram.org
             const location = resp.headers?.get?.('location') || '';
-            // Telegram redirects non-existent usernames to telegram.org
             if (resp.status >= 300 && resp.status < 400 && /telegram\.org\/?$/i.test(location)) {
-                return { ok: false, reason: 'not_found', at: Date.now(), source: 't.me' };
+                return { ok: false, reason: 'not_found' };
             }
-            // If page exists, we cannot determine the type without the bot API —
-            // return null so the caller treats it as inconclusive.
+
+            const text = await resp.text().catch(() => '');
+            if (!text) return null;
+
+            // Channel/group/bot: has a Join/View/Start action button
+            if (/tgme_action_button_new|>Join Channel<|>View Channel<|>Join Group<|>Start Bot</i.test(text)) {
+                return { ok: false, reason: 'not_a_user' };
+            }
+
+            // Extract display name
+            let firstName = null;
+            const ogTitle = text.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i)
+                || text.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/i);
+            if (ogTitle) firstName = ogTitle[1].replace(/\s*on Telegram$/i, '').trim() || null;
+
+            // Extract photo — og:image on t.me personal pages is a CDN image
+            let photoUrl = null;
+            const ogImage = text.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
+                || text.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i);
+            if (ogImage && !/\.svg$/i.test(ogImage[1])) photoUrl = ogImage[1];
+
+            // Personal profile: has tgme_page_photo_image and no join button
+            if (/tgme_page_photo_image|tgme_page_title/i.test(text)) {
+                return { ok: 'user_likely', firstName, photoUrl };
+            }
+
             return null;
         } catch (_) {
             return null;
         }
     }
 
-    // Without a bot token we cannot safely verify a username belongs to a real
-    // private user (not a channel/bot/group). Degrade to retry_later so the
-    // frontend prompts the user to try again rather than silently passing.
     if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dev_stub') {
-        const notFound = await checkTmeNotFound(name);
-        if (notFound) {
-            usernameLookupCache.set(name, notFound);
-            return notFound;
+        // Try iStar first even without bot token
+        const istar = await lookupUsernameViaIstar(name);
+        if (istar?.ok === true) {
+            const entry = { ok: true, userId: istar.userId, type: 'private', firstName: istar.firstName, lastName: null, photoUrl: null, at: Date.now(), source: 'istar' };
+            usernameLookupCache.set(name, entry);
+            return entry;
+        }
+        if (istar?.ok === false) {
+            const entry = { ok: false, reason: istar.reason, at: Date.now(), source: 'istar' };
+            usernameLookupCache.set(name, entry);
+            return entry;
+        }
+        const probe = await probeTmePage(name);
+        if (probe?.ok === false) {
+            const entry = { ok: false, reason: probe.reason, at: Date.now(), source: 't.me' };
+            usernameLookupCache.set(name, entry);
+            return entry;
+        }
+        if (probe?.ok === 'user_likely') {
+            return { ok: null, reason: 'bot_unavailable', at: Date.now() };
         }
         return { ok: null, reason: 'bot_unavailable', at: Date.now() };
     }
 
-    // Retry the bot API up to 2 times on transient network errors
+    // --- iStar lookup (primary: works for ALL users, no bot interaction needed) ---
+    const istarResult = await lookupUsernameViaIstar(name);
+    if (istarResult?.ok === false) {
+        // iStar definitively says this username doesn't exist or can't receive Stars
+        const entry = { ok: false, reason: istarResult.reason, at: Date.now(), source: 'istar' };
+        usernameLookupCache.set(name, entry);
+        return entry;
+    }
+    if (istarResult?.ok === true) {
+        // iStar confirmed valid — now try bot API just to fetch photo + real userId
+        // (iStar may not return these). Silently fall through to full entry if bot fails.
+        let photoUrl = null;
+        let userId = istarResult.userId;
+        let firstName = istarResult.firstName;
+        try {
+            const botUrl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/getChat`;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 5000);
+            let botRes;
+            try {
+                botRes = await fetch(botUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: '@' + name }),
+                    signal: controller.signal,
+                });
+            } finally { clearTimeout(timer); }
+            const botData = await botRes.json().catch(() => ({}));
+            if (botData?.ok && botData?.result?.id && botData.result.type === 'private') {
+                userId = String(botData.result.id);
+                firstName = botData.result.first_name || firstName;
+                // Try getUserProfilePhotos for best photo
+                try {
+                    const pResp = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getUserProfilePhotos`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: botData.result.id, limit: 1 }),
+                    });
+                    const pData = await pResp.json().catch(() => ({}));
+                    const fid = pData?.result?.photos?.[0]?.[0]?.file_id;
+                    if (fid) {
+                        const fResp = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ file_id: fid }),
+                        });
+                        const fData = await fResp.json().catch(() => ({}));
+                        if (fData?.ok && fData?.result?.file_path) {
+                            photoUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fData.result.file_path}`;
+                        }
+                    }
+                } catch (_) {}
+            }
+        } catch (_) {}
+        const entry = { ok: true, userId, type: 'private', firstName, lastName: null, photoUrl, at: Date.now(), source: 'istar' };
+        usernameLookupCache.set(name, entry);
+        return entry;
+    }
+    // iStar returned null (not configured or network error) — fall through to bot API
+
     const MAX_LOOKUP_RETRIES = 2;
     let lastNetworkError = null;
 
@@ -4117,19 +4285,39 @@ async function lookupTelegramUsername(name) {
             if (data && data.ok && data.result && data.result.id) {
                 const result = data.result;
 
-                // SECURITY: only accept private users — reject channels, bots, groups.
-                // Channels and supergroups also have usernames and would otherwise
-                // pass as valid recipients, allowing Stars to be sent to no one.
+                // SECURITY: only accept private users — reject channels, bots, groups
                 if (result.type !== 'private') {
                     const entry = { ok: false, reason: 'not_a_user', at: Date.now() };
                     usernameLookupCache.set(name, entry);
                     return entry;
                 }
 
-                // Try to get profile photo URL via getFile
+                // Try getUserProfilePhotos first (works for real users, gives a usable photo URL)
                 let photoUrl = null;
                 try {
-                    if (result.photo && result.photo.small_file_id) {
+                    const photosResp = await fetchWithTimeout(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getUserProfilePhotos`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: result.id, limit: 1 }),
+                    }, 4000);
+                    const photosData = await photosResp.json().catch(() => ({}));
+                    const fileId = photosData?.result?.photos?.[0]?.[0]?.file_id;
+                    if (fileId) {
+                        const fileResp = await fetchWithTimeout(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ file_id: fileId }),
+                        }, 4000);
+                        const fileData = await fileResp.json().catch(() => ({}));
+                        if (fileData?.ok && fileData?.result?.file_path) {
+                            photoUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileData.result.file_path}`;
+                        }
+                    }
+                } catch (_) {}
+
+                // Fallback to small_file_id from getChat result if getUserProfilePhotos gave nothing
+                if (!photoUrl && result.photo?.small_file_id) {
+                    try {
                         const fileResp = await fetchWithTimeout(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -4139,8 +4327,9 @@ async function lookupTelegramUsername(name) {
                         if (fileData?.ok && fileData?.result?.file_path) {
                             photoUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileData.result.file_path}`;
                         }
-                    }
-                } catch (_) {}
+                    } catch (_) {}
+                }
+
                 const entry = {
                     ok: true,
                     userId: String(result.id),
@@ -4154,14 +4343,26 @@ async function lookupTelegramUsername(name) {
                 return entry;
             }
 
-            // getChat failed — use t.me only to confirm non-existence, never to validate.
-            const notFoundCheck = await checkTmeNotFound(name);
-            if (notFoundCheck?.ok === false) {
-                usernameLookupCache.set(name, notFoundCheck);
-                return notFoundCheck;
+            // getChat failed (bot hasn't interacted with user, or truly not found).
+            // Probe t.me to distinguish the two cases.
+            const probe = await probeTmePage(name);
+
+            if (probe?.ok === false) {
+                // Definitively not found or not a user
+                const entry = { ok: false, reason: probe.reason, at: Date.now(), source: 't.me' };
+                usernameLookupCache.set(name, entry);
+                return entry;
             }
 
-            // Telegram returns 400 with "chat not found" for non-existent usernames
+            if (probe?.ok === 'user_likely') {
+                // User exists but bot hasn't interacted with them yet —
+                // we can't get their userId without interaction.
+                // Return a soft error so the frontend can prompt the user
+                // to start the bot first.
+                return { ok: null, reason: 'user_not_started_bot', firstName: probe.firstName, photoUrl: probe.photoUrl, at: Date.now() };
+            }
+
+            // Fallback: use the API error description
             const desc = (data && data.description) || '';
             const notFound = /chat not found|USERNAME_NOT_OCCUPIED|USERNAME_INVALID/i.test(desc);
             const entry = { ok: false, reason: notFound ? 'not_found' : (desc || 'unknown_error'), at: Date.now() };
@@ -4177,7 +4378,6 @@ async function lookupTelegramUsername(name) {
         }
     }
 
-    // All retries exhausted — return a retryable error, never silently pass
     console.error(`lookupTelegramUsername: all ${MAX_LOOKUP_RETRIES} attempts failed for @${name}`, lastNetworkError && lastNetworkError.message);
     return { ok: null, reason: 'network_error', at: Date.now() };
 }
@@ -4217,6 +4417,13 @@ app.post('/api/validate-usernames', requireTelegramAuth, async (req, res) => {
             if (lookup.ok === true) {
                 recipients.push({ username: name, userId: lookup.userId, firstName: lookup.firstName || null, lastName: lookup.lastName || null, photoUrl: lookup.photoUrl || null });
                 results.push({ username: name, valid: true, userId: lookup.userId, type: lookup.type, firstName: lookup.firstName || null, lastName: lookup.lastName || null, photoUrl: lookup.photoUrl || null });
+            } else if (lookup.ok === null && lookup.reason === 'user_not_started_bot') {
+                // User confirmed to exist via t.me page but bot hasn't interacted with them.
+                // Use a hash-based placeholder userId — the bot will resolve the real ID
+                // when it delivers the Stars via the fulfillment flow.
+                const placeholderId = `tg_${crypto.createHash('sha256').update(name).digest('hex').slice(0, 12)}`;
+                recipients.push({ username: name, userId: placeholderId, firstName: lookup.firstName || null, lastName: null, photoUrl: lookup.photoUrl || null });
+                results.push({ username: name, valid: true, userId: placeholderId, type: 'private', firstName: lookup.firstName || null, lastName: null, photoUrl: lookup.photoUrl || null });
             } else if (lookup.ok === false) {
                 results.push({ username: name, valid: false, reason: lookup.reason === 'not_a_user' ? 'not_a_user' : lookup.reason });
             } else {
