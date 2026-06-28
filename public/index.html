@@ -2791,9 +2791,10 @@ function buildRecipientInput(containerId) {
         card.className = 'profile-card';
         card.setAttribute('data-card', idx);
         card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #c7e0ff;border-radius:10px;margin-top:6px;';
+        const TG_FALLBACK = `<div style="width:36px;height:36px;border-radius:50%;background:#229ED9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.378l-2.94-.918c-.64-.203-.653-.64.135-.954l11.57-4.461c.537-.194 1.006.131.869.176z"/></svg></div>`;
         const avatarHtml = profile.photoUrl
-            ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`
-            : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`;
+            ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />${TG_FALLBACK}`
+            : TG_FALLBACK;
         const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username;
         card.innerHTML = `
             ${avatarHtml}
@@ -2916,6 +2917,8 @@ function buildRecipientInput(containerId) {
                         } else {
                             status.textContent = reason === 'not_found'
                                 ? '✕ Not found'
+                                : reason === 'not_a_user'
+                                ? '✕ Not a user account'
                                 : reason === 'duplicate'
                                 ? '✕ Duplicate'
                                 : '✕ Invalid';
@@ -3136,7 +3139,7 @@ async function validateRecipients(containerId) {
                 } else {
                     const existing = container.querySelector(`.profile-card[data-card="${idx}"]`);
                     if (existing) existing.remove();
-                    statusEl.textContent = r?.reason === 'not_found' ? '✕ Not found' : r?.reason === 'duplicate' ? '✕ Duplicate' : '✕ Invalid';
+                    statusEl.textContent = r?.reason === 'not_found' ? '✕ Not found' : r?.reason === 'not_a_user' ? '✕ Not a user account' : r?.reason === 'duplicate' ? '✕ Duplicate' : '✕ Invalid';
                     statusEl.style.color = '#dc2626';
                 }
             });
@@ -3204,6 +3207,7 @@ function updateValidationStatus(container, result) {
             const row = resultByName.get(name);
             const reason = row?.reason;
             statusEl.textContent = reason === 'not_found' ? '✕ Not found'
+                : reason === 'not_a_user' ? '✕ Not a user account'
                 : reason === 'duplicate' ? '✕ Duplicate'
                 : name ? '✕ Invalid' : '';
             statusEl.style.color = '#dc2626';
@@ -3220,9 +3224,10 @@ function _renderProfileCardGlobal(container, idx, profile) {
     card.className = 'profile-card';
     card.setAttribute('data-card', idx);
     card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #c7e0ff;border-radius:10px;margin-top:6px;';
+    const TG_FALLBACK_G = `<div style="width:36px;height:36px;border-radius:50%;background:#229ED9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.378l-2.94-.918c-.64-.203-.653-.64.135-.954l11.57-4.461c.537-.194 1.006.131.869.176z"/></svg></div>`;
     const avatarHtml = profile.photoUrl
-        ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`
-        : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(profile.firstName||profile.username||'?')[0].toUpperCase()}</div>`;
+        ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />${TG_FALLBACK_G}`
+        : TG_FALLBACK_G;
     const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username;
     card.innerHTML = `
         ${avatarHtml}
