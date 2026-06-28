@@ -4050,75 +4050,18 @@ const USERNAME_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Resolve a Telegram username via iStar's recipient search API.
- * iStar uses Fragment/MTProto under the hood so it works for ANY user
- * regardless of whether they've interacted with the bot.
+ * NOTE: We intentionally do NOT call iStar's /star/recipient/search here
+ * because the recipient_hash it returns is session-bound — calling it during
+ * validation consumes/invalidates the hash before the fulfillment flow can use
+ * it, causing "Failed to get star purchase details" on the real order.
  *
- * Returns:
- *   { ok: true,  userId, firstName, photoUrl }  — user exists and can receive Stars
- *   { ok: false, reason: 'not_found' }           — username doesn't exist
- *   { ok: false, reason: 'not_a_user' }          — exists but can't receive Stars (channel/bot)
- *   null                                          — iStar not configured or network error (fallback to bot API)
+ * Instead we use the bot API + t.me scraping for validation, and let the
+ * fulfillment provider fetch its own fresh recipient_hash at order time.
+ *
+ * This function is kept as a stub so the lookup chain below reads clearly.
  */
 async function lookupUsernameViaIstar(username) {
-    if (!process.env.ISTAR_API_KEY) return null;
-    const baseUrl = (process.env.ISTAR_BASE_URL || 'https://v1.fragmentapi.com/api/v1/partner').replace(/\/+$/, '');
-    try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 7000);
-        let res;
-        try {
-            res = await fetch(`${baseUrl}/star/recipient/search?username=${encodeURIComponent(username)}&quantity=50`, {
-                method: 'GET',
-                headers: {
-                    'API-Key': process.env.ISTAR_API_KEY,
-                    'Accept': 'application/json',
-                },
-                signal: controller.signal,
-            });
-        } finally {
-            clearTimeout(timer);
-        }
-        const text = await res.text().catch(() => '');
-        let data = {};
-        try { data = text ? JSON.parse(text) : {}; } catch { return null; }
-
-        if (!res.ok) {
-            // 404 or explicit not_found from iStar
-            if (res.status === 404 || /not.found|does.not.exist|invalid.username/i.test(data?.error || data?.message || '')) {
-                return { ok: false, reason: 'not_found' };
-            }
-            // Any other error (rate limit, server error) — fallback to bot API
-            console.warn(`[iStar lookup] HTTP ${res.status} for @${username}: ${data?.error || text?.slice(0, 100)}`);
-            return null;
-        }
-
-        if (data.success === false || !data.recipient) {
-            const msg = (data.error || data.message || '').toLowerCase();
-            if (/not.found|does.not.exist|invalid|no.user/i.test(msg)) {
-                return { ok: false, reason: 'not_found' };
-            }
-            if (/channel|bot|group|cannot.receive/i.test(msg)) {
-                return { ok: false, reason: 'not_a_user' };
-            }
-            // Unknown iStar error — fallback
-            return null;
-        }
-
-        // Success — iStar confirmed the user can receive Stars
-        // Extract whatever user info iStar returns (varies by API version)
-        const userId = data.user_id ? String(data.user_id) : null;
-        const firstName = data.first_name || data.name || data.display_name || null;
-        // iStar doesn't return a photo URL — leave null, bot API or t.me will fill it
-        return { ok: true, userId, firstName, photoUrl: null };
-
-    } catch (err) {
-        if (err?.name === 'AbortError') {
-            console.warn(`[iStar lookup] Timeout for @${username}`);
-        } else {
-            console.warn(`[iStar lookup] Error for @${username}:`, err?.message);
-        }
-        return null; // fallback to bot API
-    }
+    return null; // intentionally disabled for validation — see note above
 }
 
 async function lookupTelegramUsername(name) {
