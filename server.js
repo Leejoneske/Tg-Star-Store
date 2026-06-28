@@ -4065,7 +4065,10 @@ async function lookupTelegramUsername(name) {
         }
     }
 
-    async function lookupPublicTelegramPage(username) {
+    // t.me page scraping is ONLY used to confirm non-existence (404/redirect).
+    // It must NEVER be used to confirm a username is a valid private user —
+    // channels, bots and groups also have t.me pages and would pass those checks.
+    async function checkTmeNotFound(username) {
         try {
             const resp = await fetchWithTimeout(`https://t.me/${encodeURIComponent(username)}`, {
                 method: 'GET',
@@ -4073,50 +4076,31 @@ async function lookupTelegramUsername(name) {
                 headers: { 'User-Agent': 'Mozilla/5.0 StarStore username validation' }
             }, 5000);
             const location = resp.headers?.get?.('location') || '';
+            // Telegram redirects non-existent usernames to telegram.org
             if (resp.status >= 300 && resp.status < 400 && /telegram\.org\/?$/i.test(location)) {
                 return { ok: false, reason: 'not_found', at: Date.now(), source: 't.me' };
             }
-            const text = await resp.text().catch(() => '');
-            const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            // Extract display name from og:title or tgme_page_title
-            let displayName = null;
-            const ogTitleMatch = text.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i)
-                || text.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/i);
-            if (ogTitleMatch) displayName = ogTitleMatch[1].replace(/\s*on Telegram$/i, '').trim();
-            if (!displayName) {
-                const titleMatch = text.match(/class="tgme_page_title"[^>]*>([^<]+)</i);
-                if (titleMatch) displayName = titleMatch[1].trim();
-            }
-            // Extract photo from og:image
-            let photoUrl = null;
-            const ogImageMatch = text.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
-                || text.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i);
-            if (ogImageMatch && !/\.svg/i.test(ogImageMatch[1])) photoUrl = ogImageMatch[1];
-
-            if (resp.ok && (new RegExp(`Telegram: (Contact|Channel|Group).*@${escaped}`, 'i').test(text) || new RegExp(`property="og:title"[^>]+@${escaped}`, 'i').test(text))) {
-                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true, firstName: displayName, photoUrl };
-            }
-            if (/tgme_page_title|tgme_page_extra|tgme_username_link/i.test(text) && new RegExp(`@${escaped}`, 'i').test(text)) {
-                return { ok: true, userId: `tg_${crypto.createHash('sha256').update(username).digest('hex').slice(0, 12)}`, type: 'public_username', at: Date.now(), source: 't.me', publicOnly: true, firstName: displayName, photoUrl };
-            }
+            // If page exists, we cannot determine the type without the bot API —
+            // return null so the caller treats it as inconclusive.
             return null;
         } catch (_) {
             return null;
         }
     }
 
-    // Without a bot token we cannot verify existence — degrade gracefully
-    // by checking Telegram's public username page before falling back.
+    // Without a bot token we cannot safely verify a username belongs to a real
+    // private user (not a channel/bot/group). Degrade to retry_later so the
+    // frontend prompts the user to try again rather than silently passing.
     if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dev_stub') {
-        const pageLookup = await lookupPublicTelegramPage(name);
-        if (pageLookup) {
-            usernameLookupCache.set(name, pageLookup);
-            return pageLookup;
+        const notFound = await checkTmeNotFound(name);
+        if (notFound) {
+            usernameLookupCache.set(name, notFound);
+            return notFound;
         }
         return { ok: null, reason: 'bot_unavailable', at: Date.now() };
     }
 
-    // Retry the bot API + t.me fallback up to 2 times on transient network errors
+    // Retry the bot API up to 2 times on transient network errors
     const MAX_LOOKUP_RETRIES = 2;
     let lastNetworkError = null;
 
@@ -4132,6 +4116,16 @@ async function lookupTelegramUsername(name) {
 
             if (data && data.ok && data.result && data.result.id) {
                 const result = data.result;
+
+                // SECURITY: only accept private users — reject channels, bots, groups.
+                // Channels and supergroups also have usernames and would otherwise
+                // pass as valid recipients, allowing Stars to be sent to no one.
+                if (result.type !== 'private') {
+                    const entry = { ok: false, reason: 'not_a_user', at: Date.now() };
+                    usernameLookupCache.set(name, entry);
+                    return entry;
+                }
+
                 // Try to get profile photo URL via getFile
                 let photoUrl = null;
                 try {
@@ -4160,21 +4154,17 @@ async function lookupTelegramUsername(name) {
                 return entry;
             }
 
-            // Bot API getChat can fail for valid user usernames the bot has never
-            // interacted with, so confirm with the public t.me page before rejecting.
-            const pageLookup = await lookupPublicTelegramPage(name);
-            if (pageLookup?.ok === true) {
-                usernameLookupCache.set(name, pageLookup);
-                return pageLookup;
+            // getChat failed — use t.me only to confirm non-existence, never to validate.
+            const notFoundCheck = await checkTmeNotFound(name);
+            if (notFoundCheck?.ok === false) {
+                usernameLookupCache.set(name, notFoundCheck);
+                return notFoundCheck;
             }
 
             // Telegram returns 400 with "chat not found" for non-existent usernames
             const desc = (data && data.description) || '';
             const notFound = /chat not found|USERNAME_NOT_OCCUPIED|USERNAME_INVALID/i.test(desc);
-            const entry = pageLookup?.ok === false
-                ? pageLookup
-                : { ok: false, reason: notFound ? 'not_found' : (desc || 'unknown_error'), at: Date.now() };
-            // Only cache definitive not-found results to avoid sticky errors
+            const entry = { ok: false, reason: notFound ? 'not_found' : (desc || 'unknown_error'), at: Date.now() };
             if (notFound) usernameLookupCache.set(name, entry);
             return entry;
 
@@ -4182,7 +4172,6 @@ async function lookupTelegramUsername(name) {
             lastNetworkError = err;
             console.warn(`lookupTelegramUsername attempt ${attempt}/${MAX_LOOKUP_RETRIES} failed for @${name}:`, err && err.message);
             if (attempt < MAX_LOOKUP_RETRIES) {
-                // Short wait before retry: 800ms first, 1600ms second
                 await new Promise(r => setTimeout(r, 800 * attempt));
             }
         }
@@ -4229,7 +4218,7 @@ app.post('/api/validate-usernames', requireTelegramAuth, async (req, res) => {
                 recipients.push({ username: name, userId: lookup.userId, firstName: lookup.firstName || null, lastName: lookup.lastName || null, photoUrl: lookup.photoUrl || null });
                 results.push({ username: name, valid: true, userId: lookup.userId, type: lookup.type, firstName: lookup.firstName || null, lastName: lookup.lastName || null, photoUrl: lookup.photoUrl || null });
             } else if (lookup.ok === false) {
-                results.push({ username: name, valid: false, reason: lookup.reason });
+                results.push({ username: name, valid: false, reason: lookup.reason === 'not_a_user' ? 'not_a_user' : lookup.reason });
             } else {
                 // ok === null: transient network/bot error after all retries — do NOT silently pass.
                 // Return a retriable error so the frontend can retry automatically.
