@@ -4050,18 +4050,83 @@ const USERNAME_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Resolve a Telegram username via iStar's recipient search API.
- * NOTE: We intentionally do NOT call iStar's /star/recipient/search here
- * because the recipient_hash it returns is session-bound — calling it during
- * validation consumes/invalidates the hash before the fulfillment flow can use
- * it, causing "Failed to get star purchase details" on the real order.
+ * Uses Fragment/MTProto under the hood — works for ANY user regardless of
+ * bot interaction. Also returns the user's real display name and photo URL.
  *
- * Instead we use the bot API + t.me scraping for validation, and let the
- * fulfillment provider fetch its own fresh recipient_hash at order time.
+ * SAFE TO CALL FOR VALIDATION: the recipient_hash returned here is NOT cached
+ * or reused. The fulfillment provider always fetches its own fresh hash at
+ * order time, so calling this for validation does not interfere with fulfillment.
  *
- * This function is kept as a stub so the lookup chain below reads clearly.
+ * Returns:
+ *   { ok: true,  userId: null, firstName, photoUrl }  — confirmed valid user
+ *   { ok: false, reason: 'not_found' }                — username doesn't exist
+ *   { ok: false, reason: 'not_a_user' }               — can't receive Stars
+ *   null                                               — iStar unavailable, fallback to bot API
  */
 async function lookupUsernameViaIstar(username) {
-    return null; // intentionally disabled for validation — see note above
+    if (!process.env.ISTAR_API_KEY) return null;
+    const baseUrl = (process.env.ISTAR_BASE_URL || 'https://v1.fragmentapi.com/api/v1/partner').replace(/\/+$/, '');
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7000);
+        let res;
+        try {
+            res = await fetch(`${baseUrl}/star/recipient/search?username=${encodeURIComponent(username)}&quantity=50`, {
+                method: 'GET',
+                headers: { 'API-Key': process.env.ISTAR_API_KEY, 'Accept': 'application/json' },
+                signal: controller.signal,
+            });
+        } finally { clearTimeout(timer); }
+
+        const text = await res.text().catch(() => '');
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { return null; }
+
+        if (!res.ok) {
+            const msg = (data?.error || data?.message || '').toLowerCase();
+            if (res.status === 404 || /not.found|does.not.exist|invalid.username|no.user/i.test(msg)) {
+                return { ok: false, reason: 'not_found' };
+            }
+            if (/channel|bot|group|cannot.receive/i.test(msg)) {
+                return { ok: false, reason: 'not_a_user' };
+            }
+            console.warn(`[iStar lookup] HTTP ${res.status} for @${username}: ${text?.slice(0, 120)}`);
+            return null; // fallback to bot API
+        }
+
+        if (!data.success || !data.recipient) {
+            const msg = (data?.error || data?.message || '').toLowerCase();
+            if (/not.found|does.not.exist|invalid|no.user/i.test(msg)) {
+                return { ok: false, reason: 'not_found' };
+            }
+            if (/channel|bot|group|cannot.receive/i.test(msg)) {
+                return { ok: false, reason: 'not_a_user' };
+            }
+            return null;
+        }
+
+        // Extract display name
+        const firstName = data.name || null;
+
+        // iStar returns photo as an HTML <img> tag — extract the src URL
+        let photoUrl = null;
+        if (data.photo && typeof data.photo === 'string') {
+            const srcMatch = data.photo.match(/src="([^"]+)"/i);
+            if (srcMatch && srcMatch[1] && !/\.svg$/i.test(srcMatch[1])) {
+                photoUrl = srcMatch[1];
+            }
+        }
+
+        return { ok: true, userId: null, firstName, photoUrl };
+
+    } catch (err) {
+        if (err?.name === 'AbortError') {
+            console.warn(`[iStar lookup] Timeout for @${username}`);
+        } else {
+            console.warn(`[iStar lookup] Error for @${username}:`, err?.message);
+        }
+        return null;
+    }
 }
 
 async function lookupTelegramUsername(name) {
@@ -4133,7 +4198,8 @@ async function lookupTelegramUsername(name) {
         // Try iStar first even without bot token
         const istar = await lookupUsernameViaIstar(name);
         if (istar?.ok === true) {
-            const entry = { ok: true, userId: istar.userId, type: 'private', firstName: istar.firstName, lastName: null, photoUrl: null, at: Date.now(), source: 'istar' };
+            // iStar confirmed valid — use their name and photo directly since no bot token
+            const entry = { ok: true, userId: istar.userId, type: 'private', firstName: istar.firstName, lastName: null, photoUrl: istar.photoUrl || null, at: Date.now(), source: 'istar' };
             usernameLookupCache.set(name, entry);
             return entry;
         }
@@ -4206,6 +4272,8 @@ async function lookupTelegramUsername(name) {
                 } catch (_) {}
             }
         } catch (_) {}
+        // Use iStar's CDN photo as fallback if bot API couldn't get one
+        if (!photoUrl && istarResult.photoUrl) photoUrl = istarResult.photoUrl;
         const entry = { ok: true, userId, type: 'private', firstName, lastName: null, photoUrl, at: Date.now(), source: 'istar' };
         usernameLookupCache.set(name, entry);
         return entry;
