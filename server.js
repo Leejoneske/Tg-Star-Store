@@ -17827,14 +17827,16 @@ app.get('/api/referrals/:userId', async (req, res) => {
         // Format referral data
         const formattedReferrals = referrals.map(referral => {
             const referredUser = userMap[referral.referredUserId];
+            // Use a short reference derived from the ObjectId — never expose raw _id
+            const shortRef = 'REF-' + referral._id.toString().slice(-6).toUpperCase();
             
             return {
-                id: referral._id.toString(),
+                id: shortRef,
                 name: referredUser?.username || 'Unknown User',
                 status: referral.status.toLowerCase(),
                 date: referral.dateReferred,
-                details: `Referred user ${referredUser?.username || referral.referredUserId}`,
-                amount: 0.5 // Fixed bonus amount or calculate based on your logic
+                details: `Referred user ${referredUser?.username || 'Unknown'}`,
+                amount: 0.5
             };
         });
 
