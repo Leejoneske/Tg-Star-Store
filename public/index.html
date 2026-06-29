@@ -2791,7 +2791,7 @@ function buildRecipientInput(containerId) {
         card.className = 'profile-card';
         card.setAttribute('data-card', idx);
         card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #c7e0ff;border-radius:10px;margin-top:6px;';
-        const TG_FALLBACK = `<div style="width:36px;height:36px;border-radius:50%;background:#229ED9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.378l-2.94-.918c-.64-.203-.653-.64.135-.954l11.57-4.461c.537-.194 1.006.131.869.176z"/></svg></div>`;
+        const TG_FALLBACK = `<div style="width:36px;height:36px;border-radius:50%;background:#229ED9;display:none;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.378l-2.94-.918c-.64-.203-.653-.64.135-.954l11.57-4.461c.537-.194 1.006.131.869.176z"/></svg></div>`;
         const avatarHtml = profile.photoUrl
             ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />${TG_FALLBACK}`
             : TG_FALLBACK;
@@ -2823,9 +2823,9 @@ function buildRecipientInput(containerId) {
         row.className = 'flex items-center gap-2';
         row.setAttribute('data-row-idx', idx);
         row.innerHTML = `
-            <div style="flex:1;position:relative;display:flex;align-items:center;border:1px solid #e0e0e0;border-radius:8px;background:#fff;overflow:hidden;">
-                <span style="padding:0 4px 0 10px;font-size:14px;color:#555;font-weight:500;flex-shrink:0;">@</span>
-                <input type="text" style="flex:1;width:100%;box-sizing:border-box;outline:none;background:transparent;padding:10px 32px 10px 2px;font-size:14px;border:none;" placeholder="username" data-idx="${idx}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            <div style="flex:1;position:relative;display:flex;align-items:center;border:1px solid #e0e0e0;border-radius:8px;background:#fff;overflow:hidden;transition:border-color 0.15s;" onfocusin="this.style.borderColor='#007AFF'" onfocusout="this.style.borderColor='#e0e0e0'">
+                <span style="padding:0 4px 0 10px;font-size:14px;color:#555;font-weight:500;flex-shrink:0;user-select:none;">@</span>
+                <input type="text" style="flex:1;width:100%;box-sizing:border-box;outline:none;background:transparent;padding:10px 32px 10px 2px;font-size:14px;border:none;box-shadow:none;-webkit-appearance:none;" placeholder="username" data-idx="${idx}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
                 <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;" data-status="${idx}"></span>
             </div>
             <button style="padding:7px 10px;font-size:12px;border:1px solid #e0e0e0;border-radius:8px;background:#f9f9f9;color:#666;cursor:pointer;white-space:nowrap;flex-shrink:0;" data-remove="${idx}">✕</button>
@@ -3232,7 +3232,7 @@ function _renderProfileCardGlobal(container, idx, profile) {
     card.className = 'profile-card';
     card.setAttribute('data-card', idx);
     card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #c7e0ff;border-radius:10px;margin-top:6px;';
-    const TG_FALLBACK_G = `<div style="width:36px;height:36px;border-radius:50%;background:#229ED9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.378l-2.94-.918c-.64-.203-.653-.64.135-.954l11.57-4.461c.537-.194 1.006.131.869.176z"/></svg></div>`;
+    const TG_FALLBACK_G = `<div style="width:36px;height:36px;border-radius:50%;background:#229ED9;display:none;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.378l-2.94-.918c-.64-.203-.653-.64.135-.954l11.57-4.461c.537-.194 1.006.131.869.176z"/></svg></div>`;
     const avatarHtml = profile.photoUrl
         ? `<img src="${profile.photoUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />${TG_FALLBACK_G}`
         : TG_FALLBACK_G;
