@@ -13,7 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <meta name="description" content="Send feedback, report bugs, and share feature requests with StarStore team. Help us improve the Telegram Stars trading platform.">
     <meta name="keywords" content="feedback, bug report, feature request, support, customer feedback, report issue, suggestions, StarStore improvement">
-    <title>Send Feedback | Help Us Improve StarStore</title>
+    <title>Send Feedback | StarStore</title>
     <link rel="canonical" href="https://starstore.app/feedback">
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <script src="/js/ban-guard.js?v=1" defer></script>
@@ -21,194 +21,238 @@
     <script src="/js/loading.js?v=1"></script>
     <script src="/js/version.js?v=1"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css?v=1">
     <link rel="stylesheet" href="/css/theme-additional.css?v=8">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        :root {
-            --green: #25D366;
-            --green-dark: #128C7E;
-            --text: #111111;
-            --text2: #54656f;
-            --text3: #8696a0;
-            --bg: #ffffff;
-            --bg2: #f0f2f5;
-            --border: #e9edef;
-            --input-border: #c4c9cc;
-        }
-
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            background: #f5f5f5;
+            color: #111;
             -webkit-font-smoothing: antialiased;
-            margin: 0;
         }
 
         #bottomnav-container { display: none !important; }
 
-        .app {
-            max-width: 560px;
+        .app-container {
+            max-width: 600px;
             margin: 0 auto;
+            background: #f5f5f5;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            background: var(--bg);
         }
 
-        .telegram-fullscreen .app { max-width: 100%; width: 100%; margin: 0; }
+        .telegram-fullscreen .app-container { max-width: 100%; width: 100%; margin: 0; }
         html[dir="rtl"] #exitButton { right: auto !important; left: 16px !important; }
 
-        /* ── TOP BAR ── */
-        .topbar {
+        /* ── HEADER ── */
+        .page-header {
+            background: white;
+            padding: 16px 20px;
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-            background: var(--bg);
+            gap: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         #exitButton {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: none;
+            background: #f5f5f5;
             border: none;
-            padding: 4px;
+            padding: 8px;
             cursor: pointer;
-            color: var(--text2);
+            color: #555;
             border-radius: 50%;
             transition: background 0.15s;
             flex-shrink: 0;
+            width: 36px;
+            height: 36px;
         }
 
-        #exitButton:hover { background: var(--bg2); }
+        #exitButton:active { background: #e8e8e8; }
 
-        .topbar-title {
+        .page-header-title {
             font-size: 17px;
-            font-weight: 600;
-            color: var(--text);
+            font-weight: 700;
+            color: #111;
         }
 
-        /* ── SCREENS ── */
-        #screenForm { display: flex; flex-direction: column; flex: 1; }
-        #screenThanks { display: none; flex-direction: column; flex: 1; }
-
-        /* ── FORM SCREEN ── */
-        .form-body {
+        /* ── SCROLLABLE CONTENT ── */
+        .page-scroll {
             flex: 1;
-            padding: 16px 16px 0;
+            overflow-y: auto;
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 12px;
+        }
+
+        /* ── CARDS ── */
+        .clean-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+        }
+
+        /* ── HINT ── */
+        .hint-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: var(--brand-subtle);
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+
+        .hint-icon {
+            width: 18px;
+            height: 18px;
+            color: var(--brand);
+            flex-shrink: 0;
+            margin-top: 1px;
         }
 
         .hint-text {
             font-size: 13px;
-            color: var(--text2);
+            color: #444;
             line-height: 1.55;
         }
 
-        .hint-text a { color: var(--green-dark); text-decoration: none; font-weight: 500; }
-
-        /* Category row */
-        .cat-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text2);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 10px;
+        .hint-text a {
+            color: var(--brand);
+            text-decoration: none;
+            font-weight: 500;
         }
 
-        .cat-pills {
-            display: flex;
-            flex-wrap: wrap;
+        /* ── TYPE PILLS ── */
+        .type-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
         }
 
-        .pill {
-            padding: 7px 14px;
-            border-radius: 20px;
-            border: 1.5px solid var(--border);
-            background: var(--bg);
-            font-size: 13px;
+        .type-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #e8e8e8;
+            background: #fafafa;
+            font-size: 14px;
             font-weight: 500;
-            color: var(--text2);
+            color: #555;
             cursor: pointer;
             transition: all 0.15s;
+            text-align: left;
         }
 
-        .pill:hover { border-color: var(--green); color: var(--green-dark); }
-        .pill.active { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+        .type-pill:active { transform: scale(0.97); }
 
-        /* Textarea */
+        .type-pill .pill-icon {
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .type-pill.active {
+            background: var(--brand);
+            border-color: var(--brand);
+            color: white;
+            box-shadow: 0 2px 8px rgba(79,70,229,0.15);
+        }
+
+        .type-pill.active .pill-label { color: white; }
+
+        /* ── TEXTAREA ── */
+        .textarea-wrap { position: relative; }
+
         textarea {
             width: 100%;
-            border: 1.5px solid var(--input-border);
-            border-radius: 10px;
+            border: 1.5px solid #e8e8e8;
+            border-radius: 12px;
             padding: 14px;
             font-family: inherit;
             font-size: 15px;
-            color: var(--text);
-            background: var(--bg);
+            color: #111;
+            background: #fafafa;
             resize: none;
             min-height: 130px;
-            max-height: 200px;
             line-height: 1.55;
             outline: none;
-            transition: border-color 0.15s;
+            transition: border-color 0.15s, background 0.15s;
         }
 
-        textarea::placeholder { color: var(--text3); }
-        textarea:focus { border-color: var(--green); }
+        textarea::placeholder { color: #aaa; }
+        textarea:focus { border-color: var(--brand); background: white; }
 
         .char-count {
             text-align: right;
             font-size: 12px;
-            color: var(--text3);
-            margin-top: -10px;
+            color: #bbb;
+            margin-top: 6px;
             font-variant-numeric: tabular-nums;
         }
 
         .char-count.warn { color: #f59e0b; }
         .char-count.crit { color: #ef4444; }
 
-        /* Email input */
+        /* ── EMAIL ── */
+        .input-wrap { position: relative; }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+            pointer-events: none;
+        }
+
         input[type="email"] {
             width: 100%;
-            border: 1.5px solid var(--input-border);
-            border-radius: 10px;
-            padding: 13px 14px;
+            border: 1.5px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 13px 14px 13px 42px;
             font-family: inherit;
             font-size: 15px;
-            color: var(--text);
-            background: var(--bg);
+            color: #111;
+            background: #fafafa;
             outline: none;
-            transition: border-color 0.15s;
+            transition: border-color 0.15s, background 0.15s;
         }
 
-        input[type="email"]::placeholder { color: var(--text3); }
-        input[type="email"]:focus { border-color: var(--green); }
+        input[type="email"]::placeholder { color: #aaa; }
+        input[type="email"]:focus { border-color: var(--brand); background: white; }
+        input[type="email"][aria-invalid="true"] { border-color: #ef4444; }
 
-        /* Media */
-        .media-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 3px;
+        .field-error {
+            font-size: 12px;
+            color: #ef4444;
+            margin-top: 6px;
+            display: none;
         }
 
-        .media-sublabel {
-            font-size: 13px;
-            color: var(--text2);
-            margin-bottom: 10px;
-        }
+        .field-error.show { display: block; }
 
+        /* ── MEDIA ── */
         .media-grid {
             display: flex;
             flex-wrap: wrap;
@@ -216,40 +260,50 @@
         }
 
         .media-add-btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
-            background: var(--bg2);
-            border: none;
+            width: 76px;
+            height: 76px;
+            border-radius: 12px;
+            background: #f5f5f5;
+            border: 1.5px dashed #ddd;
             cursor: pointer;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            transition: background 0.15s;
+            gap: 4px;
+            transition: background 0.15s, border-color 0.15s;
             flex-shrink: 0;
         }
 
-        .media-add-btn:hover { background: #dde1e5; }
+        .media-add-btn:active { background: #eee; border-color: var(--brand); }
+
+        .media-add-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
 
         .media-item {
             position: relative;
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
+            width: 76px;
+            height: 76px;
+            border-radius: 12px;
             overflow: hidden;
             flex-shrink: 0;
-            background: var(--bg2);
+            background: #f5f5f5;
         }
 
         .media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; }
 
         .media-remove {
             position: absolute;
-            top: 3px;
-            right: 3px;
+            top: 4px;
+            right: 4px;
             width: 20px;
             height: 20px;
-            background: rgba(0,0,0,0.55);
+            background: rgba(0,0,0,0.6);
             border: none;
             border-radius: 50%;
             color: white;
@@ -262,21 +316,21 @@
 
         #mediaInput { display: none; }
 
-        /* Footer note */
-        .form-footer-note {
+        /* ── FOOTER NOTE ── */
+        .footer-note {
             font-size: 12px;
-            color: var(--text2);
-            line-height: 1.55;
-            padding: 16px 16px 0;
+            color: #999;
+            line-height: 1.6;
+            text-align: center;
+            padding: 0 4px;
         }
 
-        .form-footer-note a { color: var(--green-dark); font-weight: 500; text-decoration: none; }
+        .footer-note a { color: var(--brand); text-decoration: none; }
 
-        /* Error */
+        /* ── ERROR ── */
         .alert-error {
-            margin: 0 16px;
-            padding: 11px 14px;
-            border-radius: 8px;
+            padding: 12px 14px;
+            border-radius: 12px;
             font-size: 13px;
             color: #991b1b;
             background: #fef2f2;
@@ -287,29 +341,34 @@
 
         .alert-error.show { display: block; }
 
-        /* Submit bar */
-        .submit-bar {
-            padding: 14px 16px;
-            padding-bottom: max(14px, env(safe-area-inset-bottom));
-            background: var(--bg);
+        /* ── SUBMIT ── */
+        .submit-wrap {
+            padding: 4px 16px 16px;
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            background: #f5f5f5;
         }
 
-        .btn-send {
+        .btn-primary {
             width: 100%;
-            background: var(--green);
-            color: #fff;
+            background: var(--brand);
+            color: white;
             border: none;
-            border-radius: 25px;
-            padding: 14px;
+            border-radius: 14px;
+            padding: 15px;
             font-family: inherit;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.15s, opacity 0.15s;
+            transition: opacity 0.15s, transform 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(79,70,229,0.2);
         }
 
-        .btn-send:active { background: #1ebe5d; }
-        .btn-send:disabled { background: var(--bg2); color: var(--text3); cursor: not-allowed; }
+        .btn-primary:active { opacity: 0.85; transform: scale(0.99); }
+        .btn-primary:disabled { background: #e0e0e0; color: #aaa; cursor: not-allowed; transform: none; box-shadow: none; }
 
         .spinner {
             display: inline-block;
@@ -319,152 +378,172 @@
             border-radius: 50%;
             border-top-color: white;
             animation: spin 0.6s linear infinite;
-            vertical-align: middle;
-            margin-right: 6px;
         }
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* ── THANKS SCREEN ── */
+        #screenThanks {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+        }
+
         .thanks-body {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 40px 32px;
+            padding: 48px 32px 32px;
             text-align: center;
         }
 
-        .thanks-icon {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 28px;
-            position: relative;
-        }
-
-        .thanks-icon-circle {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: var(--green);
+        .thanks-icon-wrap {
+            width: 88px;
+            height: 88px;
+            background: linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%);
+            border-radius: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 24px rgba(79,70,229,0.2);
         }
-
-        .thanks-sparkle {
-            position: absolute;
-            background: var(--green);
-            border-radius: 1px;
-        }
-
-        .sp1 { width: 6px; height: 6px; top: -6px; right: 8px; transform: rotate(45deg); }
-        .sp2 { width: 5px; height: 5px; top: 4px;  right: -6px; transform: rotate(20deg); }
-        .sp3 { width: 5px; height: 5px; bottom: 0;  left: -4px; transform: rotate(30deg); }
 
         .thanks-title {
             font-size: 22px;
             font-weight: 700;
-            color: var(--text);
-            margin-bottom: 20px;
-            line-height: 1.2;
+            color: #111;
+            margin-bottom: 12px;
         }
 
         .thanks-sub {
             font-size: 14px;
-            color: var(--text2);
-            line-height: 1.6;
-            max-width: 300px;
+            color: #666;
+            line-height: 1.65;
+            max-width: 280px;
         }
 
         .thanks-footer {
-            padding: 0 16px 16px;
-            text-align: center;
+            padding: 0 16px max(20px, env(safe-area-inset-bottom));
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .thanks-help {
             font-size: 13px;
-            color: var(--text2);
-            margin-bottom: 16px;
+            color: #888;
+            text-align: center;
+            line-height: 1.5;
         }
 
-        .thanks-help a { color: var(--green-dark); font-weight: 500; text-decoration: none; }
+        .thanks-help a { color: var(--brand); font-weight: 500; text-decoration: none; }
 
         .btn-done {
             width: 100%;
-            background: var(--text);
-            color: #fff;
+            background: #111;
+            color: white;
             border: none;
-            border-radius: 25px;
-            padding: 14px;
+            border-radius: 14px;
+            padding: 15px;
             font-family: inherit;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: opacity 0.15s;
         }
 
-        .btn-done:active { opacity: 0.85; }
+        .btn-done:active { opacity: 0.8; }
     </style>
     <script src="/js/analytics.js" async></script>
 </head>
 <body>
-<div class="app">
+<div class="app-container">
 
-    <!-- Top bar (shared) -->
-    <div class="topbar">
+    <!-- Header -->
+    <div class="page-header">
         <button id="exitButton" aria-label="Back">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                <path d="M14 5L8 11L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M11 4L6 9L11 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
-        <span class="topbar-title" data-translate="sendFeedback">Send feedback</span>
+        <span class="page-header-title" data-translate="sendFeedback">Send Feedback</span>
     </div>
 
-    <!-- ── FORM SCREEN ── -->
-    <div id="screenForm">
+    <!-- FORM SCREEN -->
+    <div id="screenForm" style="display:flex;flex-direction:column;flex:1;">
         <form id="feedbackForm" style="display:flex;flex-direction:column;flex:1;">
-            <div class="form-body">
+            <div class="page-scroll">
 
-                <p class="hint-text" data-translate="feedbackHint">
-                    For order issues or urgent help, please
-                    <a href="/support.html">contact support</a>. Use this form for general feedback only.
-                </p>
+                <!-- Hint -->
+                <div class="hint-row">
+                    <svg class="hint-icon" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <p class="hint-text" data-translate="feedbackHint">
+                        For order issues or urgent help, <a href="/support.html">contact support</a>. Use this form for general feedback only.
+                    </p>
+                </div>
 
-                <!-- Category -->
-                <div>
-                    <div class="cat-label" data-translate="feedbackType">Type</div>
-                    <div class="cat-pills">
-                        <button type="button" class="pill feedback-type" data-type="bug" data-translate="bugReport">Bug</button>
-                        <button type="button" class="pill feedback-type" data-type="feature" data-translate="featureRequest">Feature request</button>
-                        <button type="button" class="pill feedback-type" data-type="improvement" data-translate="improvement">Improvement</button>
-                        <button type="button" class="pill feedback-type" data-type="general" data-translate="general">Other</button>
+                <!-- Type -->
+                <div class="clean-card">
+                    <div class="card-title" data-translate="feedbackType">Feedback Type</div>
+                    <div class="type-grid">
+                        <button type="button" class="type-pill feedback-type" data-type="bug">
+                            <span class="pill-icon">🐛</span>
+                            <span class="pill-label" data-translate="bugReport">Bug report</span>
+                        </button>
+                        <button type="button" class="type-pill feedback-type" data-type="feature">
+                            <span class="pill-icon">✨</span>
+                            <span class="pill-label" data-translate="featureRequest">Feature request</span>
+                        </button>
+                        <button type="button" class="type-pill feedback-type" data-type="improvement">
+                            <span class="pill-icon">⚡</span>
+                            <span class="pill-label" data-translate="improvement">Improvement</span>
+                        </button>
+                        <button type="button" class="type-pill feedback-type" data-type="general">
+                            <span class="pill-icon">💬</span>
+                            <span class="pill-label" data-translate="general">Other</span>
+                        </button>
                     </div>
                     <input type="hidden" id="feedbackType" name="feedbackType" required>
                 </div>
 
                 <!-- Message -->
-                <div>
-                    <textarea id="feedbackMessage" name="feedbackMessage" placeholder="Describe the issue or idea…" maxlength="3000" required></textarea>
-                    <div class="char-count" id="charCount">0 / 3000</div>
+                <div class="clean-card">
+                    <div class="card-title">Your Message</div>
+                    <div class="textarea-wrap">
+                        <textarea id="feedbackMessage" name="feedbackMessage" placeholder="Describe the issue or idea…" maxlength="3000" required></textarea>
+                        <div class="char-count" id="charCount">0 / 3000</div>
+                    </div>
                 </div>
 
                 <!-- Email -->
-                <input type="email" id="userEmail" name="userEmail" placeholder="Your email address" required aria-describedby="userEmailError" autocomplete="email">
-                <div id="userEmailError" class="form-error" role="alert">Please enter a valid email address.</div>
+                <div class="clean-card">
+                    <div class="card-title">Contact Email</div>
+                    <div class="input-wrap">
+                        <svg class="input-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#aaa" stroke-width="1.6">
+                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                        </svg>
+                        <input type="email" id="userEmail" name="userEmail" placeholder="your@email.com" required aria-describedby="userEmailError" autocomplete="email">
+                    </div>
+                    <div id="userEmailError" class="field-error" role="alert">Please enter a valid email address.</div>
+                </div>
 
                 <!-- Media -->
-                <div>
-                    <div class="media-label" data-translate="attachMedia">Screenshots or recordings <span style="font-weight:400;color:var(--text2);">(optional)</span></div>
-                    <div class="media-sublabel">Tap to add images or videos</div>
+                <div class="clean-card">
+                    <div class="card-title" data-translate="attachMedia">Screenshots / Recordings <span style="font-weight:400;color:#bbb;text-transform:none;letter-spacing:0;">(optional)</span></div>
                     <div class="media-grid" id="mediaGrid">
                         <button type="button" class="media-add-btn" id="mediaUploadSection" aria-label="Add media">
-                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                                <rect x="3" y="5" width="22" height="18" rx="3" stroke="#8696a0" stroke-width="1.6"/>
-                                <circle cx="9.5" cy="11.5" r="2" stroke="#8696a0" stroke-width="1.4"/>
-                                <path d="M3 19l6-5 4 4 3-3 9 7" stroke="#8696a0" stroke-width="1.4" stroke-linejoin="round"/>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
                             </svg>
+                            <span class="media-add-label">Add</span>
                         </button>
                     </div>
                     <input type="file" id="mediaInput" multiple accept="image/*,video/*">
@@ -474,59 +553,55 @@
                 <span id="displayUserId" style="display:none;"></span>
                 <span id="displayTimestamp" style="display:none;" data-translate="autoDetected"></span>
 
+                <!-- Error -->
+                <div id="errorMessage" class="alert-error"></div>
+
+                <!-- Footer note -->
+                <p class="footer-note">
+                    <span data-translate="bySendingYouAllow">By sending, you allow StarStore</span> <span data-translate="toUseYourFeedback">to use your feedback to improve our services</span>.
+                    <a href="/policy.html" data-translate="learnMore">Learn more</a>
+                </p>
+
             </div>
 
-            <p class="form-footer-note">
-                <span data-translate="bySendingYouAllow">By sending, you allow StarStore</span> <span data-translate="toUseYourFeedback">to use your feedback to improve our services</span>.
-                <a href="/policy.html" data-translate="learnMore">Learn more</a>
-            </p>
-
-            <div id="errorMessage" class="alert-error" style="margin-top:12px;"></div>
-
-            <div class="submit-bar">
-                <button type="submit" class="btn-send" id="submitBtn" disabled data-translate="sendFeedback">Send</button>
+            <div class="submit-wrap">
+                <button type="submit" class="btn-primary" id="submitBtn" disabled>
+                    <span data-translate="sendFeedback">Send Feedback</span>
+                </button>
             </div>
         </form>
     </div>
 
-    <!-- ── THANKS SCREEN ── -->
+    <!-- THANKS SCREEN -->
     <div id="screenThanks">
         <div class="thanks-body">
-            <div class="thanks-icon">
-                <div class="thanks-icon-circle">
-                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                        <path d="M10 18.5l5.5 5.5 10.5-11" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div class="thanks-sparkle sp1"></div>
-                <div class="thanks-sparkle sp2"></div>
-                <div class="thanks-sparkle sp3"></div>
+            <div class="thanks-icon-wrap">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                    <path d="M10 20.5l7 7 13-14" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
             </div>
-            <h2 class="thanks-title" data-translate="thanksForFeedback">Thanks for your feedback</h2>
-            <p class="thanks-sub" data-translate="thanksSubtext">It helps make StarStore better for everyone. While we don't share updates on your feedback, it tells us what to improve next.</p>
+            <h2 class="thanks-title" data-translate="thanksForFeedback">Thanks for your feedback!</h2>
+            <p class="thanks-sub" data-translate="thanksSubtext">It helps make StarStore better for everyone. While we don't always reply, every piece of feedback is read.</p>
         </div>
-
         <div class="thanks-footer">
             <p class="thanks-help">Need more help? Visit <a href="https://blog.starstore.app/" target="_blank" rel="noopener" data-translate="helpCenter">our Help Center</a>.</p>
             <button class="btn-done" id="doneBtn" data-translate="done">Done</button>
         </div>
     </div>
 
-    <!-- Required by feedback.js to detect success -->
+    <!-- Required by feedback.js -->
     <div id="successMessage" style="display:none;"></div>
-
     <div id="bottomnav-container"></div>
 </div>
 
 <script>
-    // Initialize translations
     document.addEventListener('DOMContentLoaded', function() {
         if (window.TranslationUtils && window.TranslationUtils.applyTranslations) {
             window.TranslationUtils.applyTranslations();
         }
     });
 
-    // ── Char counter ──
+    // Char counter
     const ta = document.getElementById('feedbackMessage');
     const cc = document.getElementById('charCount');
     ta.addEventListener('input', () => {
@@ -536,17 +611,17 @@
         validateForm();
     });
 
-    // ── Category pills ──
-    document.querySelectorAll('.pill.feedback-type').forEach(btn => {
+    // Type pills
+    document.querySelectorAll('.type-pill.feedback-type').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.pill.feedback-type').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.type-pill.feedback-type').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('feedbackType').value = btn.dataset.type;
             validateForm();
         });
     });
 
-    // ── Email (with inline validation) ──
+    // Email validation
     (function () {
         const emailEl = document.getElementById('userEmail');
         const errEl   = document.getElementById('userEmailError');
@@ -575,7 +650,7 @@
         document.getElementById('submitBtn').disabled = !(hasType && hasMsg && hasEmail);
     }
 
-    // ── Media upload ──
+    // Media upload
     const mediaInput = document.getElementById('mediaInput');
     const mediaGrid  = document.getElementById('mediaGrid');
     const addBtn     = document.getElementById('mediaUploadSection');
@@ -601,14 +676,14 @@
         mediaInput.value = '';
     });
 
-    // ── Thank you screen ──
+    // Thanks screen
     function showThanks() {
         document.getElementById('screenForm').style.display = 'none';
-        document.getElementById('screenThanks').style.display = 'flex';
+        const thanks = document.getElementById('screenThanks');
+        thanks.style.display = 'flex';
         window.scrollTo(0, 0);
     }
 
-    // Watch #successMessage for feedback.js adding class "show" or making it visible
     const successEl = document.getElementById('successMessage');
     new MutationObserver((mutations) => {
         for (const m of mutations) {
@@ -616,15 +691,21 @@
                 successEl.classList.contains('show') ||
                 successEl.style.display === 'block' ||
                 successEl.textContent.trim().length > 0
-            ) {
-                showThanks();
-                break;
-            }
+            ) { showThanks(); break; }
         }
     }).observe(successEl, { attributes: true, childList: true, characterData: true, subtree: true });
 
-    // ── Done button ──
+    // Done button
     document.getElementById('doneBtn').addEventListener('click', () => {
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.close();
+        } else {
+            history.back();
+        }
+    });
+
+    // Exit button
+    document.getElementById('exitButton').addEventListener('click', () => {
         if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.close();
         } else {
@@ -636,4 +717,3 @@
 <script src="/js/feedback.js?v=3"></script>
 </body>
 </html>
-
