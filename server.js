@@ -567,9 +567,54 @@ app.use((req, res, next) => {
     });
 });
 
-// Serve static files from public directory
+// ─────────────────────────────────────────────────────────────────────────
+// AUTO CACHE-BUSTING: rewrites ?v=N query strings on local <script>/<link>
+// tags inside HTML responses to a single build-version hash computed once
+// at server startup. This means static assets (JS/CSS) referenced in any
+// .html file are automatically cache-busted on every deploy — no manual
+// editing of ?v= numbers in HTML source is ever required again.
+//
+// How it works:
+//   1. ASSET_BUILD_VERSION is computed once when the server boots, derived
+//      from the Railway build hash (or a timestamp fallback locally).
+//   2. Static JS/CSS files get a long, immutable cache (1 year) since their
+//      URL changes on every deploy anyway — far fewer cache-related bugs.
+//   3. HTML files stay no-cache (already configured below) so the browser
+//      always re-fetches the page and picks up the new asset version.
+// ─────────────────────────────────────────────────────────────────────────
+const ASSET_BUILD_VERSION = (() => {
+    const raw = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RAILWAY_DEPLOYMENT_ID || String(Date.now());
+    return raw.toString().replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || String(Date.now());
+})();
+console.log(`[Cache] Asset build version: ${ASSET_BUILD_VERSION}`);
+
+app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const isHtmlRequest = req.path === '/' || req.path.endsWith('.html') || req.path.endsWith('/');
+    if (!isHtmlRequest) return next();
+
+    const originalSend = res.send;
+    res.send = function (body) {
+        if (typeof body === 'string' && res.get('Content-Type')?.includes('text/html')) {
+            // Rewrite any local asset reference like /js/foo.js?v=5 or /css/foo.css?v=2
+            // to the current build version. External URLs (http/https) are untouched.
+            body = body.replace(
+                /((?:src|href)=["'])(\/(?:js|css)\/[^"'?]+\.(?:js|css))(?:\?v=[^"']*)?(["'])/g,
+                (match, prefix, assetPath, suffix) => `${prefix}${assetPath}?v=${ASSET_BUILD_VERSION}${suffix}`
+            );
+        }
+        return originalSend.call(this, body);
+    };
+    next();
+});
+
+// Serve static files from public directory.
+// JS/CSS get a long immutable cache since their URLs are now auto-versioned
+// by the middleware above — a new deploy changes the ?v= so old cached
+// copies are simply never requested again, no need for short maxAge.
 app.use(express.static('public', {
-    maxAge: '1h',
+    maxAge: '1y',
+    immutable: true,
     etag: false,
     lastModified: false,
     index: ['index.html'],
@@ -577,8 +622,7 @@ app.use(express.static('public', {
         if (requestPath.endsWith('.html')) {
             res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
-    }
-}));
+    }}));
 
 // Add error handling for body parsing
 app.use(express.json({ 
