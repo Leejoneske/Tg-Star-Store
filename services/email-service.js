@@ -337,14 +337,21 @@ async function sendWalletReminderBeforePayout(email, username) {
  * Withdrawal Order Created - Notification
  */
 async function sendWithdrawalCreated(email, username, amount, earnings) {
+    const breakdownEntries = Array.isArray(earnings)
+        ? earnings.filter(entry => entry && Number(entry.amount) > 0)
+        : [];
+    const breakdownText = breakdownEntries.length > 0
+        ? breakdownEntries.map(entry => `${entry.tier} (+$${Number(entry.amount).toFixed(2)})`).join(', ')
+        : 'No tier breakdown available';
+
     const content = `
 <h2>Withdrawal Request Submitted 📤</h2>
 <p>Hey ${username || 'there'},</p>
 <p>Your withdrawal request is in and waiting for approval.</p>
 <div class="info-box">
     <p><strong>Details:</strong></p>
-    <p>Amount: <span class="highlight">$${amount.toFixed(2)}</span></p>
-    <p>Breakdown: ${earnings.map(e => `${e.tier} (+$${e.amount.toFixed(2)})`).join(', ')}</p>
+    <p>Amount: <span class="highlight">$${Number(amount).toFixed(2)}</span></p>
+    <p>Breakdown: ${breakdownText}</p>
 </div>
 <p>We'll process this in 1-2 business days. You'll get another email when it's approved.</p>
 <p style="margin-top: 24px; font-size: 12px; color: #6c757d;">Thanks for being an ambassador with us!</p>

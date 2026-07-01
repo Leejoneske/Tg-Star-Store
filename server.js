@@ -20943,27 +20943,33 @@ app.listen(PORT, async () => {
 
             // Send user confirmation message (with amount and wallet)
             try {
-              await bot.sendMessage(
-                ambassador.id,
-                `📋 **Automatic Withdrawal Submitted**\n\n` +
+              const confirmationMessage = `📋 Automatic Withdrawal Submitted\n\n` +
                 `Amount: $${availableBalance.toFixed(2)} USDT\n` +
                 `Wallet: ${ambassador.ambassadorWalletAddress}\n` +
                 `Month: ${now.toISOString().substring(0, 7)}\n\n` +
                 `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-                `Status: Pending approval`,
-                { parse_mode: 'Markdown' }
-              );
+                `Status: Pending approval`;
+
+              await bot.sendMessage(ambassador.id, confirmationMessage);
             } catch (botErr) {
               console.warn(`[Scheduler] Failed to send user confirmation for ${ambassador.username}:`, botErr.message);
             }
             
             // Send email notification
             try {
+              const breakdown = [
+                { tier: 'Pre-Level 1', amount: monthLevelEarnings.preLevelOne || 0 },
+                { tier: 'Level 1', amount: monthLevelEarnings.levelOne || 0 },
+                { tier: 'Level 2', amount: monthLevelEarnings.levelTwo || 0 },
+                { tier: 'Level 3', amount: monthLevelEarnings.levelThree || 0 },
+                { tier: 'Level 4', amount: monthLevelEarnings.levelFour || 0 }
+              ].filter(entry => Number(entry.amount) > 0);
+
               await emailService.sendWithdrawalCreated(
                 ambassador.ambassadorEmail,
                 ambassador.username || 'Ambassador',
                 availableBalance,
-                availableReferrals
+                breakdown
               );
             } catch (emailErr) {
               console.warn(`[Scheduler] Email notification failed for ${ambassador.username}:`, emailErr.message);
