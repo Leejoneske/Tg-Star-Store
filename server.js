@@ -20754,10 +20754,10 @@ app.listen(PORT, async () => {
         
         console.log('[Scheduler] DAY 1 DETECTED - Starting end-of-month auto-withdrawals...');
         
-        // Define date range for this month (used both for dedup + balance lookup)
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const monthStr = now.toISOString().substring(0, 7);
+        // Define date range for PREVIOUS month (day 1 processes last month's referrals)
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthStr = new Date(now.getFullYear(), now.getMonth() - 1).toISOString().substring(0, 7);
 
         // Find all ambassadors (have ambassadorEmail set)
         const ambassadors = await User.find({
