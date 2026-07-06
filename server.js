@@ -8665,7 +8665,7 @@ bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     if (!orderId) {
         const welcomeMsg = `🔄 Welcome to Sell Order Pay Support\n\n` +
             `You are about to request a cancellation and refund for your order. ` +
-            `Please note that refund requests are limited to once per month and can only be made within 5 days of order creation.\n\n` +
+            `Please note that refund requests are limited to once per month, one active request per order at a time, and can only be made within 5 days of order creation.\n\n` +
             `Please enter your Order ID:`;
         
         reversalRequests.set(chatId, { 
@@ -8685,6 +8685,12 @@ bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
     if (order.dateCreated < fiveDaysAgo) {
         return bot.sendMessage(chatId, `❌ Refund requests can only be made within 5 days of order creation. This order was created on ${order.dateCreated.toDateString()}.`);
+    }
+    
+    // 🔒 Per-order lock: block a repeat request for THIS order while one is still pending
+    const existingPending = await Reversal.findOne({ orderId, status: 'pending' });
+    if (existingPending) {
+        return bot.sendMessage(chatId, `⏳ Already requested. Order ${orderId} has a pending refund request awaiting admin decision.`);
     }
     
     reversalRequests.set(chatId, { 
@@ -8934,6 +8940,13 @@ bot.on('message', async (msg) => {
         fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
         if (order.dateCreated < fiveDaysAgo) {
             return bot.sendMessage(chatId, `❌ Refund requests can only be made within 5 days of order creation. This order was created on ${order.dateCreated.toDateString()}. Please enter a different Order ID:`);
+        }
+        
+        // 🔒 Per-order lock: block a repeat request for THIS order while one is still pending
+        const existingPending = await Reversal.findOne({ orderId, status: 'pending' });
+        if (existingPending) {
+            reversalRequests.delete(chatId);
+            return bot.sendMessage(chatId, `⏳ Already requested. Order ${orderId} has a pending refund request awaiting admin decision.`);
         }
         
         request.step = 'waiting_reason';
