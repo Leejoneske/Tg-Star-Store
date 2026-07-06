@@ -19649,14 +19649,21 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
             'AF': 'Afghanistan', 'CI': 'Côte d\'Ivoire', 'TN': 'Tunisia'
         };
 
+        // Escape HTML special chars so unexpected characters in geolocation
+        // data (from the IP provider) can never break Telegram's HTML parser.
+        const escapeHtml = (str) => String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
         // Aggregate by country, filter out 'unknown'
         const countryStats = {};
         const cityStats = {};
         
         for (const user of users) {
             if (user.lastLocation?.country && user.lastLocation.country.toLowerCase() !== 'unknown') {
-                const countryCode = user.lastLocation.country;
-                const countryName = countryNames[countryCode] || countryCode;
+                const countryCode = user.lastLocation.countryCode || user.lastLocation.country;
+                const countryName = countryNames[countryCode] || user.lastLocation.country;
                 countryStats[countryName] = (countryStats[countryName] || 0) + 1;
                 
                 if (includesCities && user.lastLocation?.city) {
@@ -19673,45 +19680,66 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
         const totalUsersWithLocation = Object.values(countryStats).reduce((a, b) => a + b, 0);
         const totalUsers = await User.countDocuments({});
         const usersWithoutLocation = totalUsers - totalUsersWithLocation;
+        const pct = (count) => totalUsersWithLocation > 0 ? ((count / totalUsersWithLocation) * 100).toFixed(1) : '0.0';
 
-        let report = `<b>Geographic User Distribution</b>\n\n`;
-        report += `Total Users: <code>${totalUsers}</code>\n`;
-        report += `With Location: <code>${totalUsersWithLocation}</code>\n`;
-        report += `Without Location: <code>${usersWithoutLocation}</code>\n`;
-        report += `Countries Represented: <code>${Object.keys(countryStats).length}</code>\n\n`;
-        report += `<b>Top Countries:</b>\n`;
+        let header = `<b>Geographic User Distribution</b>\n\n`;
+        header += `Total Users: <code>${totalUsers}</code>\n`;
+        header += `With Location: <code>${totalUsersWithLocation}</code>\n`;
+        header += `Without Location: <code>${usersWithoutLocation}</code>\n`;
+        header += `Countries Represented: <code>${Object.keys(countryStats).length}</code>\n\n`;
+        header += `<b>Top Countries:</b>\n`;
 
-        sortedCountries.forEach(([country, count], index) => {
-            const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
-            report += `${index + 1}. ${country}: <code>${count}</code> users (<code>${percentage}%</code>)\n`;
-        });
+        const countryLines = sortedCountries.map(([country, count], index) =>
+            `${index + 1}. ${escapeHtml(country)}: <code>${count}</code> users (<code>${pct(count)}%</code>)\n`
+        );
 
-        // Add city breakdown if requested
+        let cityLines = [];
         if (includesCities && Object.keys(cityStats).length > 0) {
             const sortedCities = Object.entries(cityStats)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 20); // Top 20 cities
 
-            report += `\n<b>Top Cities:</b>\n`;
+            cityLines.push(`\n<b>Top Cities:</b>\n`);
             sortedCities.forEach(([city, count], index) => {
-                const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
-                report += `${index + 1}. ${city}: <code>${count}</code> users (<code>${percentage}%</code>)\n`;
+                cityLines.push(`${index + 1}. ${escapeHtml(city)}: <code>${count}</code> users (<code>${pct(count)}%</code>)\n`);
             });
         }
 
         const duration = Date.now() - analysisStart;
-        report += `\n<b>Duration:</b> <code>${duration}ms</code>`;
-        if (includesCities) {
-            report += `\n\nTip: Use /geo_analysis for countries only`;
-        } else {
-            report += `\n\nTip: Use /geo_analysis cities for city breakdown`;
+        let footer = `\n<b>Duration:</b> <code>${duration}ms</code>`;
+        footer += includesCities
+            ? `\n\nTip: Use /geo_analysis for countries only`
+            : `\n\nTip: Use /geo_analysis cities for city breakdown`;
+
+        // Telegram hard-caps messages at 4096 characters. Split into multiple
+        // messages instead of building one giant string that Telegram would
+        // silently reject (which is why no report was ever coming back).
+        const MAX_LEN = 3500;
+        const chunks = [];
+        let current = header;
+        for (const line of [...countryLines, ...cityLines]) {
+            if (current.length + line.length > MAX_LEN) {
+                chunks.push(current);
+                current = '';
+            }
+            current += line;
+        }
+        current += footer;
+        chunks.push(current);
+
+        for (let i = 0; i < chunks.length; i++) {
+            const prefix = chunks.length > 1 ? `<b>(Part ${i + 1}/${chunks.length})</b>\n\n` : '';
+            await bot.sendMessage(chatId, prefix + chunks[i], { parse_mode: 'HTML' });
         }
 
         console.log(`[ADMIN-ACTION] geo_analysis completed by @${adminUsername} in ${duration}ms`);
-        bot.sendMessage(chatId, report, { parse_mode: 'HTML' });
     } catch (error) {
         console.error(`[ADMIN-ACTION] geo_analysis error by @${adminUsername} (${adminId}):`, error);
-        bot.sendMessage(chatId, `❌ Analysis failed: ${error.message}`);
+        try {
+            await bot.sendMessage(chatId, `❌ Analysis failed: ${error.message}`);
+        } catch (sendErr) {
+            console.error(`[ADMIN-ACTION] geo_analysis failed to send error message:`, sendErr);
+        }
     }
 });
 
