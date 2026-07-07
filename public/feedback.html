@@ -764,7 +764,11 @@
     // the platform's own back button instead of a custom on-page control).
     // Telegram only swaps the header's X for the back arrow once ready() has
     // been called, so that has to happen first.
-    (function initTelegram() {
+    // NOTE: telegram-web-app.js is loaded with `defer`, so it isn't guaranteed
+    // to exist until DOMContentLoaded fires — running this any earlier means
+    // window.Telegram.WebApp is still undefined and everything below silently
+    // no-ops (which is exactly what was happening before this wrapper).
+    document.addEventListener('DOMContentLoaded', function initTelegram() {
         try {
             const webApp = window.Telegram && window.Telegram.WebApp;
             if (!webApp) return;
@@ -789,7 +793,7 @@
         } catch (e) {
             console.log('BackButton not supported:', e.message);
         }
-    })();
+    });
 </script>
 
 <script src="/js/feedback.js?v=3"></script>
