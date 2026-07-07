@@ -14654,11 +14654,30 @@ bot.on('message', async (msg) => {
                 );
             }
 
-            session.recipient = rawEmails; // array — supports one or many
+            // De-duplicate (case-insensitive — email addresses are treated as
+            // the same recipient regardless of case in practice) so a repeated
+            // address in the admin's list never results in the same person
+            // getting the email twice. First occurrence's casing is kept.
+            const seen = new Set();
+            const uniqueEmails = [];
+            const duplicatesRemoved = [];
+            for (const email of rawEmails) {
+                const key = email.toLowerCase();
+                if (seen.has(key)) {
+                    duplicatesRemoved.push(email);
+                } else {
+                    seen.add(key);
+                    uniqueEmails.push(email);
+                }
+            }
+
+            session.recipient = uniqueEmails; // array — supports one or many, always de-duplicated
+            session.duplicatesRemoved = duplicatesRemoved;
             session.step = 'confirm';
 
             const confirmMsg = `✅ **Confirm Email Details**\n\n` +
-                `**Recipient${rawEmails.length > 1 ? 's' : ''}** (${rawEmails.length}): ${escapeTelegramMarkdown(rawEmails.join(', '))}\n` +
+                `**Recipient${uniqueEmails.length > 1 ? 's' : ''}** (${uniqueEmails.length}): ${escapeTelegramMarkdown(uniqueEmails.join(', '))}\n` +
+                (duplicatesRemoved.length > 0 ? `**Duplicates removed** (won't be emailed twice): ${escapeTelegramMarkdown(duplicatesRemoved.join(', '))}\n` : '') +
                 `**Subject**: ${escapeTelegramMarkdown(session.subject || session.template.subject)}\n` +
                 `**Template**: ${escapeTelegramMarkdown(session.template.name)}\n\n` +
                 `Reply with:\n` +
@@ -14677,6 +14696,10 @@ bot.on('message', async (msg) => {
                 
                 try {
                     const result = await emailService.sendCustomEmail(recipientList, finalSubject, finalBody);
+                    const allDuplicates = [...new Set([...(session.duplicatesRemoved || []), ...(result.duplicatesRemoved || [])])];
+                    const duplicatesNote = allDuplicates.length > 0
+                        ? `**Duplicates skipped** (already in list, not emailed twice): ${escapeTelegramMarkdown(allDuplicates.join(', '))}\n`
+                        : '';
                     
                     if (result.multiple) {
                         // Sent to several recipients — report per-address outcome
@@ -14684,7 +14707,9 @@ bot.on('message', async (msg) => {
                         const summaryMsg = `📬 **Bulk Email Complete**\n\n` +
                             `**Subject**: ${escapeTelegramMarkdown(finalSubject)}\n` +
                             `**Template**: ${escapeTelegramMarkdown(session.template.name)}\n` +
-                            `**Sent**: ${result.successCount}/${result.total} succeeded\n\n` +
+                            `**Sent**: ${result.successCount}/${result.total} succeeded\n` +
+                            duplicatesNote +
+                            `\n` +
                             lines.join('\n') +
                             `\n\n**Sent At**: ${new Date().toLocaleString()}\n` +
                             `**Sent By**: ${escapeTelegramMarkdown(session.adminName)}\n\n` +
@@ -14694,6 +14719,7 @@ bot.on('message', async (msg) => {
                     } else if (result.success) {
                         const successMsg = `✅ **Email Sent Successfully!**\n\n` +
                             `**To**: ${escapeTelegramMarkdown(recipientList[0])}\n` +
+                            duplicatesNote +
                             `**Subject**: ${escapeTelegramMarkdown(finalSubject)}\n` +
                             `**Template**: ${escapeTelegramMarkdown(session.template.name)}\n` +
                             `**Message ID**: ${escapeTelegramMarkdown(result.messageId || 'N/A')}\n` +
