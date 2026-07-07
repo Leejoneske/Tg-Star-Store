@@ -547,12 +547,31 @@ async function sendCustomEmail(to, subject, htmlBody) {
     const preheader = String(htmlBody || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
     const styledHtml = getEmailTemplate(subject, formattedBody, preheader);
 
-    const recipients = (Array.isArray(to) ? to : String(to).split(','))
+    const rawRecipients = (Array.isArray(to) ? to : String(to).split(','))
         .map(e => String(e).trim())
         .filter(Boolean);
 
+    // De-duplicate case-insensitively (first occurrence's casing kept) so the
+    // same address is never emailed twice from a single call — no matter how
+    // the caller assembled the list. This is the authoritative sanitization
+    // point for all current and future callers of sendCustomEmail, not just
+    // the interactive /sendemail bot flow.
+    const seen = new Set();
+    const recipients = [];
+    const duplicatesRemoved = [];
+    for (const email of rawRecipients) {
+        const key = email.toLowerCase();
+        if (seen.has(key)) {
+            duplicatesRemoved.push(email);
+        } else {
+            seen.add(key);
+            recipients.push(email);
+        }
+    }
+
     if (recipients.length <= 1) {
-        return sendEmail(recipients[0] || to, subject, styledHtml);
+        const result = await sendEmail(recipients[0] || to, subject, styledHtml);
+        return duplicatesRemoved.length > 0 ? { ...result, duplicatesRemoved } : result;
     }
 
     // Send individually (not as one multi-recipient call) so a single bad
@@ -571,7 +590,8 @@ async function sendCustomEmail(to, subject, htmlBody) {
         total: recipients.length,
         successCount,
         failureCount: recipients.length - successCount,
-        results
+        results,
+        duplicatesRemoved
     };
 }
 
