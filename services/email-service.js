@@ -24,9 +24,56 @@ try {
 }
 
 /**
+ * Escape HTML special characters so plain-text admin input can never break
+ * the surrounding markup.
+ */
+function escapeHtml(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
+ * Turn bare URLs and email addresses in already-escaped text into clickable
+ * links. Run AFTER escapeHtml so the text is already safe.
+ */
+function linkify(escapedText) {
+    let out = escapedText.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+        // Don't swallow trailing punctuation into the link (e.g. "visit https://x.com.")
+        const trailingMatch = url.match(/[),.!?]+$/);
+        const trailing = trailingMatch ? trailingMatch[0] : '';
+        const clean = trailing ? url.slice(0, -trailing.length) : url;
+        return `<a href="${clean}" style="color:#007bff;text-decoration:underline;" target="_blank" rel="noopener">${clean}</a>${trailing}`;
+    });
+    out = out.replace(/(^|[\s(>])([\w.+-]+@[\w-]+(?:\.[\w-]+)+)(?=[\s).,!?]|$)/g, (m, pre, email) =>
+        `${pre}<a href="mailto:${email}" style="color:#007bff;text-decoration:underline;">${email}</a>`
+    );
+    return out;
+}
+
+/**
+ * Convert plain-text email bodies into properly formatted HTML: blank lines
+ * become paragraph breaks, single newlines become <br>, and bare URLs/emails
+ * become clickable links. If the admin already wrote HTML (detected by the
+ * presence of tags), it's trusted and passed through untouched.
+ */
+function formatEmailBody(text) {
+    if (!text) return '';
+    const str = String(text);
+    if (/<[a-z][\s\S]*>/i.test(str)) return str; // already HTML — don't touch it
+
+    const linked = linkify(escapeHtml(str));
+    return linked
+        .split(/\n\s*\n/)
+        .map(block => `<p style="margin:0 0 16px 0;">${block.replace(/\n/g, '<br>')}</p>`)
+        .join('\n');
+}
+
+/**
  * Helper function to generate email headers and footer HTML
  */
-function getEmailTemplate(title, content) {
+function getEmailTemplate(title, content, preheader) {
     return `
 <!DOCTYPE html>
 <html>
@@ -38,12 +85,12 @@ function getEmailTemplate(title, content) {
         .container { max-width: 600px; margin: 0 auto; padding: 0; }
         .header { background-color: #f8f9fa; padding: 32px 24px; text-align: center; border-bottom: 1px solid #e9ecef; }
         .header h1 { margin: 0; font-size: 24px; color: #212529; font-weight: 600; }
-        .logo { font-size: 12px; color: #6c757d; margin-top: 8px; }
         .content { padding: 32px 24px; }
         .content h2 { font-size: 18px; color: #212529; margin: 0 0 16px 0; font-weight: 600; }
         .content p { margin: 0 0 16px 0; color: #495057; }
         .footer { background-color: #f8f9fa; padding: 24px; text-align: center; border-top: 1px solid #e9ecef; }
         .footer p { margin: 0; font-size: 12px; color: #6c757d; }
+        .footer a { color: #6c757d; }
         .cta-button { display: inline-block; padding: 10px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0; font-weight: 500; }
         .highlight { color: #007bff; font-weight: 500; }
         .success-box { background-color: #f0f7ff; border-left: 4px solid #007bff; padding: 16px; margin: 16px 0; }
@@ -52,16 +99,17 @@ function getEmailTemplate(title, content) {
     </style>
 </head>
 <body>
+    ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;opacity:0;">${escapeHtml(preheader)}</div>` : ''}
     <div class="container">
         <div class="header">
             <h1>${title}</h1>
-            <div class="logo">StarStore<br>Buy & Sell Telegram Stars</div>
         </div>
         <div class="content">
             ${content}
         </div>
         <div class="footer">
-            <p>StarStore<br>Buy & Sell Telegram Stars</p>
+            <p>StarStore<br>Buy &amp; Sell Telegram Stars</p>
+            <p style="margin-top: 8px;">Questions? <a href="mailto:support@starstore.app">support@starstore.app</a></p>
             <p style="margin-top: 8px; color: #999;">© 2026 StarStore. All rights reserved.</p>
         </div>
     </div>
@@ -489,11 +537,42 @@ module.exports = {
 
 /**
  * Admin Custom Email - Send email with template styling
- * Used for admin email sending feature
+ * Used for admin email sending feature.
+ *
+ * `to` can be a single address, a comma-separated string of addresses, or
+ * an array of addresses — the email is sent to every one of them.
  */
 async function sendCustomEmail(to, subject, htmlBody) {
-    const styledHtml = getEmailTemplate(subject, htmlBody);
-    return sendEmail(to, subject, styledHtml);
+    const formattedBody = formatEmailBody(htmlBody);
+    const preheader = String(htmlBody || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const styledHtml = getEmailTemplate(subject, formattedBody, preheader);
+
+    const recipients = (Array.isArray(to) ? to : String(to).split(','))
+        .map(e => String(e).trim())
+        .filter(Boolean);
+
+    if (recipients.length <= 1) {
+        return sendEmail(recipients[0] || to, subject, styledHtml);
+    }
+
+    // Send individually (not as one multi-recipient call) so a single bad
+    // address can't block delivery to everyone else, and so each recipient
+    // gets their own success/failure result and message id.
+    const results = [];
+    for (const recipient of recipients) {
+        const result = await sendEmail(recipient, subject, styledHtml);
+        results.push({ email: recipient, ...result });
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    return {
+        success: successCount > 0,
+        multiple: true,
+        total: recipients.length,
+        successCount,
+        failureCount: recipients.length - successCount,
+        results
+    };
 }
 
 // Export the new function
