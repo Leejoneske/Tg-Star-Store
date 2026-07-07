@@ -91,8 +91,20 @@ class DailyRewardsSystem {
                 // Handle back button (requires version 6.1+)
                 if (version >= 6.1 && webApp.BackButton) {
                     try {
+                        webApp.BackButton.show();
                         webApp.BackButton.onClick(() => {
                             window.history.back();
+                        });
+
+                        // Telegram's back-button chrome is native UI controlled
+                        // purely by these API calls — it does NOT reset itself
+                        // when the WebView navigates to a different page. Every
+                        // other page in the app expects the default X close
+                        // button, so we must explicitly hide this before
+                        // leaving, or it stays shown on whatever page the user
+                        // lands on next (same fix as feedback.html).
+                        window.addEventListener('pagehide', () => {
+                            try { webApp.BackButton.hide(); } catch (e) {}
                         });
                     } catch (e) {
                         console.log('BackButton not supported:', e.message);
