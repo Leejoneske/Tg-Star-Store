@@ -789,6 +789,16 @@
                     }
                     window.history.back();
                 });
+
+                // Telegram's back-button chrome is native UI controlled purely
+                // by these API calls — it does NOT reset itself when the
+                // WebView navigates to a different page. Every other page in
+                // the app expects the default X close button, so we must
+                // explicitly hide this before leaving, or it stays shown
+                // (replacing X) on whatever page the user lands on next.
+                window.addEventListener('pagehide', () => {
+                    try { webApp.BackButton.hide(); } catch (e) {}
+                });
             }
         } catch (e) {
             console.log('BackButton not supported:', e.message);
