@@ -434,6 +434,11 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/ambassador
     const file = map[req.path];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
+      // Feedback page changes frequently right now — force revalidation so
+      // Telegram's WebView never serves a stale cached copy.
+      if (file === 'feedback.html') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      }
       return res.status(200).sendFile(abs, (err) => {
         if (err) {
           console.error(`[ROUTE ERROR] Failed to send ${file}: ${err.message}`);
@@ -468,6 +473,9 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
     const file = map[pathWithoutHtml];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
+      if (file === 'feedback.html') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      }
       return res.status(200).sendFile(abs, (err) => {
         if (err) {
           console.error(`[ROUTE ERROR] Failed to send ${file}: ${err.message}`);
