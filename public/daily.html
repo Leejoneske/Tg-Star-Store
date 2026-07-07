@@ -456,7 +456,7 @@
     <script src="/js/translations.js?v=4" data-cfasync="false"></script>
     <script src="/js/toast.js"></script>
     <script src="/js/api.js"></script>
-    <script src="/js/daily-enhanced.js?v=3"></script>
+    <script src="/js/daily-enhanced.js?v=5"></script>
     <script>
         let currentLeaderboardTab = 'global';
         
@@ -800,15 +800,7 @@
         }
 
 
-        // Exit button removed — this page now relies on Telegram's native
-        // back button instead (see initializeTelegram() in daily-enhanced.js).
-
-        // NOTE: DailyRewardsSystem is initialized by daily-enhanced.js itself
-        // (it has its own DOMContentLoaded listener at the bottom of that
-        // file). A second, duplicate init used to live here, which created a
-        // second instance of the whole system on every page load — double
-        // achievement toasts, and two competing check-in requests racing
-        // each other whenever the button was tapped. Removed.
+    
     </script>
     
 </body>
