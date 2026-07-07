@@ -20,11 +20,6 @@
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/theme-additional.css?v=7">
     <style>
-        /* RTL-aware back button positioning */
-        html[dir="rtl"] #exitButton {
-            right: auto !important;
-            left: 16px !important;
-        }
         body {
             font-family: 'Inter', sans-serif;
             background: #f5f5f5;
@@ -304,34 +299,11 @@
             background: var(--surface, #f5f5f5);
         }
 
-        .topbar-exit-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: none;
-            border: none;
-            padding: 8px;
-            cursor: pointer;
-            color: var(--text2, #666);
-            border-radius: 50%;
-            transition: background 0.15s;
-            flex-shrink: 0;
-        }
-
-        .topbar-exit-btn:hover {
-            background: var(--bg2, rgba(0, 0, 0, 0.05));
-        }
-
         .topbar-title {
             font-size: 17px;
             font-weight: 600;
             color: var(--text, #000);
             flex: 1;
-        }
-
-        html[dir="rtl"] .topbar-exit-btn {
-            right: auto !important;
-            left: 16px !important;
         }
     </style>
     <script src="/js/theme.js"></script>
@@ -342,11 +314,6 @@
 
         <!-- Page Header -->
         <div class="topbar">
-            <button id="exitButton" class="topbar-exit-btn" aria-label="Back">
-                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                    <path d="M14 5L8 11L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
             <span class="topbar-title" data-translate="dailyRewardsTitle">Daily Rewards</span>
         </div>
 
@@ -833,29 +800,16 @@
         }
 
 
-        // Exit button functionality
-        document.getElementById('exitButton').addEventListener('click', function() {
-            window.location.href = '/about';
-        });
+        // Exit button removed — this page now relies on Telegram's native
+        // back button instead (see initializeTelegram() in daily-enhanced.js).
 
-        // Initialize Enhanced Daily System
-        document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                console.log('🚀 Initializing Enhanced Daily System...');
-                window.dailySystem = new DailyRewardsSystem();
-                window.dailySystem.initialized = false; // Set flag before init
-                await window.dailySystem.init();
-                window.dailySystem.initialized = true;
-                console.log('✅ Enhanced Daily System initialized successfully');
-            } catch (error) {
-                console.error('❌ Enhanced Daily System initialization failed:', error);
-                window.dailySystem.initialized = false; // Ensure flag is false on error
-                // Fall back to basic system
-                console.log('Falling back to basic daily system...');
-            }
-        });
+        // NOTE: DailyRewardsSystem is initialized by daily-enhanced.js itself
+        // (it has its own DOMContentLoaded listener at the bottom of that
+        // file). A second, duplicate init used to live here, which created a
+        // second instance of the whole system on every page load — double
+        // achievement toasts, and two competing check-in requests racing
+        // each other whenever the button was tapped. Removed.
     </script>
     
 </body>
 </html>
-
