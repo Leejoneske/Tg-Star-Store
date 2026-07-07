@@ -14599,7 +14599,7 @@ bot.on('message', async (msg) => {
             session.template.body = text;
             session.step = 'recipient';
             const preview = `📝 **Email Preview**\n\n**Template**: ${session.template.name}\n**Subject**: ${session.template.subject}\n**Body**: ${session.template.body}\n\n` +
-                `Now enter the recipient email address:`;
+                `Now enter the recipient email address(es) — separate multiple with commas (e.g. one@gmail.com, two@gmail.com):`;
             bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
         }
         else if (session.step === 'custom_subject') {
@@ -14611,20 +14611,27 @@ bot.on('message', async (msg) => {
             session.template.body = text;
             session.step = 'recipient';
             const preview = `📝 **Custom Template Preview**\n\n**Subject**: ${session.subject}\n**Body**: ${session.template.body}\n\n` +
-                `Now enter the recipient email address:`;
+                `Now enter the recipient email address(es) — separate multiple with commas (e.g. one@gmail.com, two@gmail.com):`;
             bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
         }
         else if (session.step === 'recipient') {
+            const rawEmails = text.split(',').map(e => e.trim()).filter(Boolean);
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(text)) {
-                return bot.sendMessage(chatId, '❌ Invalid email format. Please enter a valid email address.');
+            const invalid = rawEmails.filter(e => !emailRegex.test(e));
+
+            if (rawEmails.length === 0 || invalid.length > 0) {
+                return bot.sendMessage(chatId,
+                    invalid.length > 0
+                        ? `❌ Invalid email format: ${invalid.join(', ')}\n\nPlease re-enter, separating multiple addresses with commas (e.g. one@gmail.com, two@gmail.com).`
+                        : '❌ Please enter at least one valid email address.'
+                );
             }
-            
-            session.recipient = text;
+
+            session.recipient = rawEmails; // array — supports one or many
             session.step = 'confirm';
-            
+
             const confirmMsg = `✅ **Confirm Email Details**\n\n` +
-                `**Recipient**: ${session.recipient}\n` +
+                `**Recipient${rawEmails.length > 1 ? 's' : ''}** (${rawEmails.length}): ${rawEmails.join(', ')}\n` +
                 `**Subject**: ${session.subject || session.template.subject}\n` +
                 `**Template**: ${session.template.name}\n\n` +
                 `Reply with:\n` +
@@ -14639,13 +14646,27 @@ bot.on('message', async (msg) => {
                 // Send the email
                 const finalSubject = session.subject || session.template.subject;
                 const finalBody = session.template.body;
+                const recipientList = session.recipient; // array of one or more addresses
                 
                 try {
-                    const result = await emailService.sendCustomEmail(session.recipient, finalSubject, finalBody);
+                    const result = await emailService.sendCustomEmail(recipientList, finalSubject, finalBody);
                     
-                    if (result.success) {
+                    if (result.multiple) {
+                        // Sent to several recipients — report per-address outcome
+                        const lines = result.results.map(r => `${r.success ? '✅' : '❌'} ${r.email}${r.success ? '' : ` — ${r.offline ? 'service offline' : (r.error || 'failed')}`}`);
+                        const summaryMsg = `📬 **Bulk Email Complete**\n\n` +
+                            `**Subject**: ${finalSubject}\n` +
+                            `**Template**: ${session.template.name}\n` +
+                            `**Sent**: ${result.successCount}/${result.total} succeeded\n\n` +
+                            lines.join('\n') +
+                            `\n\n**Sent At**: ${new Date().toLocaleString()}\n` +
+                            `**Sent By**: ${session.adminName}\n\n` +
+                            `Use /sendemail to send another email.`;
+                        bot.sendMessage(chatId, summaryMsg, { parse_mode: 'Markdown' });
+                        console.log(`📧 [Admin Email] From ${session.adminName}: sent "${finalSubject}" to ${result.successCount}/${result.total} recipients`);
+                    } else if (result.success) {
                         const successMsg = `✅ **Email Sent Successfully!**\n\n` +
-                            `**To**: ${session.recipient}\n` +
+                            `**To**: ${recipientList[0]}\n` +
                             `**Subject**: ${finalSubject}\n` +
                             `**Template**: ${session.template.name}\n` +
                             `**Message ID**: ${result.messageId || 'N/A'}\n` +
@@ -14654,7 +14675,7 @@ bot.on('message', async (msg) => {
                             `Use /sendemail to send another email.`;
                         
                         bot.sendMessage(chatId, successMsg, { parse_mode: 'Markdown' });
-                        console.log(`📧 [Admin Email] From ${session.adminName}: sent "${finalSubject}" to ${session.recipient}`);
+                        console.log(`📧 [Admin Email] From ${session.adminName}: sent "${finalSubject}" to ${recipientList[0]}`);
                     } else {
                         const error = result.offline ? 
                             '⚠️ Email service is offline (no API key configured)' : 
