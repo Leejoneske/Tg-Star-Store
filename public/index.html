@@ -4055,6 +4055,22 @@ async function handlePurchase(item) {
                 </div>
             </div>`;
 
+        // Amount block (depends on active method): GRAM view shows the GRAM
+        // amount as the primary figure with the USDT equivalent as a smaller
+        // sub-value underneath; USDT view stays exactly as before.
+        const renderAmountBlock = (method) => {
+            if (method === 'USDT') {
+                return `<div class="pay-amount">${totalAmountUsdt} <span class="pay-amount-unit">USDT</span></div>`;
+            }
+            if (approxTon) {
+                return `
+                    <div class="pay-amount">${approxTon.toFixed(4)} <span class="pay-amount-unit">GRAM</span></div>
+                    <div id="payApprox" class="pay-approx">≈ ${totalAmountUsdt} USDT</div>`;
+            }
+            // Fallback if the rate wasn't ready in time — show USDT instead of a blank amount.
+            return `<div class="pay-amount">${totalAmountUsdt} <span class="pay-amount-unit">USDT</span></div>`;
+        };
+
         // Telegram-Wallet-style confirmation dialog
         const confirm = await Swal.fire({
             html: `
@@ -4074,8 +4090,7 @@ async function handlePurchase(item) {
                     </div>
                     <div id="payHero">${renderHeroIcon('TON')}</div>
                     <div class="pay-sub">${starsDisplay}${distributionInfo ? ` &middot; ${distributionInfo}` : ''}</div>
-                    <div class="pay-amount">${totalAmountUsdt} <span class="pay-amount-unit">USDT</span></div>
-                    ${approxTon ? `<div id="payApprox" class="pay-approx">≈ ${approxTon.toFixed(4)} GRAM</div>` : ''}
+                    <div id="payAmountBlock">${renderAmountBlock('TON')}</div>
                     <style>
                         .pay-eyebrow { font-size:12px; font-weight:600; letter-spacing:.5px; color:#8a8f98; text-transform:uppercase; margin-bottom:8px; }
                         .pm-toggle { background:#f1f3f5; border-radius:14px; padding:5px; display:flex; gap:4px; margin:0 auto 18px; max-width:280px; }
@@ -4102,7 +4117,7 @@ async function handlePurchase(item) {
             confirmButtonText: 'Confirm',
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#6B7280',
+            cancelButtonColor: '#D1D5DB',
             preConfirm: () => {
                 const sel = document.querySelector('input[name="payMethod"]:checked');
                 return { payMethod: sel ? sel.value : 'TON' };
@@ -4110,12 +4125,12 @@ async function handlePurchase(item) {
             didOpen: () => {
                 const toggle = document.getElementById('payMethodToggle');
                 const hero = document.getElementById('payHero');
-                const approx = document.getElementById('payApprox');
+                const amountBlock = document.getElementById('payAmountBlock');
                 if (toggle && hero) {
                     toggle.addEventListener('change', (e) => {
                         const v = e.target?.value || 'TON';
                         hero.innerHTML = renderHeroIcon(v);
-                        if (approx) approx.style.display = v === 'USDT' ? '' : '';
+                        if (amountBlock) amountBlock.innerHTML = renderAmountBlock(v);
                     });
                 }
             },
