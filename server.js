@@ -434,9 +434,9 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/ambassador
     const file = map[req.path];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
-      // Feedback page changes frequently right now — force revalidation so
+      // These two pages change frequently right now — force revalidation so
       // Telegram's WebView never serves a stale cached copy.
-      if (file === 'feedback.html') {
+      if (file === 'feedback.html' || file === 'daily.html') {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
       }
       return res.status(200).sendFile(abs, (err) => {
@@ -473,7 +473,7 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
     const file = map[pathWithoutHtml];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
-      if (file === 'feedback.html') {
+      if (file === 'feedback.html' || file === 'daily.html') {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
       }
       return res.status(200).sendFile(abs, (err) => {
@@ -3206,6 +3206,33 @@ const CALLBACK_PROCESSING_TIMEOUT = 60 * 1000; // 60 second timeout per callback
 // Email sending session management (for interactive /sendemail command)
 const emailSessions = new Map(); // Map<chatId, {step, recipient, subject, templates, createdAt}>
 const EMAIL_SESSION_TIMEOUT = 3 * 60 * 1000; // 3 minutes of inactivity
+
+// Telegram's legacy Markdown parse_mode treats _ * ` [ ] as formatting
+// characters. Any admin-pasted email subject/body/error text that happens to
+// contain one of these (very common — underscores in file names/emails,
+// asterisks for emphasis, brackets in links) breaks the parser with
+// "can't find end of the entity" and the sendMessage call rejects silently,
+// which is what made the bot look like it "stopped responding". Escape any
+// dynamic/user-supplied text before interpolating it into a Markdown message.
+function escapeTelegramMarkdown(text) {
+    return String(text == null ? '' : text).replace(/([_*`\[\]])/g, '\\$1');
+}
+
+// Belt-and-suspenders: even with escaping, send with a plain-text fallback so
+// a formatting edge case can never leave the admin without a response.
+async function sendEmailSessionMessage(chatId, text, opts = {}) {
+    try {
+        return await bot.sendMessage(chatId, text, opts);
+    } catch (error) {
+        console.error('[Email Session] sendMessage failed, retrying as plain text:', error.message);
+        try {
+            const plain = text.replace(/\\([_*`\[\]])/g, '$1').replace(/\*\*/g, '');
+            return await bot.sendMessage(chatId, plain);
+        } catch (fallbackError) {
+            console.error('[Email Session] Fallback plain-text send also failed:', fallbackError.message);
+        }
+    }
+}
 
 // Clean up old email sessions every minute
 setInterval(() => {
@@ -14598,9 +14625,9 @@ bot.on('message', async (msg) => {
         else if (session.step === 'preset_body') {
             session.template.body = text;
             session.step = 'recipient';
-            const preview = `📝 **Email Preview**\n\n**Template**: ${session.template.name}\n**Subject**: ${session.template.subject}\n**Body**: ${session.template.body}\n\n` +
+            const preview = `📝 **Email Preview**\n\n**Template**: ${escapeTelegramMarkdown(session.template.name)}\n**Subject**: ${escapeTelegramMarkdown(session.template.subject)}\n**Body**: ${escapeTelegramMarkdown(session.template.body)}\n\n` +
                 `Now enter the recipient email address(es) — separate multiple with commas (e.g. one@gmail.com, two@gmail.com):`;
-            bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+            sendEmailSessionMessage(chatId, preview, { parse_mode: 'Markdown' });
         }
         else if (session.step === 'custom_subject') {
             session.subject = text;
@@ -14610,9 +14637,9 @@ bot.on('message', async (msg) => {
         else if (session.step === 'custom_body') {
             session.template.body = text;
             session.step = 'recipient';
-            const preview = `📝 **Custom Template Preview**\n\n**Subject**: ${session.subject}\n**Body**: ${session.template.body}\n\n` +
+            const preview = `📝 **Custom Template Preview**\n\n**Subject**: ${escapeTelegramMarkdown(session.subject)}\n**Body**: ${escapeTelegramMarkdown(session.template.body)}\n\n` +
                 `Now enter the recipient email address(es) — separate multiple with commas (e.g. one@gmail.com, two@gmail.com):`;
-            bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+            sendEmailSessionMessage(chatId, preview, { parse_mode: 'Markdown' });
         }
         else if (session.step === 'recipient') {
             const rawEmails = text.split(',').map(e => e.trim()).filter(Boolean);
@@ -14631,15 +14658,15 @@ bot.on('message', async (msg) => {
             session.step = 'confirm';
 
             const confirmMsg = `✅ **Confirm Email Details**\n\n` +
-                `**Recipient${rawEmails.length > 1 ? 's' : ''}** (${rawEmails.length}): ${rawEmails.join(', ')}\n` +
-                `**Subject**: ${session.subject || session.template.subject}\n` +
-                `**Template**: ${session.template.name}\n\n` +
+                `**Recipient${rawEmails.length > 1 ? 's' : ''}** (${rawEmails.length}): ${escapeTelegramMarkdown(rawEmails.join(', '))}\n` +
+                `**Subject**: ${escapeTelegramMarkdown(session.subject || session.template.subject)}\n` +
+                `**Template**: ${escapeTelegramMarkdown(session.template.name)}\n\n` +
                 `Reply with:\n` +
                 `1 - Send email\n` +
                 `2 - Cancel\n` +
                 `3 - Start over`;
             
-            bot.sendMessage(chatId, confirmMsg, { parse_mode: 'Markdown' });
+            sendEmailSessionMessage(chatId, confirmMsg, { parse_mode: 'Markdown' });
         }
         else if (session.step === 'confirm') {
             if (text === '1' || text.toLowerCase() === 'yes') {
@@ -14653,28 +14680,28 @@ bot.on('message', async (msg) => {
                     
                     if (result.multiple) {
                         // Sent to several recipients — report per-address outcome
-                        const lines = result.results.map(r => `${r.success ? '✅' : '❌'} ${r.email}${r.success ? '' : ` — ${r.offline ? 'service offline' : (r.error || 'failed')}`}`);
+                        const lines = result.results.map(r => `${r.success ? '✅' : '❌'} ${escapeTelegramMarkdown(r.email)}${r.success ? '' : ` — ${escapeTelegramMarkdown(r.offline ? 'service offline' : (r.error || 'failed'))}`}`);
                         const summaryMsg = `📬 **Bulk Email Complete**\n\n` +
-                            `**Subject**: ${finalSubject}\n` +
-                            `**Template**: ${session.template.name}\n` +
+                            `**Subject**: ${escapeTelegramMarkdown(finalSubject)}\n` +
+                            `**Template**: ${escapeTelegramMarkdown(session.template.name)}\n` +
                             `**Sent**: ${result.successCount}/${result.total} succeeded\n\n` +
                             lines.join('\n') +
                             `\n\n**Sent At**: ${new Date().toLocaleString()}\n` +
-                            `**Sent By**: ${session.adminName}\n\n` +
+                            `**Sent By**: ${escapeTelegramMarkdown(session.adminName)}\n\n` +
                             `Use /sendemail to send another email.`;
-                        bot.sendMessage(chatId, summaryMsg, { parse_mode: 'Markdown' });
+                        sendEmailSessionMessage(chatId, summaryMsg, { parse_mode: 'Markdown' });
                         console.log(`📧 [Admin Email] From ${session.adminName}: sent "${finalSubject}" to ${result.successCount}/${result.total} recipients`);
                     } else if (result.success) {
                         const successMsg = `✅ **Email Sent Successfully!**\n\n` +
-                            `**To**: ${recipientList[0]}\n` +
-                            `**Subject**: ${finalSubject}\n` +
-                            `**Template**: ${session.template.name}\n` +
-                            `**Message ID**: ${result.messageId || 'N/A'}\n` +
+                            `**To**: ${escapeTelegramMarkdown(recipientList[0])}\n` +
+                            `**Subject**: ${escapeTelegramMarkdown(finalSubject)}\n` +
+                            `**Template**: ${escapeTelegramMarkdown(session.template.name)}\n` +
+                            `**Message ID**: ${escapeTelegramMarkdown(result.messageId || 'N/A')}\n` +
                             `**Sent At**: ${new Date().toLocaleString()}\n` +
-                            `**Sent By**: ${session.adminName}\n\n` +
+                            `**Sent By**: ${escapeTelegramMarkdown(session.adminName)}\n\n` +
                             `Use /sendemail to send another email.`;
                         
-                        bot.sendMessage(chatId, successMsg, { parse_mode: 'Markdown' });
+                        sendEmailSessionMessage(chatId, successMsg, { parse_mode: 'Markdown' });
                         console.log(`📧 [Admin Email] From ${session.adminName}: sent "${finalSubject}" to ${recipientList[0]}`);
                     } else {
                         const error = result.offline ? 
