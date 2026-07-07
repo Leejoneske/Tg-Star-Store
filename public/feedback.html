@@ -761,11 +761,17 @@
     });
 
     // Telegram native back button (this page is Telegram-only, so we rely on
-    // the platform's own back button instead of a custom on-page control)
-    (function initBackButton() {
+    // the platform's own back button instead of a custom on-page control).
+    // Telegram only swaps the header's X for the back arrow once ready() has
+    // been called, so that has to happen first.
+    (function initTelegram() {
         try {
             const webApp = window.Telegram && window.Telegram.WebApp;
             if (!webApp) return;
+            webApp.ready();
+            webApp.expand();
+            document.body.classList.add('telegram-fullscreen');
+
             const version = parseFloat(webApp.version || '6.0');
             if (version >= 6.1 && webApp.BackButton) {
                 webApp.BackButton.show();
