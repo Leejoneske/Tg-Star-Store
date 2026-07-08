@@ -20,6 +20,8 @@
 let nodeFetch;
 try { nodeFetch = require('node-fetch'); } catch (_) { nodeFetch = null; }
 
+const celoTransactionService = require('./celo-transaction-service');
+
 const DEFAULT_TON_USDT_RATE = 2.10;
 // USDT-TON jetton master (mainnet).
 const USDT_JETTON_MASTER = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
@@ -279,7 +281,24 @@ async function verifyOrderPayment(order, deps = {}) {
         if (Number.isFinite(created)) sinceUtime = Math.floor(created / 1000) - 900;
     }
 
-    const currency = order.paymentCurrency === 'USDT' ? 'USDT' : 'TON';
+    const currency = order.paymentCurrency === 'USDT' ? 'USDT' : (order.paymentCurrency === 'MINIPAY' ? 'MINIPAY' : 'TON');
+
+    if (currency === 'MINIPAY') {
+        const celoStoreAddress = deps.celoStoreAddress || process.env.CELO_WALLET_ADDRESS;
+        let expectedUnits = order.expectedPaymentCeloUnits || null;
+        if (!expectedUnits && order.celoToken) {
+            const decimals = celoTransactionService.CELO_TOKENS[order.celoToken]?.decimals;
+            expectedUnits = celoTransactionService.computeExpectedCeloUnits(order.amount, decimals);
+        }
+        return celoTransactionService.verifyMiniPayPayment({
+            txHash: order.transactionHash,
+            tokenSymbol: order.celoToken,
+            storeAddress: celoStoreAddress,
+            expectedUnits,
+            isTxUsed
+        });
+    }
+
     if (currency === 'USDT') {
         let expectedUsdtUnits = order.expectedPaymentUsdtUnits != null ? Number(order.expectedPaymentUsdtUnits) : null;
         if (!(expectedUsdtUnits > 0)) expectedUsdtUnits = computeExpectedUsdtUnits(order.amount);
