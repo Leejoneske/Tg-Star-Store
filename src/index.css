@@ -1,5 +1,49 @@
-/* Preview CSS stub for Lovable checks */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  color-scheme: light;
+  --ink: #0b0d12;
+  --ink-2: #171a21;
+  --paper: #f3f4f7;
+  --card: #ffffff;
+  --accent: #2f6fed;
+  --accent-soft: #e8efff;
+  --gold: #f5b93e;
+  --mint: #22c08a;
+  --mint-soft: #e3f8ef;
+  --red: #ef4444;
+  --text: #14161b;
+  --text-soft: #6b7280;
+  --text-faint: #9aa0aa;
+  --line: #e7e8ec;
+
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 11px;
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
 }
 
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; }
+
+input:focus, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection { background: var(--accent-soft); color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
