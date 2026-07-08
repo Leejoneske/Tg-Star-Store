@@ -1,0 +1,35 @@
+.step-tracker {
+  display: flex;
+  gap: 8px;
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step-bar {
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: background 0.3s ease;
+}
+
+.step[data-state='done'] .step-bar,
+.step[data-state='active'] .step-bar {
+  background: var(--gold);
+}
+
+.step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.02em;
+}
+
+.step[data-state='active'] .step-label,
+.step[data-state='done'] .step-label {
+  color: rgba(255, 255, 255, 0.85);
+}
