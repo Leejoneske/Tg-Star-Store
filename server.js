@@ -285,7 +285,9 @@ if (rateLimit) {
         '/api/admin/auth/verify-otp',
         '/api/newsletter/subscribe',
         '/api/feedback/submit',
-        '/api/survey'
+        '/api/survey',
+        '/api/minipay/create-order',
+        '/api/minipay/submit-tx'
     ], sensitiveLimiter);
 
     // Rate limiter for the Telegram webhook to mitigate flooding/DoS
@@ -434,8 +436,8 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/ambassador
     const file = map[req.path];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
-      // These two pages change frequently right now — force revalidation so
-      // Telegram's WebView never serves a stale cached copy.
+      // These pages change frequently right now — force revalidation so
+      // Telegram's WebView (or any browser) never serves a stale cached copy.
       if (file === 'feedback.html' || file === 'daily.html') {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
       }
@@ -491,6 +493,25 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
     console.error(`[ROUTE ERROR] Exception in .html handler:`, e.message);
     return next(); 
   }
+});
+
+// MiniPay checkout mini-app (React SPA, built separately from ./minipay-app
+// via `npm run build`, which writes straight into public/miniapp/). Only the
+// shell index.html is served here — its own hashed JS/CSS assets are static
+// files already inside public/miniapp/assets/ and are picked up by the
+// regular express.static middleware below.
+app.get(['/buy-minipay', '/miniapp', '/miniapp/'], (req, res) => {
+  const abs = path.join(__dirname, 'public', 'miniapp', 'index.html');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.sendFile(abs, (err) => {
+    if (err) {
+      console.error(`[ROUTE ERROR] Failed to send miniapp shell: ${err.message}`);
+      const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+      res.status(404).sendFile(notFound, (sendErr) => {
+        if (sendErr) res.status(404).send('Not found');
+      });
+    }
+  });
 });
 
 function getClientIp(req) {
@@ -2044,15 +2065,22 @@ const buyOrderSchema = new mongoose.Schema({
     status: String,
     dateCreated: Date,
     adminMessages: { type: Array, default: [] },
-    // Payment currency used at checkout: 'TON' (native) or 'USDT' (USDT-TON jetton).
-    // Same store wallet address receives both; only the on-chain message type differs.
-    paymentCurrency: { type: String, enum: ['TON', 'USDT'], default: 'TON' },
+    // Payment currency used at checkout: 'TON' (native), 'USDT' (USDT-TON jetton),
+    // or 'MINIPAY' (a Celo-network stablecoin paid via the MiniPay wallet).
+    paymentCurrency: { type: String, enum: ['TON', 'USDT', 'MINIPAY'], default: 'TON' },
     // Expected on-chain payment amount, frozen at order creation so a later
     // TON/USDT rate change cannot reject a legitimate payment. Exactly one is
     // set depending on paymentCurrency. Stored as strings to avoid float drift.
     paymentRateSnapshot: { type: Number, default: null },      // TON/USDT rate used (TON payments)
     expectedPaymentNanoTon: { type: String, default: null },   // nanoTON expected (TON payments)
     expectedPaymentUsdtUnits: { type: String, default: null }, // USDT units (6 dp) expected (USDT payments)
+    // MiniPay (Celo) payments: which stablecoin was quoted, and the expected
+    // amount in that token's smallest unit (cUSD has 18 decimals, USDC/USDT
+    // have 6) — same 1:1 USD peg as TON-USDT, so no rate snapshot is needed.
+    celoToken: { type: String, enum: ['cUSD', 'USDC', 'USDT', null], default: null },
+    expectedPaymentCeloUnits: { type: String, default: null },
+    // The MiniPay wallet address that paid, kept for support/audit purposes.
+    minipaySenderAddress: { type: String, default: null },
     // Identifier of the on-chain transaction that satisfied this order; used to
     // prevent the same transfer from verifying more than one order.
     verifiedTxKey: { type: String, default: null, index: true },
@@ -5245,6 +5273,149 @@ function sanitizeUsername(username) {
     if (!username) return null;
     return username.replace(/[^\w\d_]/g, '');
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// MiniPay (Celo network) checkout — public endpoints, no Telegram session
+// required, since these are reached from a standalone page opened outside
+// Telegram (MiniPay's wallet only injects in Opera Mini / the MiniPay app,
+// never inside Telegram's WebView). Fulfillment only needs a Telegram
+// @username, same as the existing "buy for someone else" flow — no
+// telegramId or live bot session required.
+//
+// Deliberately reuses the SAME BuyOrder collection and the SAME 30-second
+// background verification job (see `setInterval` above) that already
+// verifies TON/USDT orders — a MINIPAY order just needs `transactionHash`
+// set and `paymentVerification.verifyOrderPayment` already knows how to
+// route it to the Celo verifier. No parallel polling loop needed.
+// ─────────────────────────────────────────────────────────────────────────
+const { sanitizeUsername: sanitizeTelegramUsername } = require('./services/fulfillment/types');
+const celoTransactionService = require('./services/celo-transaction-service');
+
+// Keep in sync with the priceMap inside processOrderCreationInternal (/api/orders/create).
+const MINIPAY_PRICE_MAP = {
+    regular: { 1000: 17.9, 500: 8.95, 100: 1.79, 50: 0.9, 25: 0.45, 15: 0.29 },
+    premium: { 3: 12.99, 6: 16.99, 12: 29.99 }
+};
+
+app.post('/api/minipay/create-order', async (req, res) => {
+    try {
+        const { username, stars, isPremium, premiumDuration, token } = req.body || {};
+
+        let cleanUsername;
+        try {
+            cleanUsername = sanitizeTelegramUsername(username);
+        } catch (e) {
+            return res.status(400).json({ error: 'Invalid Telegram username', details: e.message });
+        }
+
+        const celoToken = celoTransactionService.CELO_TOKENS[token] ? token : 'USDC';
+
+        let amount;
+        if (isPremium) {
+            const basePrice = MINIPAY_PRICE_MAP.premium[premiumDuration];
+            if (!basePrice) {
+                return res.status(400).json({ error: 'Invalid premium duration', details: `${premiumDuration} months not available. Choose 3, 6, or 12 months.` });
+            }
+            amount = basePrice;
+        } else {
+            const starsNum = Number(stars);
+            if (!Number.isFinite(starsNum) || starsNum < 15 || starsNum > 100000) {
+                return res.status(400).json({ error: 'Invalid stars amount' });
+            }
+            amount = MINIPAY_PRICE_MAP.regular[starsNum] || Number((starsNum * 0.0179).toFixed(4));
+        }
+
+        const celoStoreAddress = process.env.CELO_WALLET_ADDRESS;
+        if (!celoStoreAddress) {
+            return res.status(503).json({ error: 'MiniPay payments are not configured yet. Please try another payment method.' });
+        }
+
+        const decimals = celoTransactionService.CELO_TOKENS[celoToken].decimals;
+        const expectedUnits = celoTransactionService.computeExpectedCeloUnits(amount, decimals);
+
+        const order = new BuyOrder({
+            id: generateBuyOrderId(),
+            username: cleanUsername,
+            amount,
+            stars: isPremium ? null : Number(stars),
+            premiumDuration: isPremium ? Number(premiumDuration) : null,
+            isPremium: !!isPremium,
+            status: 'pending',
+            dateCreated: new Date(),
+            paymentCurrency: 'MINIPAY',
+            celoToken,
+            expectedPaymentCeloUnits: expectedUnits.toString(),
+            transactionVerified: false,
+            verificationAttempts: 0
+        });
+        await order.save();
+
+        res.json({
+            success: true,
+            orderId: order.id,
+            recipientWallet: celoStoreAddress,
+            tokenSymbol: celoToken,
+            tokenAddress: celoTransactionService.CELO_TOKENS[celoToken].address,
+            tokenDecimals: decimals,
+            amountUsd: amount,
+            amountUnits: expectedUnits.toString(),
+            chainId: celoTransactionService.CELO_CHAIN_ID
+        });
+    } catch (error) {
+        console.error('[MiniPay] create-order error:', error);
+        res.status(500).json({ error: 'Failed to create order' });
+    }
+});
+
+app.post('/api/minipay/submit-tx', async (req, res) => {
+    try {
+        const { orderId, txHash, senderAddress } = req.body || {};
+        if (!orderId || !txHash || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+            return res.status(400).json({ error: 'orderId and a valid txHash are required' });
+        }
+
+        const order = await BuyOrder.findOne({ id: orderId, paymentCurrency: 'MINIPAY' });
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+        if (order.transactionHash) {
+            return res.status(409).json({ error: 'A transaction was already submitted for this order' });
+        }
+
+        order.transactionHash = txHash;
+        if (senderAddress) order.minipaySenderAddress = senderAddress;
+        await order.save();
+
+        // The existing 30-second background job will pick this up, verify it
+        // on-chain, and trigger fulfillment automatically — same path TON/USDT
+        // orders already go through.
+        res.json({ success: true, status: 'submitted' });
+    } catch (error) {
+        console.error('[MiniPay] submit-tx error:', error);
+        res.status(500).json({ error: 'Failed to submit transaction' });
+    }
+});
+
+app.get('/api/minipay/status/:orderId', async (req, res) => {
+    try {
+        const order = await BuyOrder.findOne({ id: req.params.orderId, paymentCurrency: 'MINIPAY' })
+            .select('id status transactionVerified fulfillmentStatus fulfillmentError stars isPremium premiumDuration')
+            .lean();
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+        res.json({
+            success: true,
+            orderId: order.id,
+            status: order.status,
+            transactionVerified: !!order.transactionVerified,
+            fulfillmentStatus: order.fulfillmentStatus || 'none',
+            fulfillmentError: order.fulfillmentError || null,
+            stars: order.stars,
+            isPremium: !!order.isPremium,
+            premiumDuration: order.premiumDuration
+        });
+    } catch (error) {
+        console.error('[MiniPay] status error:', error);
+        res.status(500).json({ error: 'Failed to fetch order status' });
+    }
+});
 
 app.post("/api/sell-orders", requireTelegramAuth, async (req, res) => {
     try {
