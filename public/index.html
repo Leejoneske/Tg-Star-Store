@@ -4091,7 +4091,11 @@ async function handlePurchase(item) {
                     <div id="payHero">${renderHeroIcon('TON')}</div>
                     <div class="pay-sub">${starsDisplay}${distributionInfo ? ` &middot; ${distributionInfo}` : ''}</div>
                     <div id="payAmountBlock">${renderAmountBlock('TON')}</div>
+                    <div id="minipayLink" class="minipay-link">Prefer stablecoins? <span>Pay with MiniPay</span></div>
                     <style>
+                        .minipay-link { font-size:12.5px; color:#8a8f98; margin-top:14px; cursor:pointer; }
+                        .minipay-link span { color:#007AFF; font-weight:600; text-decoration:underline; }
+                        [data-theme="dark"] .minipay-link { color:#94a3b8; }
                         .pay-eyebrow { font-size:12px; font-weight:600; letter-spacing:.5px; color:#8a8f98; text-transform:uppercase; margin-bottom:8px; }
                         .pm-toggle { background:#f1f3f5; border-radius:14px; padding:5px; display:flex; gap:4px; margin:0 auto 18px; max-width:280px; }
                         .pm-pill { flex:1; cursor:pointer; border-radius:10px; padding:10px 8px; font-size:14px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; color:#6b7280; transition: background .18s, color .18s, box-shadow .18s; }
@@ -4131,6 +4135,33 @@ async function handlePurchase(item) {
                         const v = e.target?.value || 'TON';
                         hero.innerHTML = renderHeroIcon(v);
                         if (amountBlock) amountBlock.innerHTML = renderAmountBlock(v);
+                    });
+                }
+
+                const minipayLink = document.getElementById('minipayLink');
+                if (minipayLink) {
+                    minipayLink.addEventListener('click', () => {
+                        const username = (recipients && recipients[0]) ||
+                            window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
+                        const qs = new URLSearchParams({ username });
+                        if (item.isPremium) {
+                            qs.set('premium', '1');
+                            qs.set('duration', item.premiumDuration);
+                        } else {
+                            qs.set('stars', stars);
+                        }
+                        const url = `${location.origin}/buy-minipay?${qs.toString()}`;
+                        // MiniPay's wallet only injects inside Opera Mini or the
+                        // MiniPay app's own browser — never inside Telegram's
+                        // WebView — so this must leave the app. try_browser
+                        // nudges toward Opera when available; if MiniPay isn't
+                        // installed the page's own banner guides the user.
+                        if (window.Telegram?.WebApp?.openLink) {
+                            window.Telegram.WebApp.openLink(url, { try_browser: 'opera' });
+                        } else {
+                            window.open(url, '_blank');
+                        }
+                        Swal.close();
                     });
                 }
             },
