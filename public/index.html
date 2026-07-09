@@ -4030,6 +4030,21 @@ async function handlePurchase(item) {
             distributionInfo = recipients.length ? `${recipients.length} recipient(s)` : '';
         }
         
+        // MiniPay only works outside Telegram's WebView (Opera Mini / the MiniPay
+        // app's own browser) — this URL is computed now so it can be embedded as
+        // a real <a href>, which is more reliable than a JS-only window.open()
+        // inside Telegram Web's sandboxed iframe.
+        const minipayUsername = (recipients && recipients[0]) ||
+            window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
+        const minipayQs = new URLSearchParams({ username: minipayUsername });
+        if (item.isPremium) {
+            minipayQs.set('premium', '1');
+            minipayQs.set('duration', item.premiumDuration);
+        } else {
+            minipayQs.set('stars', stars);
+        }
+        const minipayUrl = `${location.origin}/buy-minipay?${minipayQs.toString()}`;
+
         // Sharp, official-style coin icons (TON + USDT-TON)
         const TON_ICON_SVG = (size = 44) => `
             <svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" aria-label="GRAM" style="display:block;">
@@ -4091,9 +4106,9 @@ async function handlePurchase(item) {
                     <div id="payHero">${renderHeroIcon('TON')}</div>
                     <div class="pay-sub">${starsDisplay}${distributionInfo ? ` &middot; ${distributionInfo}` : ''}</div>
                     <div id="payAmountBlock">${renderAmountBlock('TON')}</div>
-                    <div id="minipayLink" class="minipay-link">Prefer stablecoins? <span>Pay with MiniPay</span></div>
+                    <a id="minipayLink" class="minipay-link" href="${minipayUrl}" target="_blank" rel="noopener noreferrer">Prefer stablecoins? <span>Pay with MiniPay</span></a>
                     <style>
-                        .minipay-link { font-size:12.5px; color:#8a8f98; margin-top:14px; cursor:pointer; }
+                        .minipay-link { display:block; font-size:12.5px; color:#8a8f98; margin-top:14px; cursor:pointer; text-decoration:none; }
                         .minipay-link span { color:#007AFF; font-weight:600; text-decoration:underline; }
                         [data-theme="dark"] .minipay-link { color:#94a3b8; }
                         .pay-eyebrow { font-size:12px; font-weight:600; letter-spacing:.5px; color:#8a8f98; text-transform:uppercase; margin-bottom:8px; }
@@ -4141,27 +4156,21 @@ async function handlePurchase(item) {
                 const minipayLink = document.getElementById('minipayLink');
                 if (minipayLink) {
                     minipayLink.addEventListener('click', () => {
-                        const username = (recipients && recipients[0]) ||
-                            window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
-                        const qs = new URLSearchParams({ username });
-                        if (item.isPremium) {
-                            qs.set('premium', '1');
-                            qs.set('duration', item.premiumDuration);
-                        } else {
-                            qs.set('stars', stars);
-                        }
-                        const url = `${location.origin}/buy-minipay?${qs.toString()}`;
-                        // MiniPay's wallet only injects inside Opera Mini or the
-                        // MiniPay app's own browser — never inside Telegram's
-                        // WebView — so this must leave the app. try_browser
-                        // nudges toward Opera when available; if MiniPay isn't
-                        // installed the page's own banner guides the user.
-                        if (window.Telegram?.WebApp?.openLink) {
-                            window.Telegram.WebApp.openLink(url, { try_browser: 'opera' });
-                        } else {
-                            window.open(url, '_blank');
-                        }
                         Swal.close();
+
+                        // Best-effort only: openLink can silently no-op inside
+                        // Telegram Web's sandboxed iframe without throwing, so its
+                        // "success" can't be reliably detected — never call
+                        // preventDefault() based on it. The real <a href
+                        // target="_blank"> on this element is what reliably does
+                        // the work in every context (native app, Telegram Web,
+                        // desktop); this is only a nicer-UX bonus on native apps
+                        // where try_browser can hint at Opera specifically.
+                        try {
+                            window.Telegram?.WebApp?.openLink?.(minipayUrl, { try_browser: 'opera' });
+                        } catch (err) {
+                            console.warn('[MiniPay] openLink failed (harmless — native link navigation still proceeds):', err);
+                        }
                     });
                 }
             },
