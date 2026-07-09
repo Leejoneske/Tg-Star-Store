@@ -1,0 +1,40 @@
+.trust-card {
+  background: var(--ink);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 16px;
+  color: white;
+}
+
+.trust-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.trust-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trust-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.45;
+}
+
+.trust-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
