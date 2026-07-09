@@ -1,21 +1,21 @@
 .hero-card {
   position: relative;
-  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 78%);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-deep) 55%, var(--blue) 130%);
+  border-radius: var(--radius-xl);
   padding: 22px 20px 20px;
   color: white;
   overflow: hidden;
-  box-shadow: 0 16px 30px -14px rgba(11, 13, 18, 0.55);
+  box-shadow: 0 18px 32px -16px rgba(11, 122, 82, 0.45);
 }
 
 .hero-glow {
   position: absolute;
-  top: -60px;
-  right: -40px;
-  width: 180px;
-  height: 180px;
+  top: -50px;
+  right: -50px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(47, 111, 237, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 70%);
   pointer-events: none;
 }
 
