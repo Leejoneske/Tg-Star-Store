@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { HeroCard } from '../components/HeroCard';
-import { StepTracker } from '../components/StepTracker';
+import { NextSteps } from '../components/NextSteps';
 import { STAR_PACKAGES, PREMIUM_DURATIONS, STAR_PRICES, PREMIUM_PRICES, formatUsd } from '../lib/pricing';
 import { isMiniPayAvailable, connectWallet, sendStablecoinPayment } from '../lib/minipay';
 import { createOrder, submitTx, type TokenSymbol } from '../lib/api';
 import type { BuyPrefill } from '../App';
 import './Buy.css';
 
-const TELEGRAM_BOT_URL = 'https://t.me/TgStarStore_bot';
+// Fill in your bot's real username here — this is the fallback for anyone
+// who wants to pay with TON/GRAM (your MiniPay wallet only ever holds Celo
+// stablecoins, so that path can only ever exist inside Telegram).
+const TELEGRAM_BOT_URL = 'https://t.me/YourStarStoreBot';
 
 type PurchaseType = 'stars' | 'premium';
 
@@ -53,11 +56,11 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   }
 
   const total = type === 'stars' ? STAR_PRICES[stars] : PREMIUM_PRICES[duration];
-  const stepIndex = paying ? 2 : wallet ? 1 : 0;
+  const usernameValid = username.trim().length >= 5;
 
   async function handlePay() {
     setError(null);
-    if (username.trim().length < 5) {
+    if (!usernameValid) {
       setError('Enter a valid Telegram username first.');
       return;
     }
@@ -101,9 +104,9 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   return (
     <div className="screen buy-screen">
       <div className="buy-topbar">
-        <div className="buy-brand">
-          <div className="buy-mark">S</div>
-          <span>StarStore</span>
+        <div className="brand-row">
+          <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="StarStore" className="brand-icon" />
+          <span className="brand-name">StarStore</span>
         </div>
         {wallet && (
           <div className="wallet-chip">
@@ -137,17 +140,22 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
         <div className="hero-top">
           <div>
             <div className="hero-kicker">{type === 'stars' ? 'STARS ORDER' : 'PREMIUM ORDER'}</div>
-            <div className="hero-package">
-              {type === 'stars' ? `${stars} ⭐ Stars` : `Premium · ${duration} mo`}
-            </div>
-          </div>
-          <div className="hero-total">
-            <div className="hero-total-value">{formatUsd(total)}</div>
-            <div className="hero-total-unit">paid in {token}</div>
+            <div className="hero-package">{type === 'stars' ? `${stars} ⭐ Stars` : `Premium · ${duration} mo`}</div>
           </div>
         </div>
-        <StepTracker steps={['Connect', 'Review', 'Delivered']} currentIndex={stepIndex} />
+        <div className="hero-total-row">
+          <div className="hero-total-value">{formatUsd(total)}</div>
+          <div className="hero-total-unit">paid in {token}</div>
+        </div>
       </HeroCard>
+
+      <NextSteps
+        steps={[
+          { label: 'Connect wallet', sublabel: 'MiniPay auto-connects', done: !!wallet },
+          { label: 'Choose a package', sublabel: `${type === 'stars' ? stars + ' stars' : duration + ' months'} selected`, done: true },
+          { label: 'Pay & deliver', sublabel: `To @${username || '…'}`, done: false },
+        ]}
+      />
 
       <div className="card">
         <div className="section-title">What are you buying?</div>
