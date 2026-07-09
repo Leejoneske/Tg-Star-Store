@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { HeroCard } from '../components/HeroCard';
-import { StepTracker } from '../components/StepTracker';
+import { CheckIllustration, WalletIllustration } from '../components/Illustration';
 import { getOrderStatus } from '../lib/api';
 import './Status.css';
 
@@ -57,66 +56,50 @@ export function Status({ orderId, stars, isPremium, premiumDuration, onStartOver
     };
   }, [orderId]);
 
-  const stepIndex = phase === 'confirming' ? 1 : phase === 'delivering' ? 2 : phase === 'done' ? 3 : 1;
+  const packageLabel = isPremium ? `Premium · ${premiumDuration} mo` : `${stars} ⭐ Stars`;
 
   return (
     <div className="screen status-screen">
-      <HeroCard>
-        <div className="hero-kicker">ORDER {orderId}</div>
-        <div className="hero-package">
-          {isPremium ? `Premium · ${premiumDuration} mo` : `${stars} ⭐ Stars`}
-        </div>
-        <div className="status-steptracker">
-          <StepTracker steps={['Connect', 'Review', 'Delivered']} currentIndex={stepIndex} />
-        </div>
-      </HeroCard>
+      <div className="status-sheet">
+        {(phase === 'confirming' || phase === 'delivering') && (
+          <>
+            <div className="status-illustration">
+              <WalletIllustration />
+              <div className="status-ring" />
+            </div>
+            <h1 className="status-title">{phase === 'confirming' ? 'Confirming on-chain…' : 'Delivering your order…'}</h1>
+            <p className="status-subtitle">
+              {packageLabel} — {phase === 'confirming' ? 'usually under a minute.' : 'almost there.'}
+            </p>
+          </>
+        )}
 
-      <div className="card status-card">
-        {phase === 'confirming' && (
-          <>
-            <div className="spinner" />
-            <div className="status-title">Confirming on-chain…</div>
-            <p className="status-body">This usually takes under a minute.</p>
-          </>
-        )}
-        {phase === 'delivering' && (
-          <>
-            <div className="spinner" />
-            <div className="status-title">Payment confirmed — delivering…</div>
-            <p className="status-body">Almost there.</p>
-          </>
-        )}
         {phase === 'done' && (
           <>
-            <div className="success-icon">
-              <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-                <path d="M7 15.5l5 5 11-12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            <div className="status-illustration">
+              <CheckIllustration />
             </div>
-            <div className="status-title">Delivered!</div>
-            <p className="status-body">
+            <h1 className="status-title">Delivered!</h1>
+            <p className="status-subtitle">
               {isPremium
                 ? `Telegram Premium (${premiumDuration} months) is on its way to your account.`
                 : `${stars} Stars have been delivered.`}
             </p>
-            <button className="btn-secondary" onClick={onStartOver}>
+            <button className="btn-primary status-cta" onClick={onStartOver}>
               Buy again
             </button>
           </>
         )}
+
         {(phase === 'failed' || phase === 'timeout') && (
           <>
-            <div className="fail-icon">!</div>
-            <div className="status-title">
-              {phase === 'timeout' ? 'Still processing' : 'Delivery failed'}
-            </div>
-            <p className="status-body">
-              {phase === 'timeout'
-                ? 'This is taking longer than usual. Keep your order ID for support:'
-                : errorMsg}
+            <div className="fail-badge">!</div>
+            <h1 className="status-title">{phase === 'timeout' ? 'Still processing' : 'Delivery failed'}</h1>
+            <p className="status-subtitle">
+              {phase === 'timeout' ? 'This is taking longer than usual. Keep your order ID for support:' : errorMsg}
             </p>
             <div className="order-id-chip">{orderId}</div>
-            <button className="btn-secondary" onClick={onStartOver}>
+            <button className="btn-outline status-cta" onClick={onStartOver}>
               Back to store
             </button>
           </>
