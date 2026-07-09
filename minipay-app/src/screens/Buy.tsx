@@ -11,10 +11,6 @@ const TELEGRAM_BOT_URL = 'https://t.me/TgStarStore_bot';
 
 type PurchaseType = 'stars' | 'premium';
 
-function shortAddr(a: string) {
-  return a.slice(0, 6) + '…' + a.slice(-4);
-}
-
 interface BuyProps {
   prefill: BuyPrefill;
   onOrderPlaced: (orderId: string, stars: number | null, isPremium: boolean, premiumDuration: number | null) => void;
@@ -101,16 +97,13 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   return (
     <div className="screen buy-screen">
       <div className="buy-topbar">
-        <div className="brand-row">
+        <div className="welcome-chip">
           <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="StarStore" className="brand-icon" />
-          <span className="brand-name">StarStore</span>
+          <span>Welcome to StarStore! 👋</span>
         </div>
-        {wallet && (
-          <div className="wallet-chip">
-            <span className="wallet-dot" />
-            {shortAddr(wallet)}
-          </div>
-        )}
+        <button className="scan-btn" aria-label="Scan code">
+          <svg viewBox="0 0 24 24" className="mini-icon"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M8 8h1M15 8h1M8 16h1M12 12h1M16 16h1" stroke="currentColor" strokeWidth="2.3" fill="none" strokeLinecap="round"/></svg>
+        </button>
       </div>
 
       {!miniPayDetected && (
@@ -134,15 +127,17 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
       </div>
 
       <HeroCard>
-        <div className="hero-top">
-          <div>
-            <div className="hero-kicker">{type === 'stars' ? 'STARS ORDER' : 'PREMIUM ORDER'}</div>
-            <div className="hero-package">{type === 'stars' ? `${stars} ⭐ Stars` : `Premium · ${duration} mo`}</div>
-          </div>
-        </div>
+        <div className="hero-kicker">Telegram checkout</div>
         <div className="hero-total-row">
-          <div className="hero-total-value">{formatUsd(total)}</div>
-          <div className="hero-total-unit">paid in {token}</div>
+          <div>
+            <div className="hero-total-value">{formatUsd(total)}</div>
+            <div className="hero-total-unit">{type === 'stars' ? `${stars} Stars` : `Premium · ${duration} mo`} · paid in {token}</div>
+          </div>
+          <div className="currency-switch"><strong>USD</strong><span>CELO</span></div>
+        </div>
+        <div className="hero-actions">
+          <button onClick={() => setType('stars')} className={type === 'stars' ? 'hero-action active' : 'hero-action'}><span>★</span> Stars</button>
+          <button onClick={() => setType('premium')} className={type === 'premium' ? 'hero-action active' : 'hero-action'}><span>◆</span> Premium</button>
         </div>
       </HeroCard>
 
@@ -154,16 +149,8 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
         ]}
       />
 
-      <div className="card">
-        <div className="section-title">What are you buying?</div>
-        <div className="type-toggle">
-          <button className={type === 'stars' ? 'type-pill active' : 'type-pill'} onClick={() => setType('stars')}>
-            ⭐ Stars
-          </button>
-          <button className={type === 'premium' ? 'type-pill active' : 'type-pill'} onClick={() => setType('premium')}>
-            💎 Premium
-          </button>
-        </div>
+      <div className="purchase-panel">
+        <div className="section-title">Choose package</div>
 
         {type === 'stars' ? (
           <div className="pkg-grid">
@@ -195,7 +182,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
         />
       </div>
 
-      <div className="card">
+      <div className="pay-panel">
         <div className="section-title">Pay with</div>
         <div className="token-row">
           {(['cUSD', 'USDC', 'USDT'] as TokenSymbol[]).map((t) => (
