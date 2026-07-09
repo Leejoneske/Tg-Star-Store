@@ -1,0 +1,80 @@
+.next-steps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.next-steps-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.next-steps-badge {
+  background: var(--green-soft);
+  color: var(--green-deep);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+
+.next-steps-track {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.next-steps-fill {
+  height: 100%;
+  background: var(--green);
+  transition: width 0.35s ease;
+}
+
+.next-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.next-step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.next-step-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.next-step-check.done {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.next-step-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.next-step-label.done {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.next-step-sublabel {
+  font-size: 12px;
+  color: var(--text-soft);
+  margin-top: 1px;
+}
