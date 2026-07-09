@@ -7,10 +7,7 @@ import { createOrder, submitTx, type TokenSymbol } from '../lib/api';
 import type { BuyPrefill } from '../App';
 import './Buy.css';
 
-// Fill in your bot's real username here — this is the fallback for anyone
-// who wants to pay with TON/GRAM (your MiniPay wallet only ever holds Celo
-// stablecoins, so that path can only ever exist inside Telegram).
-const TELEGRAM_BOT_URL = 'https://t.me/YourStarStoreBot';
+const TELEGRAM_BOT_URL = 'https://t.me/TgStarStore_bot';
 
 type PurchaseType = 'stars' | 'premium';
 
