@@ -1,21 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --ink: #0b0d12;
-  --ink-2: #171a21;
-  --paper: #f3f4f7;
+  /* StarStore's real, consistently-used brand blue, blended with a
+     MiniPay-inspired green for accents. Primary actions use --ink (near
+     black), not a colored button — small, deliberate departure from a
+     generic "blue SaaS button" toward something calmer and more premium. */
+  --ink: #14171c;
+  --ink-2: #21252c;
+  --paper: #f4f6f5;
   --card: #ffffff;
-  --accent: #2f6fed;
-  --accent-soft: #e8efff;
+  --blue: #2f6fed;
+  --blue-soft: #e8eefe;
+  --green: #12a06a;
+  --green-deep: #0b7a52;
+  --green-soft: #e3f7ee;
   --gold: #f5b93e;
-  --mint: #22c08a;
-  --mint-soft: #e3f8ef;
   --red: #ef4444;
   --text: #14161b;
-  --text-soft: #6b7280;
-  --text-faint: #9aa0aa;
-  --line: #e7e8ec;
+  --text-soft: #667085;
+  --text-faint: #98a1ad;
+  --line: #e6e9ec;
 
+  --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
   --radius-sm: 11px;
@@ -38,11 +44,11 @@ body {
 button { font-family: inherit; }
 
 input:focus, button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 
-::selection { background: var(--accent-soft); color: var(--accent); }
+::selection { background: var(--blue-soft); color: var(--blue); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
