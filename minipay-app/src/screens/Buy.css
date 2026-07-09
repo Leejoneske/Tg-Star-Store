@@ -4,37 +4,14 @@
   justify-content: space-between;
 }
 
-.buy-brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 16px;
-}
-
-.buy-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 14px;
-}
-
 .wallet-chip {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--mint-soft);
-  color: #1a7a52;
+  background: var(--green-soft);
+  color: var(--green-deep);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 6px 10px;
   border-radius: 100px;
 }
@@ -43,7 +20,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--mint);
+  background: var(--green);
 }
 
 .notice-card {
@@ -69,9 +46,9 @@
   color: white;
   text-decoration: none;
   padding: 9px 16px;
-  border-radius: 10px;
+  border-radius: 100px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .telegram-fallback {
@@ -82,45 +59,44 @@
 }
 
 .telegram-fallback a {
-  color: var(--accent);
+  color: var(--blue);
   font-weight: 600;
   text-decoration: underline;
-}
-
-.hero-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
 }
 
 .hero-kicker {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--gold);
+  color: rgba(255, 255, 255, 0.75);
   margin-bottom: 6px;
 }
 
 .hero-package {
   font-family: var(--font-display);
   font-size: 19px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.hero-total { text-align: right; }
+.hero-total-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
 
 .hero-total-value {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .hero-total-unit {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.55);
-  margin-top: 2px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .type-toggle {
@@ -133,19 +109,19 @@
   flex: 1;
   text-align: center;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 100px;
   background: var(--paper);
   border: 1.5px solid transparent;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-soft);
   cursor: pointer;
 }
 
 .type-pill.active {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-color: var(--accent);
+  background: var(--green-soft);
+  color: var(--green-deep);
+  border-color: var(--green);
 }
 
 .pkg-grid {
@@ -157,7 +133,7 @@
 
 .pkg {
   border: 1.5px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 10px 6px;
   text-align: center;
   background: var(--card);
@@ -166,8 +142,8 @@
 }
 
 .pkg.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--blue);
+  background: var(--blue-soft);
 }
 
 .pkg-n {
@@ -191,8 +167,8 @@
 
 .text-input {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 13px 14px;
+  border-radius: var(--radius-sm);
   border: 1.5px solid var(--line);
   font-size: 15px;
   font-family: inherit;
@@ -212,18 +188,18 @@
   flex: 1;
   text-align: center;
   padding: 9px;
-  border-radius: 10px;
+  border-radius: 100px;
   border: 1.5px solid var(--line);
   background: var(--card);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .token-pill.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 .status-text {
