@@ -1,2 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-:root{--ink:#262a34;--paper:#fbfcfb;--card:#fff;--text:#252832;--text-soft:#6b7280;--text-faint:#a4a9b3;--line:#e7e9ed;--green:#35bf8b;--green-deep:#056342;--green-ink:#0a7c55;--mint:#def5ec;--mint-2:#edf9f4;--blue:#4f8ee8;--blue-soft:#eaf3ff;--gold:#f4b43e;--rose:#f43f5e;--radius-xl:32px;--radius-lg:24px;--radius-md:18px;--radius-sm:13px;--font-display:'Inter',system-ui,sans-serif;--font-body:'Inter',system-ui,sans-serif}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body,#root{min-height:100%;margin:0}body{font-family:var(--font-body);background:#fff;color:var(--text);-webkit-font-smoothing:antialiased}button,input{font:inherit}button{border:0}input:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:2px}@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* StarStore blue stays the dominant identity — green and gold are
+     restrained accents only, not a second theme. Primary actions are a
+     near-black pill rather than a colored button. */
+  --ink: #14171c;
+  --ink-2: #21252c;
+  --paper: #f5f6f8;
+  --card: #ffffff;
+  --blue: #2f6fed;
+  --blue-deep: #1d4fc9;
+  --blue-soft: #e8eefe;
+  --green: #12a06a;
+  --green-deep: #0b7a52;
+  --green-soft: #e3f7ee;
+  --gold: #f5b93e;
+  --red: #ef4444;
+  --text: #14161b;
+  --text-soft: #667085;
+  --text-faint: #98a1ad;
+  --line: #e6e9ec;
+
+  --radius-xl: 26px;
+  --radius-lg: 20px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; }
+
+input:focus, button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+::selection { background: var(--blue-soft); color: var(--blue); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
