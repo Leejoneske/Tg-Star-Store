@@ -1,0 +1,44 @@
+.confirm-summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.confirm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.confirm-row:last-of-type {
+  border-bottom: none;
+}
+
+.confirm-label {
+  color: var(--text-soft);
+}
+
+.confirm-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.confirm-total {
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1.5px solid var(--line);
+  border-bottom: none;
+}
+
+.confirm-total .confirm-label {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.confirm-total .confirm-value {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+}
