@@ -44,7 +44,7 @@ sign a transfer and then polls for the result.
 
 ## Build & deploy
 
-This app builds directly into the main project's `public/miniapp/` folder —
+This app builds directly into the main project's `public/minipay/` folder —
 no manual copy step needed:
 
 ```bash
@@ -53,7 +53,7 @@ npm install
 npm run build
 ```
 
-`server.js` serves the built shell at `/buy-minipay` (and `/miniapp`); the
+`server.js` serves the built shell at `/buy-minipay` (and `/minipay`); the
 hashed JS/CSS output is picked up automatically by the existing
 `express.static('public')` middleware. Whenever you change this app, just
 re-run `npm run build` and redeploy — the shell HTML is served with

@@ -496,16 +496,16 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
 });
 
 // MiniPay checkout mini-app (React SPA, built separately from ./minipay-app
-// via `npm run build`, which writes straight into public/miniapp/). Only the
+// via `npm run build`, which writes straight into public/minipay/). Only the
 // shell index.html is served here — its own hashed JS/CSS assets are static
-// files already inside public/miniapp/assets/ and are picked up by the
+// files already inside public/minipay/assets/ and are picked up by the
 // regular express.static middleware below.
-app.get(['/buy-minipay', '/miniapp', '/miniapp/'], (req, res) => {
-  const abs = path.join(__dirname, 'public', 'miniapp', 'index.html');
+app.get(['/buy-minipay', '/minipay', '/minipay/', '/miniapp', '/miniapp/'], (req, res) => {
+  const abs = path.join(__dirname, 'public', 'minipay', 'index.html');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
   res.sendFile(abs, (err) => {
     if (err) {
-      console.error(`[ROUTE ERROR] Failed to send miniapp shell: ${err.message}`);
+      console.error(`[ROUTE ERROR] Failed to send minipay shell: ${err.message}`);
       const notFound = path.join(__dirname, 'public', 'errors', '404.html');
       res.status(404).sendFile(notFound, (sendErr) => {
         if (sendErr) res.status(404).send('Not found');
