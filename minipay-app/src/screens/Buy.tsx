@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { HeroCard } from '../components/HeroCard';
 import { NextSteps } from '../components/NextSteps';
+import { ConfirmSummary } from '../components/ConfirmSummary';
+import { TrustCard } from '../components/TrustCard';
 import { STAR_PACKAGES, PREMIUM_DURATIONS, STAR_PRICES, PREMIUM_PRICES, formatUsd } from '../lib/pricing';
 import { isMiniPayAvailable, connectWallet, sendStablecoinPayment } from '../lib/minipay';
 import { createOrder, submitTx, type TokenSymbol } from '../lib/api';
@@ -10,6 +12,11 @@ import './Buy.css';
 const TELEGRAM_BOT_URL = 'https://t.me/TgStarStore_bot';
 
 type PurchaseType = 'stars' | 'premium';
+type Mode = 'form' | 'review';
+
+function shortAddr(a: string) {
+  return a.slice(0, 6) + '…' + a.slice(-4);
+}
 
 interface BuyProps {
   prefill: BuyPrefill;
@@ -17,6 +24,7 @@ interface BuyProps {
 }
 
 export function Buy({ prefill, onOrderPlaced }: BuyProps) {
+  const [mode, setMode] = useState<Mode>('form');
   const [miniPayDetected, setMiniPayDetected] = useState(true);
   const [wallet, setWallet] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -50,13 +58,19 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
 
   const total = type === 'stars' ? STAR_PRICES[stars] : PREMIUM_PRICES[duration];
   const usernameValid = username.trim().length >= 5;
+  const packageLabel = type === 'stars' ? `${stars} Stars` : `Premium · ${duration} months`;
 
-  async function handlePay() {
+  function goToReview() {
     setError(null);
     if (!usernameValid) {
       setError('Enter a valid Telegram username first.');
       return;
     }
+    setMode('review');
+  }
+
+  async function handlePay() {
+    setError(null);
     if (!wallet) {
       setError('Connect your wallet first.');
       return;
@@ -97,13 +111,16 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   return (
     <div className="screen buy-screen">
       <div className="buy-topbar">
-        <div className="welcome-chip">
+        <div className="brand-row">
           <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="StarStore" className="brand-icon" />
-          <span>Welcome to StarStore! 👋</span>
+          <span className="brand-name">StarStore</span>
         </div>
-        <button className="scan-btn" aria-label="Scan code">
-          <svg viewBox="0 0 24 24" className="mini-icon"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M8 8h1M15 8h1M8 16h1M12 12h1M16 16h1" stroke="currentColor" strokeWidth="2.3" fill="none" strokeLinecap="round"/></svg>
-        </button>
+        {wallet && (
+          <div className="wallet-chip">
+            <span className="wallet-dot" />
+            {shortAddr(wallet)}
+          </div>
+        )}
       </div>
 
       {!miniPayDetected && (
@@ -127,84 +144,117 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
       </div>
 
       <HeroCard>
-        <div className="hero-kicker">Telegram checkout</div>
+        <div className="hero-kicker">{type === 'stars' ? 'STARS ORDER' : 'PREMIUM ORDER'}</div>
+        <div className="hero-package">{packageLabel}</div>
         <div className="hero-total-row">
-          <div>
-            <div className="hero-total-value">{formatUsd(total)}</div>
-            <div className="hero-total-unit">{type === 'stars' ? `${stars} Stars` : `Premium · ${duration} mo`} · paid in {token}</div>
-          </div>
-          <div className="currency-switch"><strong>USD</strong><span>CELO</span></div>
-        </div>
-        <div className="hero-actions">
-          <button onClick={() => setType('stars')} className={type === 'stars' ? 'hero-action active' : 'hero-action'}><span>★</span> Stars</button>
-          <button onClick={() => setType('premium')} className={type === 'premium' ? 'hero-action active' : 'hero-action'}><span>◆</span> Premium</button>
+          <div className="hero-total-value">{formatUsd(total)}</div>
+          <div className="hero-total-unit">paid in {token}</div>
         </div>
       </HeroCard>
 
-      <NextSteps
-        steps={[
-          { label: 'Connect wallet', sublabel: 'MiniPay auto-connects', done: !!wallet },
-          { label: 'Choose a package', sublabel: `${type === 'stars' ? stars + ' stars' : duration + ' months'} selected`, done: true },
-          { label: 'Pay & deliver', sublabel: `To @${username || '…'}`, done: false },
-        ]}
-      />
+      {mode === 'form' && (
+        <>
+          <NextSteps
+            steps={[
+              { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
+              { label: 'Add a recipient', sublabel: usernameValid ? `Delivering to @${username}` : 'Enter a Telegram username', done: usernameValid },
+              { label: 'Review & pay', sublabel: 'Confirm the details before paying', done: false },
+            ]}
+          />
 
-      <div className="purchase-panel">
-        <div className="section-title">Choose package</div>
-
-        {type === 'stars' ? (
-          <div className="pkg-grid">
-            {STAR_PACKAGES.map((n) => (
-              <button key={n} className={stars === n ? 'pkg active' : 'pkg'} onClick={() => setStars(n)}>
-                <div className="pkg-n">{n}</div>
-                <div className="pkg-u">{formatUsd(STAR_PRICES[n])}</div>
+          <div className="card">
+            <div className="section-title">What are you buying?</div>
+            <div className="type-toggle">
+              <button className={type === 'stars' ? 'type-pill active' : 'type-pill'} onClick={() => setType('stars')}>
+                ⭐ Stars
               </button>
-            ))}
-          </div>
-        ) : (
-          <div className="pkg-grid">
-            {PREMIUM_DURATIONS.map((m) => (
-              <button key={m} className={duration === m ? 'pkg active' : 'pkg'} onClick={() => setDuration(m)}>
-                <div className="pkg-n">{m} mo</div>
-                <div className="pkg-u">{formatUsd(PREMIUM_PRICES[m])}</div>
+              <button className={type === 'premium' ? 'type-pill active' : 'type-pill'} onClick={() => setType('premium')}>
+                💎 Premium
               </button>
-            ))}
+            </div>
+
+            {type === 'stars' ? (
+              <div className="pkg-grid">
+                {STAR_PACKAGES.map((n) => (
+                  <button key={n} className={stars === n ? 'pkg active' : 'pkg'} onClick={() => setStars(n)}>
+                    <div className="pkg-n">{n}</div>
+                    <div className="pkg-u">{formatUsd(STAR_PRICES[n])}</div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="pkg-grid">
+                {PREMIUM_DURATIONS.map((m) => (
+                  <button key={m} className={duration === m ? 'pkg active' : 'pkg'} onClick={() => setDuration(m)}>
+                    <div className="pkg-n">{m} mo</div>
+                    <div className="pkg-u">{formatUsd(PREMIUM_PRICES[m])}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="field-label">Telegram username to deliver to</div>
+            <input
+              className="text-input"
+              type="text"
+              placeholder="e.g. john_doe (without @)"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.replace(/^@/, ''))}
+            />
           </div>
-        )}
 
-        <div className="field-label">Telegram username to deliver to</div>
-        <input
-          className="text-input"
-          type="text"
-          placeholder="e.g. john_doe (without @)"
-          value={username}
-          onChange={(e) => setUsername(e.target.value.replace(/^@/, ''))}
-        />
-      </div>
-
-      <div className="pay-panel">
-        <div className="section-title">Pay with</div>
-        <div className="token-row">
-          {(['cUSD', 'USDC', 'USDT'] as TokenSymbol[]).map((t) => (
-            <button key={t} className={token === t ? 'token-pill active' : 'token-pill'} onClick={() => setToken(t)}>
-              {t}
+          <div className="card">
+            <div className="section-title">Pay with</div>
+            <div className="token-row">
+              {(['cUSD', 'USDC', 'USDT'] as TokenSymbol[]).map((t) => (
+                <button key={t} className={token === t ? 'token-pill active' : 'token-pill'} onClick={() => setToken(t)}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            <button className="btn-primary" onClick={goToReview}>
+              Review order
             </button>
-          ))}
-        </div>
+            {error && <div className="status-text error">{error}</div>}
+          </div>
+        </>
+      )}
 
-        {!wallet ? (
-          <button className="btn-primary" disabled={!miniPayDetected || connecting} onClick={handleConnect}>
-            {connecting ? 'Connecting…' : miniPayDetected ? 'Connect MiniPay' : 'MiniPay not detected'}
-          </button>
-        ) : (
-          <button className="btn-primary" disabled={paying} onClick={handlePay}>
-            {paying ? statusMsg || 'Processing…' : `Pay ${formatUsd(total)}`}
-          </button>
-        )}
+      {mode === 'review' && (
+        <>
+          <ConfirmSummary
+            rows={[
+              { label: 'Package', value: packageLabel },
+              { label: 'Recipient', value: `@${username}` },
+              { label: 'Network', value: 'Celo' },
+              { label: 'Network fee', value: 'Covered by MiniPay' },
+            ]}
+            totalLabel={`You'll pay in ${token}`}
+            totalValue={formatUsd(total)}
+          />
 
-        {error && <div className="status-text error">{error}</div>}
-        {!error && statusMsg && paying && <div className="status-text">{statusMsg}</div>}
-      </div>
+          <TrustCard />
+
+          {!wallet ? (
+            <button className="btn-primary" disabled={!miniPayDetected || connecting} onClick={handleConnect}>
+              {connecting ? 'Connecting…' : miniPayDetected ? 'Connect MiniPay' : 'MiniPay not detected'}
+            </button>
+          ) : (
+            <button className="btn-primary" disabled={paying} onClick={handlePay}>
+              {paying ? statusMsg || 'Processing…' : `Confirm & pay ${formatUsd(total)}`}
+            </button>
+          )}
+
+          {!paying && (
+            <button className="btn-outline" onClick={() => setMode('form')}>
+              Edit order
+            </button>
+          )}
+
+          {error && <div className="status-text error">{error}</div>}
+          {!error && statusMsg && paying && <div className="status-text">{statusMsg}</div>}
+        </>
+      )}
     </div>
   );
 }
