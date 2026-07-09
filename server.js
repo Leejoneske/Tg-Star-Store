@@ -125,7 +125,7 @@ const paymentVerification = require('./services/payment-verification');
 const autoReply = require('./services/auto-reply');
 
 // Admin commands module
-const registerAdminEmailCommands = require('./telegram-commands-admin');
+const registerAdminEmailCommands = require('./services/telegram-commands-admin');
 
 // Create Telegram bot or a stub in local/dev if no token is provided.
 // When loaded by tests (require.main !== module) skip the webHook listener so
