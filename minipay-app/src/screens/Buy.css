@@ -31,7 +31,11 @@
   text-align: center;
 }
 
-.notice-icon { font-size: 24px; margin-bottom: 8px; }
+.notice-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
 
 .notice-card p {
   margin: 0 0 12px;
@@ -46,7 +50,7 @@
   color: white;
   text-decoration: none;
   padding: 9px 16px;
-  border-radius: 100px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 700;
 }
@@ -59,69 +63,33 @@
 }
 
 .telegram-fallback a {
-  color: var(--blue);
+  color: var(--coral);
   font-weight: 600;
   text-decoration: underline;
 }
 
-.hero-kicker {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.75);
-  margin-bottom: 6px;
-}
-
-.hero-package {
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 700;
-}
-
-.hero-total-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.hero-total-value {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.hero-total-unit {
-  font-size: 12.5px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
+/* Tab toggle: plain text for inactive, solid coral pill for active — matches
+   the reference's Crypto/NFTs toggle exactly (no icons, no borders). */
 .type-toggle {
   display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 20px;
+  padding: 2px 4px;
 }
 
 .type-pill {
-  flex: 1;
-  text-align: center;
-  padding: 10px;
+  border: none;
+  background: transparent;
+  padding: 9px 18px;
   border-radius: 100px;
-  background: var(--paper);
-  border: 1.5px solid transparent;
   font-size: 14px;
   font-weight: 700;
-  color: var(--text-soft);
+  color: var(--text-faint);
   cursor: pointer;
 }
 
 .type-pill.active {
-  background: var(--blue-soft);
-  color: var(--blue);
-  border-color: var(--blue);
+  background: var(--coral);
+  color: white;
 }
 
 .pkg-list {
@@ -172,9 +140,9 @@
 }
 
 .token-pill.active {
-  border-color: var(--blue);
-  background: var(--blue-soft);
-  color: var(--blue);
+  border-color: var(--coral);
+  background: var(--coral-soft);
+  color: var(--coral-deep);
 }
 
 .status-text {
@@ -187,6 +155,5 @@
 .status-text.error { color: var(--red); }
 
 @media (max-width: 350px) {
-  .hero-total-value { font-size: 26px; }
   .brand-name { font-size: 15px; }
 }
