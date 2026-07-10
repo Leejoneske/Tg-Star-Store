@@ -124,38 +124,13 @@
   border-color: var(--blue);
 }
 
-.pkg-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+.pkg-list {
+  display: flex;
+  flex-direction: column;
   margin-bottom: 14px;
-}
-
-.pkg {
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 10px 6px;
-  text-align: center;
-  background: var(--card);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.pkg.active {
-  border-color: var(--blue);
-  background: var(--blue-soft);
-}
-
-.pkg-n {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-}
-
-.pkg-u {
-  font-size: 11px;
-  color: var(--text-soft);
-  margin-top: 2px;
+  padding: 2px 6px;
 }
 
 .field-label {
@@ -212,7 +187,6 @@
 .status-text.error { color: var(--red); }
 
 @media (max-width: 350px) {
-  .pkg-grid { grid-template-columns: repeat(2, 1fr); }
   .hero-total-value { font-size: 26px; }
   .brand-name { font-size: 15px; }
 }
