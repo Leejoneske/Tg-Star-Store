@@ -1,36 +1,80 @@
-export function DollarHero() {
-  return (
-    <svg className="dollar-hero" viewBox="0 0 240 220" fill="none" aria-hidden="true">
-      <circle cx="198" cy="36" r="34" fill="var(--mint-2)" />
-      <circle cx="22" cy="78" r="28" stroke="var(--mint-2)" strokeWidth="10" />
-      <circle cx="58" cy="42" r="6" fill="#ffd7e0" />
-      <text x="120" y="142" textAnchor="middle" fontFamily="var(--font-display)" fontSize="150" fontWeight="800" fill="var(--green)">$</text>
-      <text x="126" y="150" textAnchor="middle" fontFamily="var(--font-display)" fontSize="150" fontWeight="800" fill="var(--green-deep)" opacity=".9">$</text>
-      <text x="120" y="142" textAnchor="middle" fontFamily="var(--font-display)" fontSize="150" fontWeight="800" fill="var(--green)">$</text>
-    </svg>
-  );
-}
+// Glossy, layered illustrations matching the reference's dark-onboarding
+// treatment: a soft radial glow behind a single bold centered icon with a
+// subtle highlight for dimension. Built from scratch for our own subject
+// matter (stars, delivery), not traced from any reference asset.
 
 export function StarsIllustration() {
   return (
-    <svg width="238" height="190" viewBox="0 0 238 190" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M37 111c-9-43 34-85 84-82 57 4 95 45 86 91-8 40-51 61-96 58-39-2-67-32-74-67Z" fill="var(--mint)"/>
-      <g transform="translate(40 45) rotate(-10)">
-        <path d="M43 2 54 35l35 1-28 20 10 34-28-21-29 20 11-34L-2 35l34-1L43 2Z" fill="var(--gold)"/>
-        <path d="M43 2 54 35l35 1-28 20 10 34-28-21Z" fill="#d49314" opacity=".38"/>
-        <path d="M12 37 33 35 43 7" stroke="white" strokeWidth="5" strokeLinecap="round" opacity=".45"/>
+    <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="var(--teal)" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="var(--teal)" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="starFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffd873" />
+          <stop offset="100%" stopColor="var(--gold)" />
+        </linearGradient>
+      </defs>
+
+      <circle cx="80" cy="80" r="78" fill="url(#glow)" />
+
+      <g transform="translate(80,80)">
+        <path
+          d="M0 -46 L14.8 -14.2 L48 -9.5 L24 13.5 L29.6 46 L0 30.5 L-29.6 46 L-24 13.5 L-48 -9.5 L-14.8 -14.2 Z"
+          fill="url(#starFill)"
+          stroke="#c98f1c"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        {/* glossy highlight */}
+        <path d="M0 -46 L14.8 -14.2 L4 -10 L-4 -26 Z" fill="white" opacity="0.35" />
       </g>
-      <g transform="translate(130 66)">
-        <ellipse cx="35" cy="66" rx="38" ry="12" fill="#2f6fed" opacity=".2"/>
-        <rect x="2" y="16" width="72" height="50" rx="25" fill="var(--blue)"/>
-        <ellipse cx="38" cy="18" rx="36" ry="15" fill="#6da0ff"/>
-        <text x="38" y="27" textAnchor="middle" fontFamily="var(--font-display)" fontSize="22" fontWeight="800" fill="white">★</text>
-      </g>
-      <path d="m190 37 4 11 11 4-11 4-4 11-4-11-11-4 11-4 4-11Z" fill="var(--green)"/>
-      <path d="m31 36 3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Z" fill="var(--rose)"/>
+
+      <circle cx="34" cy="34" r="3" fill="var(--teal)" />
+      <circle cx="128" cy="42" r="2.5" fill="white" opacity="0.6" />
     </svg>
   );
 }
 
-export function CheckIllustration() { return <StarsIllustration />; }
-export function WalletIllustration() { return <StarsIllustration />; }
+export function CheckIllustration() {
+  return (
+    <svg width="150" height="150" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="checkGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="var(--green)" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="var(--green)" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <circle cx="75" cy="75" r="72" fill="url(#checkGlow)" />
+      <g transform="translate(35,35)">
+        <rect x="0" y="0" width="80" height="80" rx="26" fill="var(--green)" />
+        <path
+          d="M22 42 L36 56 L58 26"
+          stroke="white"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </g>
+    </svg>
+  );
+}
+
+export function WalletIllustration() {
+  return (
+    <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="walletGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="var(--teal)" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="var(--teal)" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="50" r="52" fill="url(#walletGlow)" />
+      <rect x="24" y="26" width="72" height="50" rx="14" fill="var(--ink)" />
+      <rect x="24" y="26" width="72" height="18" rx="9" fill="var(--coral)" />
+      <circle cx="80" cy="58" r="8" fill="var(--gold)" />
+    </svg>
+  );
+}
