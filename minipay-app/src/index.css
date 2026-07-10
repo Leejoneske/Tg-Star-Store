@@ -1,25 +1,33 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* StarStore blue stays the dominant identity — green and gold are
-     restrained accents only, not a second theme. Primary actions are a
-     near-black pill rather than a colored button. */
-  --ink: #14171c;
-  --ink-2: #21252c;
-  --paper: #f5f6f8;
+  /* Matches the reference directly: near-black onboarding, off-white
+     dashboard, coral as the one confident accent color for every primary
+     action, teal glow for the dark-screen illustration, green reserved for
+     positive/success signals only. No blue hero cards, no emoji icons. */
+  --ink: #0c0d10;
+  --ink-soft: #1a1b20;
+  --paper: #f7f7f8;
   --card: #ffffff;
-  --blue: #2f6fed;
-  --blue-deep: #1d4fc9;
-  --blue-soft: #e8eefe;
-  --green: #12a06a;
-  --green-deep: #0b7a52;
-  --green-soft: #e3f7ee;
-  --gold: #f5b93e;
+  --coral: #ff6a4d;
+  --coral-deep: #e8532f;
+  --coral-soft: #ffe7e0;
+  --teal: #2dd4bf;
+  --teal-soft: #d8f7f3;
+  --gold: #f2b93b;
+  --gold-soft: #fdf1d8;
+  --purple: #8b5cf6;
+  --purple-soft: #ece4fd;
+  --blue: #4f7cff;
+  --blue-soft: #eaf0ff;
+  --green: #22c55e;
+  --green-deep: #16803d;
+  --green-soft: #e7f9ee;
   --red: #ef4444;
-  --text: #14161b;
-  --text-soft: #667085;
-  --text-faint: #98a1ad;
-  --line: #e6e9ec;
+  --text: #101114;
+  --text-soft: #6b7280;
+  --text-faint: #9aa1ab;
+  --line: #e9eaec;
 
   --radius-xl: 26px;
   --radius-lg: 20px;
@@ -44,11 +52,11 @@ body {
 button { font-family: inherit; }
 
 input:focus, button:focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--coral);
   outline-offset: 2px;
 }
 
-::selection { background: var(--blue-soft); color: var(--blue); }
+::selection { background: var(--coral-soft); color: var(--coral-deep); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
