@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { HeroCard } from '../components/HeroCard';
 import { NextSteps } from '../components/NextSteps';
 import { ConfirmSummary } from '../components/ConfirmSummary';
 import { TrustCard } from '../components/TrustCard';
@@ -11,6 +10,9 @@ import { createOrder, submitTx, type TokenSymbol } from '../lib/api';
 import type { BuyPrefill } from '../App';
 import './Buy.css';
 
+// Fill in your bot's real username here — this is the fallback for anyone
+// who wants to pay with TON/GRAM (your MiniPay wallet only ever holds Celo
+// stablecoins, so that path can only ever exist inside Telegram).
 const TELEGRAM_BOT_URL = 'https://t.me/TgStarStore_bot';
 
 type PurchaseType = 'stars' | 'premium';
@@ -127,7 +129,12 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
 
       {mode === 'form' && !miniPayDetected && (
         <div className="notice-card">
-          <div className="notice-icon">📲</div>
+          <div className="notice-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="3" y="1" width="14" height="18" rx="3" stroke="#7a5200" strokeWidth="1.6" />
+              <circle cx="10" cy="16" r="1" fill="#7a5200" />
+            </svg>
+          </div>
           <p>
             Open this page inside <strong>MiniPay</strong> or the <strong>Opera Mini</strong> browser to pay with a
             stablecoin wallet.
@@ -147,17 +154,17 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
         </div>
       )}
 
-      <HeroCard>
-        <div className="hero-kicker">{type === 'stars' ? 'STARS ORDER' : 'PREMIUM ORDER'}</div>
-        <div className="hero-package">{packageLabel}</div>
-        <div className="hero-total-row">
-          <div className="hero-total-value">{formatUsd(total)}</div>
-          <div className="hero-total-unit">paid in {token}</div>
-        </div>
-      </HeroCard>
-
       {mode === 'form' && (
         <>
+          <div className="type-toggle">
+            <button className={type === 'stars' ? 'type-pill active' : 'type-pill'} onClick={() => setType('stars')}>
+              Stars
+            </button>
+            <button className={type === 'premium' ? 'type-pill active' : 'type-pill'} onClick={() => setType('premium')}>
+              Premium
+            </button>
+          </div>
+
           <NextSteps
             steps={[
               { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
@@ -167,15 +174,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
           />
 
           <div className="card">
-            <div className="section-title">What are you buying?</div>
-            <div className="type-toggle">
-              <button className={type === 'stars' ? 'type-pill active' : 'type-pill'} onClick={() => setType('stars')}>
-                ⭐ Stars
-              </button>
-              <button className={type === 'premium' ? 'type-pill active' : 'type-pill'} onClick={() => setType('premium')}>
-                💎 Premium
-              </button>
-            </div>
+            <div className="section-title">{type === 'stars' ? 'Choose a star pack' : 'Choose a duration'}</div>
 
             <div className="pkg-list">
               {type === 'stars'
@@ -223,7 +222,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
               ))}
             </div>
             <button className="btn-primary" onClick={goToReview}>
-              Review order
+              Continue — {formatUsd(total)}
             </button>
             {error && <div className="status-text error">{error}</div>}
           </div>
