@@ -17,7 +17,7 @@
 }
 
 .pkg-row.active {
-  background: var(--blue-soft);
+  background: var(--coral-soft);
   border-top-color: transparent;
 }
 
@@ -67,6 +67,6 @@
 }
 
 .pkg-row-check.active {
-  background: var(--blue);
-  border-color: var(--blue);
+  background: var(--coral);
+  border-color: var(--coral);
 }
