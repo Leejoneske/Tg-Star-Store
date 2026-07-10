@@ -56,7 +56,7 @@ export function Status({ orderId, stars, isPremium, premiumDuration, onStartOver
     };
   }, [orderId]);
 
-  const packageLabel = isPremium ? `Premium · ${premiumDuration} mo` : `${stars} ⭐ Stars`;
+  const packageLabel = isPremium ? `Premium · ${premiumDuration} mo` : `${stars} Stars`;
 
   return (
     <div className="screen status-screen">
