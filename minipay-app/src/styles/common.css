@@ -1,1 +1,98 @@
-.screen{width:min(100%,480px);margin:0 auto;min-height:100dvh;padding:clamp(16px,4vw,24px);display:flex;flex-direction:column;gap:18px;position:relative;overflow:hidden;background:#fff}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px;box-shadow:0 10px 32px rgba(31,41,55,.05)}.btn-primary{width:100%;border-radius:22px;background:var(--ink);color:white;font-size:16px;font-weight:800;padding:18px 20px;cursor:pointer;box-shadow:0 12px 22px rgba(38,42,52,.12);transition:transform .15s ease,opacity .15s ease}.btn-primary:active:not(:disabled){transform:scale(.985)}.btn-primary:disabled{opacity:.45;cursor:not-allowed}.btn-outline{border:1.5px solid var(--line);border-radius:22px;background:white;color:var(--text);font-size:15px;font-weight:800;padding:16px;cursor:pointer}.section-title{font-size:13px;font-weight:800;letter-spacing:.01em;color:var(--text);margin:0 0 12px}.brand-row{display:flex;align-items:center;gap:10px}.brand-icon{width:42px;height:42px;border-radius:50%;object-fit:cover;border:3px solid var(--mint);box-shadow:0 3px 10px rgba(5,99,66,.12)}.brand-name{font-weight:800;font-size:15px}.icon-bubble{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#e8f2ff;color:var(--blue);flex:0 0 auto}.mini-icon{width:22px;height:22px;display:block}
+.screen {
+  max-width: 460px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 20px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+/* Primary CTA on light screens: coral, matching the reference's "Continue"
+   button exactly — this is the one confident accent color in the app. */
+.btn-primary {
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--coral);
+  color: white;
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  font-weight: 700;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+}
+
+.btn-primary:active:not(:disabled) { transform: scale(0.98); background: var(--coral-deep); }
+
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Primary CTA on dark screens: a light pill with dark text, matching the
+   reference's "I understand, continue" button on the dark onboarding screen. */
+.btn-light {
+  border: none;
+  border-radius: 100px;
+  background: white;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  font-weight: 700;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.btn-light:active { transform: scale(0.98); }
+
+.btn-outline {
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 14px;
+  cursor: pointer;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 10px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: block;
+  object-fit: cover;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+}
