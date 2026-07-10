@@ -3,6 +3,8 @@ import { HeroCard } from '../components/HeroCard';
 import { NextSteps } from '../components/NextSteps';
 import { ConfirmSummary } from '../components/ConfirmSummary';
 import { TrustCard } from '../components/TrustCard';
+import { ReviewHeader } from '../components/ReviewHeader';
+import { PackageRow } from '../components/PackageRow';
 import { STAR_PACKAGES, PREMIUM_DURATIONS, STAR_PRICES, PREMIUM_PRICES, formatUsd } from '../lib/pricing';
 import { isMiniPayAvailable, connectWallet, sendStablecoinPayment } from '../lib/minipay';
 import { createOrder, submitTx, type TokenSymbol } from '../lib/api';
@@ -123,7 +125,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
         )}
       </div>
 
-      {!miniPayDetected && (
+      {mode === 'form' && !miniPayDetected && (
         <div className="notice-card">
           <div className="notice-icon">📲</div>
           <p>
@@ -136,12 +138,14 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
         </div>
       )}
 
-      <div className="telegram-fallback">
-        Want to pay with TON, GRAM, or your Telegram Stars balance instead?{' '}
-        <a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer">
-          Open StarStore in Telegram
-        </a>
-      </div>
+      {mode === 'form' && (
+        <div className="telegram-fallback">
+          Want to pay with TON, GRAM, or your Telegram Stars balance instead?{' '}
+          <a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer">
+            Open StarStore in Telegram
+          </a>
+        </div>
+      )}
 
       <HeroCard>
         <div className="hero-kicker">{type === 'stars' ? 'STARS ORDER' : 'PREMIUM ORDER'}</div>
@@ -173,25 +177,31 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
               </button>
             </div>
 
-            {type === 'stars' ? (
-              <div className="pkg-grid">
-                {STAR_PACKAGES.map((n) => (
-                  <button key={n} className={stars === n ? 'pkg active' : 'pkg'} onClick={() => setStars(n)}>
-                    <div className="pkg-n">{n}</div>
-                    <div className="pkg-u">{formatUsd(STAR_PRICES[n])}</div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="pkg-grid">
-                {PREMIUM_DURATIONS.map((m) => (
-                  <button key={m} className={duration === m ? 'pkg active' : 'pkg'} onClick={() => setDuration(m)}>
-                    <div className="pkg-n">{m} mo</div>
-                    <div className="pkg-u">{formatUsd(PREMIUM_PRICES[m])}</div>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="pkg-list">
+              {type === 'stars'
+                ? STAR_PACKAGES.map((n) => (
+                    <PackageRow
+                      key={n}
+                      badge="star"
+                      title={`${n} Stars`}
+                      subtitle="Delivered instantly"
+                      price={formatUsd(STAR_PRICES[n])}
+                      active={stars === n}
+                      onClick={() => setStars(n)}
+                    />
+                  ))
+                : PREMIUM_DURATIONS.map((m) => (
+                    <PackageRow
+                      key={m}
+                      badge="premium"
+                      title={`${m} month${m > 1 ? 's' : ''}`}
+                      subtitle="Telegram Premium"
+                      price={formatUsd(PREMIUM_PRICES[m])}
+                      active={duration === m}
+                      onClick={() => setDuration(m)}
+                    />
+                  ))}
+            </div>
 
             <div className="field-label">Telegram username to deliver to</div>
             <input
@@ -222,6 +232,8 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
 
       {mode === 'review' && (
         <>
+          <ReviewHeader />
+
           <ConfirmSummary
             rows={[
               { label: 'Package', value: packageLabel },
