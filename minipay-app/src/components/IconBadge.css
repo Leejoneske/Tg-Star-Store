@@ -1,0 +1,14 @@
+.icon-badge {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.icon-badge-star { background: #fef3d9; }
+.icon-badge-premium { background: #ece5fd; }
+.icon-badge-wallet { background: var(--blue-soft); }
+.icon-badge-recipient { background: var(--green-soft); }
+.icon-badge-network { background: #eef0f3; }
