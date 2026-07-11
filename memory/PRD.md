@@ -35,6 +35,15 @@ Backend endpoints used (already existed, unchanged): `POST /api/minipay/create-o
 - `testing_agent_v3` frontend pass: Intro → Buy (toggle/package/token/username validation) → Review → Edit order, all verified PASS with zero console errors. One a11y contrast nit on disabled button found and fixed post-test.
 - On-chain payment submission (actual MiniPay wallet transaction) NOT tested — requires a real MiniPay/Opera Mini wallet injection and live backend (MongoDB/Celo RPC/Telegram bot creds), none of which are configured in this preview sandbox. This is expected/out of scope for a UI-only pass.
 
+## Iteration 2 (Feb 2026) — Icon cleanup + Intro polish
+User feedback: "improve the intro, use the app icon and a good screen just like the screenshot, next improve the icons and make the app much cleaner."
+- Intro screen now displays the real `app-icon.png` (StarStore star logo) inside a glossy dark rounded frame (`.intro-hero-frame`) with a teal radial glow behind it and a diagonal shine overlay — replacing the generic hand-drawn `StarsIllustration` SVG, matching the reference screenshot's polished centered-icon presentation.
+- Installed `lucide-react` and replaced every hand-drawn inline SVG icon app-wide with clean, consistent lucide icons: checklist/package-row checkmarks (`Check`), `IconBadge` star/premium badges (`Star`/`Crown`), `TrustCard` shield+checkmarks (`ShieldCheck`/`Check`), Buy screen "not detected" notice icon (`Smartphone`), and Status screen illustrations rebuilt as a shared `GlowIcon` component (`Wallet`/`Check`).
+- Removed now-unused `StarsIllustration` dead code.
+- **Fixed 2 real CSS bugs** found during cleanup: undefined CSS variables `--mint-2` (Status.css background gradient) and `--green-ink` (NextSteps.css, used 3x) were silently failing — replaced with proper theme tokens (`--green-soft`, `--green`).
+- Added consistent subtle shadow (`box-shadow: 0 1px 0 var(--line)`) to the base `.card` class for cleaner visual depth across all cards.
+- `testing_agent_v3` regression pass: 100% pass rate, zero bugs, confirmed no broken/missing icons after the library swap and both CSS bugs verified fixed via computed-style checks.
+
 ## Not yet done / backlog
 - P1: Split `Buy.tsx` (currently ~310 lines handling both form + review modes) into separate `Buy.tsx` + `Review.tsx` components for maintainability.
 - P2: Add `data-testid` per individual package row (`pkg-row-${title}`) for more robust future automated testing.
