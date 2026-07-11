@@ -85,7 +85,7 @@ export function Status({ orderId, stars, isPremium, premiumDuration, onStartOver
                 ? `Telegram Premium (${premiumDuration} months) is on its way to your account.`
                 : `${stars} Stars have been delivered.`}
             </p>
-            <button className="btn-primary status-cta" onClick={onStartOver}>
+            <button className="btn-primary status-cta" onClick={onStartOver} data-testid="buy-again-button">
               Buy again
             </button>
           </>
@@ -98,8 +98,8 @@ export function Status({ orderId, stars, isPremium, premiumDuration, onStartOver
             <p className="status-subtitle">
               {phase === 'timeout' ? 'This is taking longer than usual. Keep your order ID for support:' : errorMsg}
             </p>
-            <div className="order-id-chip">{orderId}</div>
-            <button className="btn-outline status-cta" onClick={onStartOver}>
+            <div className="order-id-chip" data-testid="order-id-chip">{orderId}</div>
+            <button className="btn-outline status-cta" onClick={onStartOver} data-testid="back-to-store-button">
               Back to store
             </button>
           </>

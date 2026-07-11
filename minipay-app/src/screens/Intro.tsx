@@ -37,9 +37,11 @@ export function Intro({ onContinue }: { onContinue: () => void }) {
         ))}
       </div>
 
-      <button className="btn-light intro-cta" onClick={onContinue}>
-        Get started
-      </button>
+      <div className="sticky-footer dark">
+        <button className="btn-light intro-cta" onClick={onContinue} data-testid="intro-get-started-button">
+          Get started
+        </button>
+      </div>
     </div>
   );
 }

@@ -116,11 +116,14 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
     <div className="screen buy-screen">
       <div className="buy-topbar">
         <div className="brand-row">
-          <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="StarStore" className="brand-icon" />
-          <span className="brand-name">StarStore</span>
+          <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="StarStore" className="brand-icon circle" />
+          <div className="brand-text">
+            <span className="brand-name">StarStore</span>
+            <span className="brand-sub">Stars & Premium checkout</span>
+          </div>
         </div>
         {wallet && (
-          <div className="wallet-chip">
+          <div className="wallet-chip" data-testid="wallet-connected-chip">
             <span className="wallet-dot" />
             {shortAddr(wallet)}
           </div>
@@ -128,18 +131,18 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
       </div>
 
       {mode === 'form' && !miniPayDetected && (
-        <div className="notice-card">
+        <div className="notice-card" data-testid="minipay-not-detected-notice">
           <div className="notice-icon">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="3" y="1" width="14" height="18" rx="3" stroke="#7a5200" strokeWidth="1.6" />
-              <circle cx="10" cy="16" r="1" fill="#7a5200" />
+              <rect x="3" y="1" width="14" height="18" rx="3" stroke="var(--gold)" strokeWidth="1.6" />
+              <circle cx="10" cy="16" r="1" fill="var(--gold)" />
             </svg>
           </div>
           <p>
             Open this page inside <strong>MiniPay</strong> or the <strong>Opera Mini</strong> browser to pay with a
             stablecoin wallet.
           </p>
-          <a className="notice-link" href="https://minipay.to" target="_blank" rel="noopener noreferrer">
+          <a className="notice-link" href="https://minipay.to" target="_blank" rel="noopener noreferrer" data-testid="get-minipay-link">
             Get MiniPay
           </a>
         </div>
@@ -148,7 +151,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
       {mode === 'form' && (
         <div className="telegram-fallback">
           Want to pay with TON, GRAM, or your Telegram Stars balance instead?{' '}
-          <a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer">
+          <a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer" data-testid="open-telegram-link">
             Open StarStore in Telegram
           </a>
         </div>
@@ -156,13 +159,28 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
 
       {mode === 'form' && (
         <>
-          <div className="type-toggle">
-            <button className={type === 'stars' ? 'type-pill active' : 'type-pill'} onClick={() => setType('stars')}>
-              Stars
-            </button>
-            <button className={type === 'premium' ? 'type-pill active' : 'type-pill'} onClick={() => setType('premium')}>
-              Premium
-            </button>
+          <div className="hero-card" data-testid="order-total-hero">
+            <div className="hero-card-top">
+              <span className="hero-card-label">Total to pay</span>
+              <div className="type-toggle">
+                <button
+                  className={type === 'stars' ? 'type-pill active' : 'type-pill'}
+                  onClick={() => setType('stars')}
+                  data-testid="type-toggle-stars"
+                >
+                  Stars
+                </button>
+                <button
+                  className={type === 'premium' ? 'type-pill active' : 'type-pill'}
+                  onClick={() => setType('premium')}
+                  data-testid="type-toggle-premium"
+                >
+                  Premium
+                </button>
+              </div>
+            </div>
+            <div className="hero-card-amount" data-testid="order-total-amount">{formatUsd(total)}</div>
+            <div className="hero-card-sub">{packageLabel}</div>
           </div>
 
           <NextSteps
@@ -209,6 +227,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
               placeholder="e.g. john_doe (without @)"
               value={username}
               onChange={(e) => setUsername(e.target.value.replace(/^@/, ''))}
+              data-testid="username-input"
             />
           </div>
 
@@ -216,22 +235,34 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
             <div className="section-title">Pay with</div>
             <div className="token-row">
               {(['cUSD', 'USDC', 'USDT'] as TokenSymbol[]).map((t) => (
-                <button key={t} className={token === t ? 'token-pill active' : 'token-pill'} onClick={() => setToken(t)}>
+                <button
+                  key={t}
+                  className={token === t ? 'token-pill active' : 'token-pill'}
+                  onClick={() => setToken(t)}
+                  data-testid={`token-pill-${t}`}
+                >
                   {t}
                 </button>
               ))}
             </div>
-            <button className="btn-primary" onClick={goToReview}>
+          </div>
+
+          <div className="sticky-footer">
+            <button className="btn-primary" onClick={goToReview} data-testid="continue-to-review-button">
               Continue — {formatUsd(total)}
             </button>
-            {error && <div className="status-text error">{error}</div>}
+            {error && <div className="status-text error" data-testid="buy-form-error">{error}</div>}
           </div>
         </>
       )}
 
       {mode === 'review' && (
         <>
-          <ReviewHeader />
+          <ReviewHeader
+            badge={type === 'stars' ? 'star' : 'premium'}
+            amount={formatUsd(total)}
+            packageLabel={packageLabel}
+          />
 
           <ConfirmSummary
             rows={[
@@ -246,24 +277,31 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
 
           <TrustCard />
 
-          {!wallet ? (
-            <button className="btn-primary" disabled={!miniPayDetected || connecting} onClick={handleConnect}>
-              {connecting ? 'Connecting…' : miniPayDetected ? 'Connect MiniPay' : 'MiniPay not detected'}
-            </button>
-          ) : (
-            <button className="btn-primary" disabled={paying} onClick={handlePay}>
-              {paying ? statusMsg || 'Processing…' : `Confirm & pay ${formatUsd(total)}`}
-            </button>
-          )}
+          <div className="sticky-footer">
+            {!wallet ? (
+              <button
+                className="btn-primary"
+                disabled={!miniPayDetected || connecting}
+                onClick={handleConnect}
+                data-testid="connect-wallet-button"
+              >
+                {connecting ? 'Connecting…' : miniPayDetected ? 'Connect MiniPay' : 'MiniPay not detected'}
+              </button>
+            ) : (
+              <button className="btn-primary" disabled={paying} onClick={handlePay} data-testid="confirm-pay-button">
+                {paying ? statusMsg || 'Processing…' : `Confirm & pay ${formatUsd(total)}`}
+              </button>
+            )}
 
-          {!paying && (
-            <button className="btn-outline" onClick={() => setMode('form')}>
-              Edit order
-            </button>
-          )}
+            {!paying && (
+              <button className="btn-outline" onClick={() => setMode('form')} data-testid="edit-order-button">
+                Edit order
+              </button>
+            )}
 
-          {error && <div className="status-text error">{error}</div>}
-          {!error && statusMsg && paying && <div className="status-text">{statusMsg}</div>}
+            {error && <div className="status-text error" data-testid="review-error">{error}</div>}
+            {!error && statusMsg && paying && <div className="status-text" data-testid="review-status-message">{statusMsg}</div>}
+          </div>
         </>
       )}
     </div>

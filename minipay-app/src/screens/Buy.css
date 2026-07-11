@@ -24,8 +24,8 @@
 }
 
 .notice-card {
-  background: #fff8e6;
-  border: 1px solid #ffe1a6;
+  background: var(--gold-soft);
+  border: 1px solid #f5dfa3;
   border-radius: var(--radius-md);
   padding: 16px;
   text-align: center;
@@ -40,13 +40,13 @@
 .notice-card p {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #7a5200;
+  color: #8a6412;
   line-height: 1.5;
 }
 
 .notice-link {
   display: inline-block;
-  background: #7a5200;
+  background: var(--ink);
   color: white;
   text-decoration: none;
   padding: 9px 16px;
@@ -66,6 +66,56 @@
   color: var(--coral);
   font-weight: 600;
   text-decoration: underline;
+}
+
+/* Hero card: the order total takes the same prominent, balance-style spot
+   the reference gives its wallet balance — one glanceable number up top. */
+.hero-card {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  padding: 20px 18px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.hero-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.hero-card-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.hero-card-amount {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.hero-card-sub {
+  font-size: 13px;
+  color: var(--text-soft);
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+.hero-card-top .type-toggle {
+  gap: 4px;
+  padding: 0;
+}
+
+.hero-card-top .type-pill {
+  padding: 6px 12px;
+  font-size: 12.5px;
 }
 
 /* Tab toggle: plain text for inactive, solid coral pill for active — matches

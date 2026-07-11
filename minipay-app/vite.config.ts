@@ -8,6 +8,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/minipay/',
+  server: {
+    allowedHosts: true,
+  },
   build: {
     outDir: '../public/minipay',
     emptyOutDir: true,

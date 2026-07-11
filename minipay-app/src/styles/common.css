@@ -32,7 +32,9 @@
 .btn-primary:active:not(:disabled) { transform: scale(0.98); background: var(--coral-deep); }
 
 .btn-primary:disabled {
-  opacity: 0.35;
+  opacity: 1;
+  background: var(--line);
+  color: var(--text-faint);
   cursor: not-allowed;
 }
 
@@ -95,4 +97,41 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 16px;
+}
+
+.brand-icon.circle {
+  border-radius: 50%;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.brand-sub {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+/* Sticky bottom action bar: keeps the primary CTA reachable while the form
+   scrolls, matching the reference's fixed bottom button on every screen. */
+.sticky-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: -32px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--paper) 70%, rgba(247, 247, 248, 0));
+}
+
+.sticky-footer.dark {
+  background: linear-gradient(to top, var(--ink) 70%, rgba(12, 13, 16, 0));
 }
