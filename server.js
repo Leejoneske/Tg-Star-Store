@@ -125,7 +125,17 @@ const paymentVerification = require('./services/payment-verification');
 const autoReply = require('./services/auto-reply');
 
 // Admin commands module
-const registerAdminEmailCommands = require('./telegram-commands-admin');
+let registerAdminEmailCommands;
+try {
+    registerAdminEmailCommands = require('./telegram-commands-admin');
+} catch (err) {
+    // This file is a thin compatibility stub — the real /sendemail logic
+    // lives inline in server.js further down. If this file is ever missing
+    // or broken, that must never be allowed to abort the rest of server.js's
+    // startup (routes, bot handlers, app.listen() all come after this line).
+    console.error(`[startup] Could not load telegram-commands-admin.js (${err.message}) — continuing without it, since its actual logic lives elsewhere in server.js.`);
+    registerAdminEmailCommands = function () {};
+}
 
 // Create Telegram bot or a stub in local/dev if no token is provided.
 // When loaded by tests (require.main !== module) skip the webHook listener so
