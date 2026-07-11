@@ -1,2 +1,8 @@
 .env
 node_modules/
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
