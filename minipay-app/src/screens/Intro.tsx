@@ -1,4 +1,4 @@
-import { StarsIllustration } from '../components/Illustration';
+import { Check } from 'lucide-react';
 import './Intro.css';
 
 const POINTS = [
@@ -15,8 +15,12 @@ export function Intro({ onContinue }: { onContinue: () => void }) {
         <span className="brand-name intro-brand-name">StarStore</span>
       </div>
 
-      <div className="intro-illustration">
-        <StarsIllustration />
+      <div className="intro-hero">
+        <div className="intro-hero-glow" />
+        <div className="intro-hero-frame">
+          <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="StarStore" className="intro-hero-img" />
+          <div className="intro-hero-shine" />
+        </div>
       </div>
 
       <h1 className="intro-title">Buy Telegram Stars with MiniPay</h1>
@@ -25,9 +29,7 @@ export function Intro({ onContinue }: { onContinue: () => void }) {
         {POINTS.map((p) => (
           <div className="intro-point" key={p.title}>
             <span className="intro-point-check">
-              <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                <path d="M1 4.5L4 7.5L10 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <Check size={13} color="white" strokeWidth={3} />
             </span>
             <div>
               <div className="intro-point-title">{p.title}</div>

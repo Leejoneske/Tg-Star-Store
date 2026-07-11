@@ -12,6 +12,7 @@
   background: var(--card);
   border-radius: var(--radius-md);
   padding: 16px;
+  box-shadow: 0 1px 0 var(--line);
 }
 
 /* Primary CTA on light screens: coral, matching the reference's "Continue"

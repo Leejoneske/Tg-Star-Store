@@ -7,10 +7,52 @@
 
 .intro-brand-name { color: white; }
 
-.intro-illustration {
+.intro-hero {
+  position: relative;
   display: flex;
   justify-content: center;
-  margin: 18px 0 8px;
+  align-items: center;
+  margin: 22px 0 14px;
+  height: 148px;
+}
+
+.intro-hero-glow {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  background: radial-gradient(circle, var(--teal) 0%, transparent 72%);
+  opacity: 0.4;
+  filter: blur(2px);
+}
+
+.intro-hero-frame {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--ink-soft) 0%, #05060a 100%);
+  box-shadow: 0 22px 40px -12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.intro-hero-img {
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
+  object-fit: cover;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.intro-hero-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 45%);
+  pointer-events: none;
 }
 
 .intro-title {

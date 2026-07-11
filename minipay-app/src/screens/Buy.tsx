@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Smartphone } from 'lucide-react';
 import { NextSteps } from '../components/NextSteps';
 import { ConfirmSummary } from '../components/ConfirmSummary';
 import { TrustCard } from '../components/TrustCard';
@@ -133,10 +134,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
       {mode === 'form' && !miniPayDetected && (
         <div className="notice-card" data-testid="minipay-not-detected-notice">
           <div className="notice-icon">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="3" y="1" width="14" height="18" rx="3" stroke="var(--gold)" strokeWidth="1.6" />
-              <circle cx="10" cy="16" r="1" fill="var(--gold)" />
-            </svg>
+            <Smartphone size={20} color="var(--gold)" strokeWidth={1.8} />
           </div>
           <p>
             Open this page inside <strong>MiniPay</strong> or the <strong>Opera Mini</strong> browser to pay with a
