@@ -34,7 +34,7 @@
 .btn-primary:disabled {
   opacity: 1;
   background: var(--line);
-  color: var(--text-faint);
+  color: var(--text-soft);
   cursor: not-allowed;
 }
 
