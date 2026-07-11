@@ -125,7 +125,7 @@ const paymentVerification = require('./services/payment-verification');
 const autoReply = require('./services/auto-reply');
 
 // Admin commands module
-const registerAdminEmailCommands = require('./services/telegram-commands-admin');
+const registerAdminEmailCommands = require('./telegram-commands-admin');
 
 // Create Telegram bot or a stub in local/dev if no token is provided.
 // When loaded by tests (require.main !== module) skip the webHook listener so
@@ -496,16 +496,16 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
 });
 
 // MiniPay checkout mini-app (React SPA, built separately from ./minipay-app
-// via `npm run build`, which writes straight into public/minipay/). Only the
+// via `npm run build`, which writes straight into public/miniapp/). Only the
 // shell index.html is served here — its own hashed JS/CSS assets are static
-// files already inside public/minipay/assets/ and are picked up by the
+// files already inside public/miniapp/assets/ and are picked up by the
 // regular express.static middleware below.
-app.get(['/buy-minipay', '/minipay', '/minipay/', '/miniapp', '/miniapp/'], (req, res) => {
-  const abs = path.join(__dirname, 'public', 'minipay', 'index.html');
+app.get(['/buy-minipay', '/miniapp', '/miniapp/'], (req, res) => {
+  const abs = path.join(__dirname, 'public', 'miniapp', 'index.html');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
   res.sendFile(abs, (err) => {
     if (err) {
-      console.error(`[ROUTE ERROR] Failed to send minipay shell: ${err.message}`);
+      console.error(`[ROUTE ERROR] Failed to send miniapp shell: ${err.message}`);
       const notFound = path.join(__dirname, 'public', 'errors', '404.html');
       res.status(404).sendFile(notFound, (sendErr) => {
         if (sendErr) res.status(404).send('Not found');
@@ -10781,17 +10781,24 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             });
         }
         
-        // Auto-repair any stuck pending referrals in BACKGROUND (non-blocking)
-        // Don't await - let it run asynchronously while we return stats immediately
-        repairStuckReferrals(userId)
-            .then(repairedCount => {
-                if (repairedCount > 0) {
-                    console.log(`[REPAIR] Background: Repaired ${repairedCount} stuck referrals for ${userId}`);
-                }
-            })
-            .catch(err => {
-                console.error(`[REPAIR] Background error for ${userId}:`, err.message);
-            });
+        // Auto-repair any stuck pending referrals BEFORE reading data for display.
+        // Previously this was fire-and-forget ("don't await, return stats
+        // immediately") — but that meant the very same request that should
+        // show a referral as newly active would still read the stale,
+        // pre-repair state, since the repair hadn't finished by the time the
+        // Referral.find() queries below ran. A referral that just crossed
+        // the activation threshold would then only appear correct on some
+        // *later* page load, not this one — exactly the "didn't update"
+        // symptom. Debounced to once/minute per user, so awaiting it here
+        // is cheap on repeat visits (returns instantly, does nothing).
+        try {
+            const repairedCount = await repairStuckReferrals(userId);
+            if (repairedCount > 0) {
+                console.log(`[REPAIR] Repaired ${repairedCount} stuck referrals for ${userId} before dashboard load`);
+            }
+        } catch (err) {
+            console.error(`[REPAIR] Error for ${userId}:`, err.message);
+        }
         
         // Check if user is actually an ambassador (has ambassadorEmail set)
         const isAmbassador = !!user.ambassadorEmail;
@@ -12592,6 +12599,15 @@ async function handleReferralActivation(tracker) {
 
 async function trackStars(userId, stars, type) {
     try {
+        // Orders created without a Telegram identity (currently: MiniPay
+        // orders, which only carry a username) would otherwise throw here on
+        // .toString() — silently swallowed by the caller's try/catch, so the
+        // purchase would never count toward referral activation with no
+        // visible error anywhere. Bail out explicitly instead.
+        if (!userId) {
+            console.warn('[trackStars] Skipped — no telegramId on this order (referral tracking needs a Telegram identity, not just a username)');
+            return;
+        }
         const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
         if (!tracker) return;
 
@@ -12635,7 +12651,8 @@ async function trackStars(userId, stars, type) {
                             $or: [
                                 { dateReferred: { $gte: marchFirstDate } },
                                 { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
-                            ]
+                            ],
+                            status: 'active'
                         });
                         
                         // Recalculate earnings for all tiers
@@ -12675,6 +12692,10 @@ async function trackStars(userId, stars, type) {
 
 async function trackPremiumActivation(userId) {
     try {
+        if (!userId) {
+            console.warn('[trackPremiumActivation] Skipped — no telegramId on this order');
+            return;
+        }
         const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
         if (!tracker) return;
 
@@ -12710,7 +12731,8 @@ async function trackPremiumActivation(userId) {
                                 $or: [
                                     { dateReferred: { $gte: marchFirstDate } },
                                     { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
-                                ]
+                                ],
+                                status: 'active'
                             });
                             
                             // Recalculate earnings for all tiers
