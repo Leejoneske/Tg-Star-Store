@@ -8,11 +8,6 @@ process.on('uncaughtException', (err) => {
     console.error('[uncaughtException]', err && err.message ? err.message : err);
 });
 
-
-// Repository restored to stable state - April 19, 2026
-// All pages and routing working as expected
-// Deployment: April 19, 2026 - 04:52 UTC - Force rebuild with fresh file serving
-
 // Suppress punycode deprecation warning (from tldts dependency)
 // Safe to ignore - Node.js built-in punycode is still stable for domain parsing
 process.noDeprecation = true;
@@ -127,13 +122,13 @@ const autoReply = require('./services/auto-reply');
 // Admin commands module
 let registerAdminEmailCommands;
 try {
-    registerAdminEmailCommands = require('./telegram-commands-admin');
+    registerAdminEmailCommands = require('./services/telegram-commands-admin');
 } catch (err) {
     // This file is a thin compatibility stub — the real /sendemail logic
     // lives inline in server.js further down. If this file is ever missing
     // or broken, that must never be allowed to abort the rest of server.js's
     // startup (routes, bot handlers, app.listen() all come after this line).
-    console.error(`[startup] Could not load telegram-commands-admin.js (${err.message}) — continuing without it, since its actual logic lives elsewhere in server.js.`);
+    console.error(`[startup] Could not load services/telegram-commands-admin.js (${err.message}) — continuing without it, since its actual logic lives elsewhere in server.js.`);
     registerAdminEmailCommands = function () {};
 }
 
@@ -506,16 +501,16 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
 });
 
 // MiniPay checkout mini-app (React SPA, built separately from ./minipay-app
-// via `npm run build`, which writes straight into public/miniapp/). Only the
+// via `npm run build`, which writes straight into public/minipay/). Only the
 // shell index.html is served here — its own hashed JS/CSS assets are static
-// files already inside public/miniapp/assets/ and are picked up by the
+// files already inside public/minipay/assets/ and are picked up by the
 // regular express.static middleware below.
-app.get(['/buy-minipay', '/miniapp', '/miniapp/'], (req, res) => {
-  const abs = path.join(__dirname, 'public', 'miniapp', 'index.html');
+app.get(['/buy-minipay', '/minipay', '/minipay/', '/miniapp', '/miniapp/'], (req, res) => {
+  const abs = path.join(__dirname, 'public', 'minipay', 'index.html');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
   res.sendFile(abs, (err) => {
     if (err) {
-      console.error(`[ROUTE ERROR] Failed to send miniapp shell: ${err.message}`);
+      console.error(`[ROUTE ERROR] Failed to send minipay shell: ${err.message}`);
       const notFound = path.join(__dirname, 'public', 'errors', '404.html');
       res.status(404).sendFile(notFound, (sendErr) => {
         if (sendErr) res.status(404).send('Not found');
@@ -10796,11 +10791,8 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         // immediately") — but that meant the very same request that should
         // show a referral as newly active would still read the stale,
         // pre-repair state, since the repair hadn't finished by the time the
-        // Referral.find() queries below ran. A referral that just crossed
-        // the activation threshold would then only appear correct on some
-        // *later* page load, not this one — exactly the "didn't update"
-        // symptom. Debounced to once/minute per user, so awaiting it here
-        // is cheap on repeat visits (returns instantly, does nothing).
+        // Referral.find() queries below ran. Debounced to once/minute per
+        // user, so awaiting it here is cheap on repeat visits.
         try {
             const repairedCount = await repairStuckReferrals(userId);
             if (repairedCount > 0) {
@@ -12547,6 +12539,53 @@ async function handleReferralActivation(tracker) {
                 status: 'active',
                 dateActivated: new Date()
             });
+
+            // Recalculate ambassador tier/earnings right here, at the moment
+            // activation actually happens. This used to live in trackStars/
+            // trackPremiumActivation, but by the time that code ran,
+            // handleReferralActivation (this function) had already flipped
+            // the referral to 'active' — so that code's own
+            // referral.status === 'pending' check was always false, and it
+            // silently never ran for any referral activated the normal way.
+            if (tracker.referrerUserId) {
+                const referrerUser = await User.findOne({ id: tracker.referrerUserId });
+                if (referrerUser && referrerUser.ambassadorEmail) {
+                    const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+                    const totalReferrals = await Referral.countDocuments({
+                        referrerUserId: tracker.referrerUserId,
+                        $or: [
+                            { dateReferred: { $gte: marchFirstDate } },
+                            { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+                        ],
+                        status: 'active'
+                    });
+
+                    const levelEarnings = recalculateLevelEarnings(totalReferrals);
+                    const totalAmount = getTotalAmbassiadorEarnings(levelEarnings);
+                    const newLevel = getAmbassadorTier(totalReferrals).level;
+
+                    await User.findOneAndUpdate(
+                        { id: tracker.referrerUserId },
+                        {
+                            ambassadorCurrentLevel: newLevel,
+                            ambassadorReferralCount: totalReferrals,
+                            ambassadorLevelEarnings: levelEarnings,
+                            ambassadorPendingBalance: totalAmount,
+                            $push: {
+                                ambassadorEarningsHistory: {
+                                    timestamp: new Date(),
+                                    referralCount: totalReferrals,
+                                    level: newLevel,
+                                    earnedAmount: totalAmount,
+                                    reason: 'referral_completed'
+                                }
+                            }
+                        }
+                    );
+
+                    console.log(`Ambassador earnings updated for ${tracker.referrerUserId}: ${totalReferrals} referrals, level ${newLevel}, $${totalAmount.toFixed(2)}`);
+                }
+            }
         }
 
         // Format detailed admin notification with HTML formatting to avoid underscore issues
@@ -23461,5 +23500,3 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
         return res.status(500).json({ success: false, error: 'Something went wrong. Please try again later.' });
     }
 });
-// Webhook fix - 1776877634
-//some harmless comment
