@@ -1,11 +1,11 @@
 .intro-screen {
-  background: var(--ink);
-  color: white;
+  background: var(--paper);
+  color: var(--text);
   justify-content: flex-start;
   padding-top: 24px;
 }
 
-.intro-brand-name { color: white; }
+.intro-brand-name { color: var(--text); }
 
 .intro-hero {
   position: relative;
@@ -20,9 +20,8 @@
   position: absolute;
   width: 210px;
   height: 210px;
-  background: radial-gradient(circle, var(--teal) 0%, transparent 72%);
-  opacity: 0.4;
-  filter: blur(2px);
+  background: radial-gradient(circle, var(--coral-soft) 0%, transparent 72%);
+  opacity: 0.9;
 }
 
 .intro-hero-frame {
@@ -34,8 +33,9 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: linear-gradient(160deg, var(--ink-soft) 0%, #05060a 100%);
-  box-shadow: 0 22px 40px -12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 32px -12px rgba(16, 17, 20, 0.12);
 }
 
 .intro-hero-img {
@@ -45,13 +45,13 @@
   object-fit: cover;
   position: relative;
   z-index: 1;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 16px rgba(16, 17, 20, 0.12);
 }
 
 .intro-hero-shine {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 45%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 45%);
   pointer-events: none;
 }
 
@@ -63,6 +63,7 @@
   margin: 0 0 6px;
   letter-spacing: -0.01em;
   line-height: 1.3;
+  color: var(--text);
 }
 
 .intro-points {
@@ -82,7 +83,7 @@
   width: 22px;
   height: 22px;
   border-radius: 7px;
-  background: var(--teal);
+  background: var(--coral);
   flex-shrink: 0;
   margin-top: 1px;
   display: flex;
@@ -93,13 +94,13 @@
 .intro-point-title {
   font-size: 14px;
   font-weight: 700;
-  color: white;
+  color: var(--text);
   margin-bottom: 2px;
 }
 
 .intro-point-body {
   font-size: 12.5px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-soft);
   line-height: 1.45;
 }
 
