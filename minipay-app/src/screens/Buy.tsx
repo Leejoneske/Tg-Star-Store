@@ -176,7 +176,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
       {mode === 'form' && !miniPayDetected && (
         <div className="notice-card" data-testid="minipay-not-detected-notice">
           <div className="notice-icon">
-            <Smartphone size={20} color="var(--coral)" strokeWidth={1.8} />
+            <Smartphone size={20} color="var(--accent)" strokeWidth={1.8} />
           </div>
           <p>
             Open this page inside <strong>MiniPay</strong> or the <strong>Opera Mini</strong> browser to pay with a
