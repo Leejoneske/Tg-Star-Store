@@ -1,9 +1,7 @@
 import { Check } from 'lucide-react';
-import { IconBadge } from './IconBadge';
 import './PackageRow.css';
 
 interface PackageRowProps {
-  badge: 'star' | 'premium';
   title: string;
   subtitle: string;
   price: string;
@@ -11,10 +9,11 @@ interface PackageRowProps {
   onClick: () => void;
 }
 
-export function PackageRow({ badge, title, subtitle, price, active, onClick }: PackageRowProps) {
+// No per-row icon — the star/premium mark is shown once in the section
+// title above the list instead of being repeated on every row.
+export function PackageRow({ title, subtitle, price, active, onClick }: PackageRowProps) {
   return (
     <button className={active ? 'pkg-row active' : 'pkg-row'} onClick={onClick} type="button">
-      <IconBadge kind={badge} size={40} />
       <div className="pkg-row-text">
         <div className="pkg-row-title">{title}</div>
         <div className="pkg-row-subtitle">{subtitle}</div>
