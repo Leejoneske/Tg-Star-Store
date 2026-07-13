@@ -19,7 +19,7 @@
 
 .step[data-state='done'] .step-bar,
 .step[data-state='active'] .step-bar {
-  background: var(--coral);
+  background: var(--accent);
 }
 
 .step-label {
