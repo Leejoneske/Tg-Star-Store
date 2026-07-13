@@ -41,6 +41,20 @@ function shortAddr(a: string) {
   return a.slice(0, 6) + '…' + a.slice(-4);
 }
 
+// Wallet providers (including MiniPay's injected window.ethereum) often
+// reject with a plain {code, message} object, NOT a real Error instance —
+// checking `e instanceof Error` alone silently swallows the real reason.
+function extractErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  if (typeof e === 'object' && e !== null) {
+    const obj = e as { message?: unknown; code?: unknown };
+    if (typeof obj.message === 'string') return obj.message;
+    if ('code' in obj) return `${fallback} (code ${obj.code}).`;
+  }
+  return fallback;
+}
+
 interface BuyProps {
   prefill: BuyPrefill;
   onOrderPlaced: (orderId: string, stars: number | null, isPremium: boolean, premiumDuration: number | null) => void;
@@ -88,7 +102,8 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
       const addr = await connectWallet();
       setWallet(addr);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not connect wallet');
+      console.error('MiniPay wallet connect failed:', e);
+      setError(extractErrorMessage(e, 'Could not connect wallet.'));
     } finally {
       setConnecting(false);
     }
@@ -160,7 +175,8 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
 
       onOrderPlaced(order.orderId, type === 'stars' ? stars : null, type === 'premium', type === 'premium' ? duration : null);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Something went wrong';
+      console.error('MiniPay payment failed:', e);
+      const msg = extractErrorMessage(e, 'Something went wrong.');
       setError(msg.includes('User rejected') ? 'Payment cancelled.' : msg);
       setPaying(false);
       setStatusMsg(null);
