@@ -18,6 +18,19 @@ export const PREMIUM_PRICES: Record<number, number> = {
   12: 29.99,
 };
 
+// Manual/custom star entry floor — below the smallest preset package, this
+// is enforced client-side purely for a sane UX; the server independently
+// enforces its own floor of 15.
+export const MIN_CUSTOM_STARS = 50;
+export const MAX_CUSTOM_STARS = 100000;
+
+// Same fallback formula as the miss-case in MINIPAY_PRICE_MAP.regular inside
+// server.js: known packages use their fixed price, any other amount (e.g. a
+// manually-entered custom amount) is priced at a flat per-star rate.
+export function computeStarPrice(stars: number): number {
+  return STAR_PRICES[stars] ?? Number((stars * 0.0179).toFixed(4));
+}
+
 export function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
