@@ -24,8 +24,8 @@
 }
 
 .notice-card {
-  background: var(--coral-soft);
-  border: 1px solid #ffcbb9;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 16px;
   text-align: center;
@@ -40,7 +40,7 @@
 .notice-card p {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #8a3220;
+  color: var(--text-soft);
   line-height: 1.5;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .telegram-fallback a {
-  color: var(--coral);
+  color: var(--accent);
   font-weight: 600;
   text-decoration: underline;
 }
@@ -118,7 +118,7 @@
   font-size: 12.5px;
 }
 
-/* Tab toggle: plain text for inactive, solid coral pill for active — matches
+/* Tab toggle: plain text for inactive, solid dark pill for active — matches
    the reference's Crypto/NFTs toggle exactly (no icons, no borders). */
 .type-toggle {
   display: flex;
@@ -138,7 +138,7 @@
 }
 
 .type-pill.active {
-  background: var(--coral);
+  background: var(--accent);
   color: white;
 }
 
@@ -179,7 +179,7 @@
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
-  color: var(--coral);
+  color: var(--accent);
   cursor: pointer;
 }
 
@@ -199,8 +199,8 @@
 }
 
 .custom-amount.active {
-  border-color: var(--coral);
-  background: var(--coral-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .custom-amount-hint {
@@ -250,9 +250,9 @@
 }
 
 .token-pill.active {
-  border-color: var(--coral);
-  background: var(--coral-soft);
-  color: var(--coral-deep);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
 }
 
 .status-text {
