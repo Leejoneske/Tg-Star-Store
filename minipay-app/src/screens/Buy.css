@@ -24,8 +24,8 @@
 }
 
 .notice-card {
-  background: var(--gold-soft);
-  border: 1px solid #f5dfa3;
+  background: var(--coral-soft);
+  border: 1px solid #ffcbb9;
   border-radius: var(--radius-md);
   padding: 16px;
   text-align: center;
@@ -40,7 +40,7 @@
 .notice-card p {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #8a6412;
+  color: #8a3220;
   line-height: 1.5;
 }
 
@@ -142,14 +142,74 @@
   color: white;
 }
 
+/* Section title with a single star/premium mark up top, instead of an icon
+   repeated on every package row below. */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.section-title-row .section-title {
+  margin: 0;
+}
+
 .pkg-list {
   display: flex;
   flex-direction: column;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
 }
+
+/* "Show more/fewer packages" — reveals the rest of the star packages beyond
+   the first three. */
+.pkg-more-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  margin: 0 0 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--coral);
+  cursor: pointer;
+}
+
+.pkg-more-toggle:active { opacity: 0.7; }
+
+/* Manual star entry, for amounts not covered by the preset packages. */
+.custom-amount {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.custom-amount .field-label {
+  margin: 0 0 8px;
+}
+
+.custom-amount.active {
+  border-color: var(--coral);
+  background: var(--coral-soft);
+}
+
+.custom-amount-hint {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-top: 6px;
+}
+
+.custom-amount-hint.error { color: var(--red); }
 
 .field-label {
   font-size: 12px;
