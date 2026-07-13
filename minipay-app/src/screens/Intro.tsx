@@ -23,7 +23,7 @@ export function Intro({ onContinue }: { onContinue: () => void }) {
         </div>
       </div>
 
-      <h1 className="intro-title">Buy Telegram Stars with MiniPay</h1>
+      <h1 className="intro-title">Buy Telegram Stars with StarStore MiniPay</h1>
 
       <div className="intro-points">
         {POINTS.map((p) => (
@@ -39,8 +39,8 @@ export function Intro({ onContinue }: { onContinue: () => void }) {
         ))}
       </div>
 
-      <div className="sticky-footer dark">
-        <button className="btn-light intro-cta" onClick={onContinue} data-testid="intro-get-started-button">
+      <div className="sticky-footer">
+        <button className="btn-primary intro-cta" onClick={onContinue} data-testid="intro-get-started-button">
           Get started
         </button>
       </div>
