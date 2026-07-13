@@ -49,6 +49,7 @@ interface BuyProps {
 export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   const [mode, setMode] = useState<Mode>('form');
   const [miniPayDetected, setMiniPayDetected] = useState(true);
+  const [walletDebug, setWalletDebug] = useState<string | null>(null);
   const [wallet, setWallet] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
 
@@ -67,6 +68,17 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
 
   useEffect(() => {
     setMiniPayDetected(isMiniPayAvailable());
+    // TEMPORARY diagnostic — remove once MiniPay/Opera detection is confirmed
+    // working in the field. Tells us whether the browser injected ANY wallet
+    // provider at all, vs. one that just isn't flagged as MiniPay.
+    const eth = window.ethereum;
+    if (!eth) {
+      setWalletDebug('Debug: no wallet provider found (window.ethereum is undefined).');
+    } else if (!eth.isMiniPay) {
+      setWalletDebug('Debug: a wallet provider is present, but isMiniPay is not set on it.');
+    } else {
+      setWalletDebug(null);
+    }
   }, []);
 
   async function handleConnect() {
@@ -185,6 +197,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
           <a className="notice-link" href="https://minipay.to" target="_blank" rel="noopener noreferrer" data-testid="get-minipay-link">
             Get MiniPay
           </a>
+          {walletDebug && <p className="notice-debug" data-testid="wallet-debug-line">{walletDebug}</p>}
         </div>
       )}
 
