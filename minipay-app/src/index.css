@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Matches the reference directly: near-black onboarding, off-white
-     dashboard, coral as the one confident accent color for every primary
-     action, teal glow for the dark-screen illustration, green reserved for
-     positive/success signals only. No blue hero cards, no emoji icons. */
+  /* Light throughout — off-white onboarding and dashboard, coral as the one
+     confident accent color for every primary action, teal reserved for the
+     wallet-status illustration, green reserved for positive/success signals
+     only. No orange/gold, no blue hero cards, no emoji icons. */
   --ink: #0c0d10;
   --ink-soft: #1a1b20;
   --paper: #f7f7f8;
@@ -14,8 +14,6 @@
   --coral-soft: #ffe7e0;
   --teal: #2dd4bf;
   --teal-soft: #d8f7f3;
-  --gold: #f2b93b;
-  --gold-soft: #fdf1d8;
   --purple: #8b5cf6;
   --purple-soft: #ece4fd;
   --blue: #4f7cff;
