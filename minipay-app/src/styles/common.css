@@ -15,12 +15,12 @@
   box-shadow: 0 1px 0 var(--line);
 }
 
-/* Primary CTA on light screens: coral, matching the reference's "Continue"
+/* Primary CTA on light screens: near-black, matching the reference's "Continue"
    button exactly — this is the one confident accent color in the app. */
 .btn-primary {
   border: none;
   border-radius: var(--radius-md);
-  background: var(--coral);
+  background: var(--accent);
   color: white;
   font-family: var(--font-body);
   font-size: 15.5px;
@@ -30,7 +30,7 @@
   transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
 }
 
-.btn-primary:active:not(:disabled) { transform: scale(0.98); background: var(--coral-deep); }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); background: var(--accent-deep); }
 
 .btn-primary:disabled {
   opacity: 1;
