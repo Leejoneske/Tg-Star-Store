@@ -6,5 +6,7 @@
   flex-shrink: 0;
 }
 
-.icon-badge-star { background: var(--gold-soft); }
+/* No orange/gold here — a neutral ring for Stars, the existing soft purple
+   for Premium. The icon glyphs themselves carry the real brand color. */
+.icon-badge-star { background: var(--paper); border: 1px solid var(--line); }
 .icon-badge-premium { background: var(--purple-soft); }
