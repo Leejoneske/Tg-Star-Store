@@ -1,0 +1,14 @@
+{
+  "name": "StarStore MiniPay",
+  "short_name": "StarStore",
+  "description": "Buy Telegram Stars or Premium instantly using your MiniPay stablecoin wallet.",
+  "start_url": "/minipay/",
+  "scope": "/minipay/",
+  "display": "standalone",
+  "background_color": "#f7f7f8",
+  "theme_color": "#f7f7f8",
+  "icons": [
+    { "src": "/minipay/app-icon.png", "sizes": "554x554", "type": "image/png", "purpose": "any" },
+    { "src": "/minipay/app-icon.png", "sizes": "554x554", "type": "image/png", "purpose": "maskable" }
+  ]
+}
