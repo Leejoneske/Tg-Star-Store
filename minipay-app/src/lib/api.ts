@@ -42,6 +42,36 @@ async function parseOrThrow<T>(res: Response): Promise<T> {
   return data as T;
 }
 
+export interface ValidateUsernameResponse {
+  success: boolean;
+  valid: boolean;
+  username?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  photoUrl?: string | null;
+  reason?: string;
+}
+
+// Deliberately doesn't throw on a 400/503 — "not found" and "retry later"
+// are expected, ordinary outcomes here, not exceptional failures.
+export async function validateUsername(username: string): Promise<ValidateUsernameResponse> {
+  const res = await fetch('/api/minipay/validate-username', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return {
+    success: !!data.success,
+    valid: !!data.valid,
+    username: data.username,
+    firstName: data.firstName ?? null,
+    lastName: data.lastName ?? null,
+    photoUrl: data.photoUrl ?? null,
+    reason: data.reason,
+  };
+}
+
 export async function createOrder(req: CreateOrderRequest): Promise<CreateOrderResponse> {
   const res = await fetch('/api/minipay/create-order', {
     method: 'POST',
