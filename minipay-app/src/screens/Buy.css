@@ -206,7 +206,7 @@
 
 .custom-amount.active {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: var(--tan-soft);
 }
 
 .custom-amount-hint {
@@ -215,7 +215,14 @@
   margin-top: 6px;
 }
 
-.custom-amount-hint.error { color: var(--red); }
+.username-status {
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.username-status.checking { color: var(--text-faint); }
+.username-status.valid { color: var(--green); font-weight: 600; }
+.username-status.error { color: var(--red); }
 
 .field-label {
   font-size: 12px;
