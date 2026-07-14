@@ -17,7 +17,7 @@ import {
   formatUsd,
 } from '../lib/pricing';
 import { isMiniPayAvailable, connectWallet, sendStablecoinPayment } from '../lib/minipay';
-import { createOrder, submitTx, type TokenSymbol } from '../lib/api';
+import { createOrder, submitTx, validateUsername, type TokenSymbol } from '../lib/api';
 import type { BuyPrefill } from '../App';
 import './Buy.css';
 
@@ -72,6 +72,8 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   const [duration, setDuration] = useState(prefill.premiumDuration && PREMIUM_PRICES[prefill.premiumDuration] ? prefill.premiumDuration : 6);
   const [token, setToken] = useState<TokenSymbol>('USDC');
   const [username, setUsername] = useState(prefill.username || '');
+  const [usernameCheck, setUsernameCheck] = useState<'idle' | 'checking' | 'valid' | 'invalid' | 'retry'>('idle');
+  const [usernameCheckInfo, setUsernameCheckInfo] = useState<{ firstName: string | null; reason?: string }>({ firstName: null });
 
   const [showAllStarPackages, setShowAllStarPackages] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
@@ -118,6 +120,58 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   // expectations accordingly instead of implying instant delivery.
   const isManualReview = type === 'stars' && stars < 50;
 
+  // Real-time username validation — mirrors the main app's Buy page: format
+  // check locally, then confirm the account actually exists on Telegram via
+  // /api/minipay/validate-username, debounced so we're not firing a lookup
+  // on every keystroke.
+  useEffect(() => {
+    if (!usernameValid) {
+      setUsernameCheck('idle');
+      setUsernameCheckInfo({ firstName: null });
+      return;
+    }
+    let cancelled = false;
+    setUsernameCheck('checking');
+    const handle = setTimeout(async () => {
+      try {
+        const result = await validateUsername(username.trim());
+        if (cancelled) return;
+        if (result.valid) {
+          setUsernameCheck('valid');
+          setUsernameCheckInfo({ firstName: result.firstName ?? null });
+        } else if (result.reason === 'retry_later' || result.reason === 'server_error') {
+          setUsernameCheck('retry');
+          setUsernameCheckInfo({ firstName: null, reason: result.reason });
+        } else {
+          setUsernameCheck('invalid');
+          setUsernameCheckInfo({ firstName: null, reason: result.reason });
+        }
+      } catch {
+        if (!cancelled) {
+          setUsernameCheck('retry');
+          setUsernameCheckInfo({ firstName: null, reason: 'network_error' });
+        }
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [username, usernameValid]);
+
+  const usernameStatusText =
+    usernameCheck === 'checking'
+      ? 'Checking username…'
+      : usernameCheck === 'valid'
+        ? `✓ Found${usernameCheckInfo.firstName ? `: ${usernameCheckInfo.firstName}` : ' on Telegram'}`
+        : usernameCheck === 'invalid'
+          ? usernameCheckInfo.reason === 'not_a_user'
+            ? "That's a channel or group, not a user."
+            : "Couldn't find that username on Telegram."
+          : usernameCheck === 'retry'
+            ? "Couldn't verify right now — will retry automatically."
+            : null;
+
   const visibleStarPackages = showAllStarPackages ? STAR_PACKAGES : STAR_PACKAGES.slice(0, STAR_PACKAGES_VISIBLE);
   const hasMoreStarPackages = STAR_PACKAGES.length > STAR_PACKAGES_VISIBLE;
 
@@ -143,6 +197,14 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
     setError(null);
     if (!usernameValid) {
       setError('Enter a valid Telegram username (5–32 letters, numbers, or underscores).');
+      return;
+    }
+    if (usernameCheck !== 'valid') {
+      setError(
+        usernameCheck === 'checking'
+          ? 'Still checking that username — one moment.'
+          : "We couldn't confirm that Telegram username exists."
+      );
       return;
     }
     setMode('review');
@@ -264,7 +326,20 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
           <NextSteps
             steps={[
               { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
-              { label: 'Add a recipient', sublabel: usernameValid ? `Delivering to @${username}` : 'Enter a Telegram username', done: usernameValid },
+              {
+                label: 'Add a recipient',
+                sublabel:
+                  usernameCheck === 'valid'
+                    ? `Delivering to @${username}${usernameCheckInfo.firstName ? ` (${usernameCheckInfo.firstName})` : ''}`
+                    : usernameCheck === 'checking'
+                      ? 'Checking username…'
+                      : usernameCheck === 'invalid'
+                        ? 'Username not found on Telegram'
+                        : usernameCheck === 'retry'
+                          ? "Couldn't verify — will retry"
+                          : 'Enter a Telegram username',
+                done: usernameCheck === 'valid',
+              },
               { label: 'Review & pay', sublabel: 'Confirm the details before paying', done: false },
             ]}
           />
@@ -344,6 +419,16 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
               spellCheck={false}
               data-testid="username-input"
             />
+            {usernameStatusText && (
+              <div
+                className={
+                  usernameCheck === 'valid' ? 'username-status valid' : usernameCheck === 'checking' ? 'username-status checking' : 'username-status error'
+                }
+                data-testid="username-status"
+              >
+                {usernameStatusText}
+              </div>
+            )}
           </div>
 
           <div className="card">
