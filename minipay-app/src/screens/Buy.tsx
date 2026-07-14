@@ -79,6 +79,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   const [paying, setPaying] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     setMiniPayDetected(isMiniPayAvailable());
@@ -112,6 +113,10 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
   const total = type === 'stars' ? computeStarPrice(stars) : PREMIUM_PRICES[duration];
   const usernameValid = USERNAME_PATTERN.test(username.trim());
   const packageLabel = type === 'stars' ? `${stars} Stars` : `Premium · ${duration} months`;
+  // Matches the platform's real auto-fulfill guardrail (services/fulfillment/
+  // index.js): star orders under 50 always go to manual admin review, so set
+  // expectations accordingly instead of implying instant delivery.
+  const isManualReview = type === 'stars' && stars < 50;
 
   const visibleStarPackages = showAllStarPackages ? STAR_PACKAGES : STAR_PACKAGES.slice(0, STAR_PACKAGES_VISIBLE);
   const hasMoreStarPackages = STAR_PACKAGES.length > STAR_PACKAGES_VISIBLE;
@@ -160,6 +165,10 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
         premiumDuration: type === 'premium' ? duration : undefined,
         token,
       });
+      // Order now exists server-side (and is visible to admins) even if the
+      // wallet payment step below fails or is abandoned — keep its ID so we
+      // can still show it to the user instead of losing the reference.
+      setCreatedOrderId(order.orderId);
 
       setStatusMsg('Confirm the payment in MiniPay…');
       const txHash = await sendStablecoinPayment({
@@ -376,6 +385,7 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
               { label: 'Recipient', value: `@${username}` },
               { label: 'Network', value: 'Celo' },
               { label: 'Network fee', value: 'Covered by MiniPay' },
+              { label: 'Delivery time', value: isManualReview ? 'Up to ~2 hours (manual review)' : '2 minutes or faster' },
             ]}
             totalLabel={`You'll pay in ${token}`}
             totalValue={formatUsd(total)}
@@ -405,7 +415,17 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
               </button>
             )}
 
-            {error && <div className="status-text error" data-testid="review-error">{error}</div>}
+            {error && (
+              <div className="status-text error" data-testid="review-error">
+                {error}
+                {createdOrderId && (
+                  <>
+                    {' '}Your order (<span data-testid="preserved-order-id">{createdOrderId}</span>) was already created — retry
+                    payment or share this ID if you need help.
+                  </>
+                )}
+              </div>
+            )}
             {!error && statusMsg && paying && <div className="status-text" data-testid="review-status-message">{statusMsg}</div>}
           </div>
         </>
