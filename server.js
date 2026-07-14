@@ -292,7 +292,8 @@ if (rateLimit) {
         '/api/feedback/submit',
         '/api/survey',
         '/api/minipay/create-order',
-        '/api/minipay/submit-tx'
+        '/api/minipay/submit-tx',
+        '/api/minipay/validate-username'
     ], sensitiveLimiter);
 
     // Rate limiter for the Telegram webhook to mitigate flooding/DoS
@@ -655,6 +656,13 @@ app.use(express.static('public', {
     setHeaders: (res, requestPath) => {
         if (requestPath.endsWith('.html')) {
             res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+        // Some hosts/older mime-db versions don't map .webmanifest to the
+        // right type, and browsers silently refuse to use a manifest that
+        // isn't served as JSON — set it explicitly so this never depends on
+        // the server's mime database.
+        if (requestPath.endsWith('.webmanifest')) {
+            res.set('Content-Type', 'application/manifest+json');
         }
     }}));
 
@@ -5302,6 +5310,37 @@ const MINIPAY_PRICE_MAP = {
     premium: { 3: 12.99, 6: 16.99, 12: 29.99 }
 };
 
+// Real-time username validation for the MiniPay checkout — mirrors the
+// format rules and lookupTelegramUsername() check used by the main app's
+// /api/validate-usernames, but without requireTelegramAuth since MiniPay
+// users never have Telegram initData (they're in a plain wallet browser).
+app.post('/api/minipay/validate-username', async (req, res) => {
+    try {
+        const raw = req.body?.username;
+        if (typeof raw !== 'string') {
+            return res.status(400).json({ success: false, valid: false, reason: 'invalid_format' });
+        }
+        const name = raw.trim().replace(/^@/, '').toLowerCase();
+        const formatOk = /^[a-z][a-z0-9_]{3,30}[a-z0-9]$/.test(name) && !/__/.test(name);
+        if (!formatOk) {
+            return res.status(400).json({ success: false, valid: false, reason: 'invalid_format' });
+        }
+
+        const lookup = await lookupTelegramUsername(name);
+        if (lookup.ok === true || (lookup.ok === null && lookup.reason === 'user_not_started_bot')) {
+            return res.json({ success: true, valid: true, username: name, firstName: lookup.firstName || null, lastName: lookup.lastName || null, photoUrl: lookup.photoUrl || null });
+        }
+        if (lookup.ok === false) {
+            return res.status(400).json({ success: false, valid: false, reason: lookup.reason === 'not_a_user' ? 'not_a_user' : lookup.reason });
+        }
+        // ok === null: transient network/bot error — let the client retry.
+        return res.status(503).json({ success: false, valid: false, reason: 'retry_later' });
+    } catch (error) {
+        console.error('[MiniPay] validate-username error:', error);
+        res.status(500).json({ success: false, valid: false, reason: 'server_error' });
+    }
+});
+
 app.post('/api/minipay/create-order', async (req, res) => {
     try {
         const { username, stars, isPremium, premiumDuration, token } = req.body || {};
@@ -5354,6 +5393,28 @@ app.post('/api/minipay/create-order', async (req, res) => {
             verificationAttempts: 0
         });
         await order.save();
+
+        // Notify admins the same way regular Telegram orders do, so this
+        // order gets a trackable admin panel message with a "Login" button.
+        // Populating order.adminMessages here is also what lets the later
+        // auto-fulfillment step EDIT that message in place, instead of
+        // falling back to a bare "please mark manually" warning.
+        if (bot && !isBotStub && Array.isArray(adminIds) && adminIds.length > 0) {
+            const item = order.isPremium ? `${order.premiumDuration} months Premium` : `${order.stars} Stars`;
+            const adminMessage = `🛒 NEW ${order.isPremium ? 'PREMIUM' : 'BUY'} ORDER (MiniPay)\n\nOrder ID: ${order.id}\nRecipient: @${order.username}\nAmount: $${amount} (${celoToken} on Celo)\n${item}`;
+            const adminKeyboard = { inline_keyboard: [[{ text: '🔓 Login', callback_data: `login_buy_${order.id}` }]] };
+            for (const adminId of adminIds) {
+                try {
+                    const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                    order.adminMessages.push({ adminId, messageId: message.message_id, originalText: adminMessage });
+                } catch (err) {
+                    console.warn(`[MiniPay] admin notify failed for ${adminId} on order #${order.id}:`, err?.message || err);
+                }
+            }
+            if (order.adminMessages.length > 0) {
+                await order.save();
+            }
+        }
 
         res.json({
             success: true,
