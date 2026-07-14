@@ -17,7 +17,7 @@
 }
 
 .pkg-row.active {
-  background: var(--accent-soft);
+  background: var(--tan-soft);
   border-top-color: transparent;
 }
 
