@@ -43,7 +43,7 @@ function IconSlot({ src, label, size }: { src: string; label: string; size: numb
 }
 
 export function TelegramStarIcon({ size = 24 }: { size?: number }) {
-  return <IconSlot src={`${import.meta.env.BASE_URL}Star.svg`} label="Star" size={size} />;
+  return <IconSlot src={`${import.meta.env.BASE_URL}Star.png`} label="Star" size={size} />;
 }
 
 export function TelegramPremiumIcon({ size = 24 }: { size?: number }) {
