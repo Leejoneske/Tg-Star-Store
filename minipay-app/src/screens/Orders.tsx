@@ -96,11 +96,7 @@ export function Orders({ onBack }: { onBack: () => void }) {
 
       {!session && (
         <div className="card orders-signin">
-          <p className="orders-signin-copy">
-            Connect your MiniPay wallet to see every order you've placed with it — no order ID to remember, no
-            re-typing your username. This only proves wallet ownership by signing a message; it never authorizes a
-            payment.
-          </p>
+          <p className="orders-signin-copy">Connect your wallet to see your past orders.</p>
           <button className="btn-primary" onClick={handleSignIn} disabled={connecting} data-testid="orders-signin-button">
             {connecting ? 'Connecting…' : 'Connect MiniPay'}
           </button>
