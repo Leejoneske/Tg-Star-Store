@@ -9,6 +9,7 @@ export interface Step {
 
 export function NextSteps({ steps }: { steps: Step[] }) {
   const doneCount = steps.filter((s) => s.done).length;
+  const allDone = doneCount === steps.length;
   return (
     <div className="card next-steps">
       <div className="next-steps-header">
@@ -20,19 +21,31 @@ export function NextSteps({ steps }: { steps: Step[] }) {
       <div className="next-steps-track">
         <div className="next-steps-fill" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
       </div>
-      <div className="next-steps-list">
-        {steps.map((step) => (
-          <div className="next-step-row" key={step.label}>
-            <div className={step.done ? 'next-step-check done' : 'next-step-check'}>
-              {step.done && <Check size={14} color="white" strokeWidth={3} />}
-            </div>
-            <div>
-              <div className={step.done ? 'next-step-label done' : 'next-step-label'}>{step.label}</div>
-              <div className="next-step-sublabel">{step.sublabel}</div>
-            </div>
+      {allDone ? (
+        <div className="next-steps-done">
+          <div className="next-steps-done-check">
+            <Check size={16} color="white" strokeWidth={3} />
           </div>
-        ))}
-      </div>
+          <div>
+            <div className="next-steps-done-title">All set</div>
+            <div className="next-steps-done-sublabel">Confirm and pay to complete your order.</div>
+          </div>
+        </div>
+      ) : (
+        <div className="next-steps-list">
+          {steps.map((step) => (
+            <div className="next-step-row" key={step.label}>
+              <div className={step.done ? 'next-step-check done' : 'next-step-check'}>
+                {step.done && <Check size={14} color="white" strokeWidth={3} />}
+              </div>
+              <div>
+                <div className={step.done ? 'next-step-label done' : 'next-step-label'}>{step.label}</div>
+                <div className="next-step-sublabel">{step.sublabel}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
