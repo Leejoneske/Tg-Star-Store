@@ -19,6 +19,7 @@ import {
 import { isMiniPayAvailable, connectWallet, sendStablecoinPayment } from '../lib/minipay';
 import { createOrder, submitTx, validateUsername, type TokenSymbol } from '../lib/api';
 import { extractErrorMessage } from '../lib/errors';
+import { getMySession } from '../lib/session';
 import type { BuyPrefill } from '../App';
 import './Buy.css';
 
@@ -52,7 +53,7 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
   const [mode, setMode] = useState<Mode>('form');
   const [miniPayDetected, setMiniPayDetected] = useState(true);
   const [walletDebug, setWalletDebug] = useState<string | null>(null);
-  const [wallet, setWallet] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<string | null>(() => getMySession()?.address ?? null);
   const [connecting, setConnecting] = useState(false);
 
   const [type, setType] = useState<PurchaseType>(prefill.isPremium ? 'premium' : 'stars');
@@ -455,6 +456,14 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
             badge={type === 'stars' ? 'star' : 'premium'}
             amount={formatUsd(total)}
             packageLabel={packageLabel}
+          />
+
+          <NextSteps
+            steps={[
+              { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
+              { label: 'Add a recipient', sublabel: `Delivering to @${username}`, done: true },
+              { label: 'Review & pay', sublabel: 'Confirm the details below', done: true },
+            ]}
           />
 
           <ConfirmSummary
