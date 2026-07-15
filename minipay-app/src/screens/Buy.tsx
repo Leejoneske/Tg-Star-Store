@@ -340,7 +340,7 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
 
           <div className="card">
             <div className="section-title-row">
-              {type === 'stars' ? <TelegramStarIcon size={16} /> : <TelegramPremiumIcon size={16} />}
+              {type === 'stars' ? <TelegramStarIcon size={22} /> : <TelegramPremiumIcon size={22} />}
               <div className="section-title">{type === 'stars' ? 'Choose a star pack' : 'Choose a duration'}</div>
             </div>
 
