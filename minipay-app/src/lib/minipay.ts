@@ -25,6 +25,18 @@ export async function connectWallet(): Promise<string> {
   return accounts[0];
 }
 
+/** Prompts the wallet to sign a plain-text message (personal_sign), used to
+ * prove ownership of the address for account sign-in — never used for
+ * anything that moves funds. */
+export async function signMessage(address: string, message: string): Promise<string> {
+  if (!window.ethereum) throw new Error('No wallet provider found');
+  const signature = (await window.ethereum.request({
+    method: 'personal_sign',
+    params: [message, address],
+  })) as string;
+  return signature;
+}
+
 /** ERC-20 transfer(address,uint256) calldata, hand-encoded. */
 function encodeTransferData(toAddress: string, amountUnits: string): string {
   const methodId = 'a9059cbb';
