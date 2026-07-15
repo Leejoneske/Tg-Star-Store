@@ -37,7 +37,7 @@ export function Intro({ onContinue, onViewOrders }: IntroProps) {
       <h1 className="intro-title">
         Buy Telegram Stars
         <br />
-        with your wallet.
+        with StarStore for MiniPay.
       </h1>
       <p className="intro-subtitle">Pay in cUSD, USDC, or USDT — Stars land in your Telegram account instantly.</p>
 
