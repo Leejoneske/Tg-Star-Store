@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Smartphone, ChevronDown, ChevronUp } from 'lucide-react';
+import { Smartphone, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { NextSteps } from '../components/NextSteps';
 import { ConfirmSummary } from '../components/ConfirmSummary';
 import { TrustCard } from '../components/TrustCard';
@@ -18,6 +18,7 @@ import {
 } from '../lib/pricing';
 import { isMiniPayAvailable, connectWallet, sendStablecoinPayment } from '../lib/minipay';
 import { createOrder, submitTx, validateUsername, type TokenSymbol } from '../lib/api';
+import { extractErrorMessage } from '../lib/errors';
 import type { BuyPrefill } from '../App';
 import './Buy.css';
 
@@ -41,26 +42,13 @@ function shortAddr(a: string) {
   return a.slice(0, 6) + '…' + a.slice(-4);
 }
 
-// Wallet providers (including MiniPay's injected window.ethereum) often
-// reject with a plain {code, message} object, NOT a real Error instance —
-// checking `e instanceof Error` alone silently swallows the real reason.
-function extractErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === 'string') return e;
-  if (typeof e === 'object' && e !== null) {
-    const obj = e as { message?: unknown; code?: unknown };
-    if (typeof obj.message === 'string') return obj.message;
-    if ('code' in obj) return `${fallback} (code ${obj.code}).`;
-  }
-  return fallback;
-}
-
 interface BuyProps {
   prefill: BuyPrefill;
   onOrderPlaced: (orderId: string, stars: number | null, isPremium: boolean, premiumDuration: number | null) => void;
+  onViewOrders: () => void;
 }
 
-export function Buy({ prefill, onOrderPlaced }: BuyProps) {
+export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
   const [mode, setMode] = useState<Mode>('form');
   const [miniPayDetected, setMiniPayDetected] = useState(true);
   const [walletDebug, setWalletDebug] = useState<string | null>(null);
@@ -264,12 +252,17 @@ export function Buy({ prefill, onOrderPlaced }: BuyProps) {
             <span className="brand-sub">Buy & Sell Telegram Stars</span>
           </div>
         </div>
-        {wallet && (
-          <div className="wallet-chip" data-testid="wallet-connected-chip">
-            <span className="wallet-dot" />
-            {shortAddr(wallet)}
-          </div>
-        )}
+        <div className="buy-topbar-right">
+          {wallet && (
+            <div className="wallet-chip" data-testid="wallet-connected-chip">
+              <span className="wallet-dot" />
+              {shortAddr(wallet)}
+            </div>
+          )}
+          <button className="orders-nav-button" onClick={onViewOrders} aria-label="My orders" data-testid="view-orders-button">
+            <History size={18} strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       {mode === 'form' && !miniPayDetected && (
