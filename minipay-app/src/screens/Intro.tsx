@@ -7,6 +7,9 @@ const POINTS = [
   { title: 'Delivered to Telegram instantly', body: 'Stars or Premium land on your account the moment payment confirms.' },
 ];
 
+// No hero icon/visual at all — just the brand row and animated typography,
+// so the screen reads as clean and uncluttered rather than leaning on
+// another icon graphic.
 export function Intro({ onContinue }: { onContinue: () => void }) {
   return (
     <div className="screen intro-screen">
@@ -15,19 +18,12 @@ export function Intro({ onContinue }: { onContinue: () => void }) {
         <span className="brand-name intro-brand-name">StarStore</span>
       </div>
 
-      <div className="intro-hero">
-        <div className="intro-hero-glow" />
-        <div className="intro-hero-frame">
-          <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="StarStore" className="intro-hero-img" />
-          <div className="intro-hero-shine" />
-        </div>
-      </div>
-
-      <h1 className="intro-title">Buy Telegram Stars with StarStore MiniPay</h1>
+      <h1 className="intro-title">A gate for your wallet.</h1>
+      <p className="intro-subtitle">Every payment has to ask before it moves a cent.</p>
 
       <div className="intro-points">
-        {POINTS.map((p) => (
-          <div className="intro-point" key={p.title}>
+        {POINTS.map((p, i) => (
+          <div className="intro-point" key={p.title} style={{ animationDelay: `${0.2 + i * 0.09}s` }}>
             <span className="intro-point-check">
               <Check size={13} color="white" strokeWidth={3} />
             </span>
@@ -39,7 +35,7 @@ export function Intro({ onContinue }: { onContinue: () => void }) {
         ))}
       </div>
 
-      <div className="sticky-footer">
+      <div className="sticky-footer intro-footer">
         <button className="btn-primary intro-cta" onClick={onContinue} data-testid="intro-get-started-button">
           Get started
         </button>
