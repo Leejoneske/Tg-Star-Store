@@ -28,11 +28,16 @@ export async function connectWallet(): Promise<string> {
 /** Prompts the wallet to sign a plain-text message (personal_sign), used to
  * prove ownership of the address for account sign-in — never used for
  * anything that moves funds. */
+function utf8ToHex(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  return '0x' + Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function signMessage(address: string, message: string): Promise<string> {
   if (!window.ethereum) throw new Error('No wallet provider found');
   const signature = (await window.ethereum.request({
     method: 'personal_sign',
-    params: [message, address],
+    params: [utf8ToHex(message), address],
   })) as string;
   return signature;
 }
