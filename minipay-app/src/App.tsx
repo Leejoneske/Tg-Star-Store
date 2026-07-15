@@ -3,6 +3,7 @@ import { Intro } from './screens/Intro';
 import { Buy } from './screens/Buy';
 import { Status } from './screens/Status';
 import { Orders } from './screens/Orders';
+import { getMySession } from './lib/session';
 import './styles/common.css';
 
 export interface BuyPrefill {
@@ -33,7 +34,7 @@ function readPrefill(): BuyPrefill {
 function App() {
   const [prefill] = useState<BuyPrefill>(readPrefill);
   const [route, setRoute] = useState<Route>(() =>
-    sessionStorage.getItem(SEEN_INTRO_KEY) || Object.keys(readPrefill()).length > 0
+    localStorage.getItem(SEEN_INTRO_KEY) || getMySession() || Object.keys(readPrefill()).length > 0
       ? { name: 'buy' }
       : { name: 'intro' }
   );
@@ -42,11 +43,11 @@ function App() {
     return (
       <Intro
         onContinue={() => {
-          sessionStorage.setItem(SEEN_INTRO_KEY, '1');
+          localStorage.setItem(SEEN_INTRO_KEY, '1');
           setRoute({ name: 'buy' });
         }}
         onViewOrders={() => {
-          sessionStorage.setItem(SEEN_INTRO_KEY, '1');
+          localStorage.setItem(SEEN_INTRO_KEY, '1');
           setRoute({ name: 'orders' });
         }}
       />
