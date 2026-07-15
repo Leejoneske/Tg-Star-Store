@@ -45,6 +45,10 @@ function App() {
           sessionStorage.setItem(SEEN_INTRO_KEY, '1');
           setRoute({ name: 'buy' });
         }}
+        onViewOrders={() => {
+          sessionStorage.setItem(SEEN_INTRO_KEY, '1');
+          setRoute({ name: 'orders' });
+        }}
       />
     );
   }
