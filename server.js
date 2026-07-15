@@ -5447,7 +5447,7 @@ app.post('/api/minipay/submit-tx', async (req, res) => {
         }
 
         order.transactionHash = txHash;
-        if (senderAddress) order.minipaySenderAddress = senderAddress;
+        if (senderAddress) order.minipaySenderAddress = String(senderAddress).toLowerCase();
         await order.save();
 
         // The existing 30-second background job will pick this up, verify it
@@ -5480,6 +5480,146 @@ app.get('/api/minipay/status/:orderId', async (req, res) => {
     } catch (error) {
         console.error('[MiniPay] status error:', error);
         res.status(500).json({ error: 'Failed to fetch order status' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// MiniPay accounts — "log in" by proving ownership of a wallet address via
+// a signed message (same approach as Sign-In with Ethereum), no password or
+// separate signup. The wallet address IS the account; a session token then
+// lets the buyer's order history be looked up automatically on return
+// visits, instead of only ever having a one-off order ID to remember.
+// ─────────────────────────────────────────────────────────────────────────
+const { ethers } = require('ethers');
+
+// address (lowercased) -> { nonce, expiresAt } — short-lived, single-use,
+// in-memory is fine here: worst case on a server restart mid-handshake is
+// the buyer just taps "Connect" again.
+const minipayAuthNonces = new Map();
+const MINIPAY_NONCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MINIPAY_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function getMiniPaySessionSecret() {
+    // This token only ever grants read access to a single wallet address's
+    // own MiniPay orders (never admin actions), so — unlike ADMIN_JWT_SECRET
+    // — it's fine to derive it from an existing app secret rather than
+    // requiring yet another env var, as long as it stays namespaced/distinct
+    // from the admin token's own secret and signing input.
+    const base = process.env.MINIPAY_SESSION_SECRET || __ADMIN_JWT_SECRET || process.env.BOT_TOKEN;
+    if (!base) return null;
+    return crypto.createHash('sha256').update(`minipay-session:${base}`).digest('hex');
+}
+
+function signMiniPaySessionToken(address) {
+    const secret = getMiniPaySessionSecret();
+    if (!secret) throw new Error('No secret available to sign MiniPay session token');
+    const header = { alg: 'HS256', typ: 'JWT' };
+    const body = { address: address.toLowerCase(), exp: Date.now() + MINIPAY_SESSION_TTL_MS };
+    const h = base64url(JSON.stringify(header));
+    const b = base64url(JSON.stringify(body));
+    const sig = crypto.createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    return `${h}.${b}.${sig}`;
+}
+
+function verifyMiniPaySessionToken(token) {
+    try {
+        const secret = getMiniPaySessionSecret();
+        if (!secret) return null;
+        const [h, b, sig] = String(token).split('.');
+        if (!h || !b || !sig) return null;
+        const expected = crypto.createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+        if (expected !== sig) return null;
+        const body = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+        if (!body || !body.exp || Date.now() > body.exp || !body.address) return null;
+        return body;
+    } catch {
+        return null;
+    }
+}
+
+function requireMiniPaySession(req, res, next) {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    const session = token && verifyMiniPaySessionToken(token);
+    if (!session) return res.status(401).json({ error: 'Not signed in' });
+    req.minipayAddress = session.address;
+    next();
+}
+
+app.post('/api/minipay/auth/nonce', (req, res) => {
+    const address = String(req.body?.address || '').toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(address)) {
+        return res.status(400).json({ error: 'Invalid wallet address' });
+    }
+    const nonce = crypto.randomBytes(16).toString('hex');
+    minipayAuthNonces.set(address, { nonce, expiresAt: Date.now() + MINIPAY_NONCE_TTL_MS });
+    const message = `Sign in to StarStore MiniPay\n\nAddress: ${address}\nNonce: ${nonce}\n\nThis only proves wallet ownership — it never authorizes a payment.`;
+    res.json({ success: true, message });
+});
+
+app.post('/api/minipay/auth/verify', (req, res) => {
+    try {
+        const address = String(req.body?.address || '').toLowerCase();
+        const signature = req.body?.signature;
+        if (!/^0x[0-9a-f]{40}$/.test(address) || typeof signature !== 'string') {
+            return res.status(400).json({ error: 'address and signature are required' });
+        }
+
+        const record = minipayAuthNonces.get(address);
+        if (!record || Date.now() > record.expiresAt) {
+            return res.status(400).json({ error: 'Nonce expired — request a new one and try again.' });
+        }
+        const message = `Sign in to StarStore MiniPay\n\nAddress: ${address}\nNonce: ${record.nonce}\n\nThis only proves wallet ownership — it never authorizes a payment.`;
+
+        let recovered;
+        try {
+            recovered = ethers.verifyMessage(message, signature).toLowerCase();
+        } catch (e) {
+            return res.status(400).json({ error: 'Invalid signature' });
+        }
+        if (recovered !== address) {
+            return res.status(401).json({ error: 'Signature does not match address' });
+        }
+
+        minipayAuthNonces.delete(address); // single-use
+        const token = signMiniPaySessionToken(address);
+        res.json({ success: true, token, address });
+    } catch (error) {
+        console.error('[MiniPay] auth/verify error:', error);
+        res.status(500).json({ error: 'Failed to verify signature' });
+    }
+});
+
+app.get('/api/minipay/orders', requireMiniPaySession, async (req, res) => {
+    try {
+        const orders = await BuyOrder.find({
+            paymentCurrency: 'MINIPAY',
+            minipaySenderAddress: req.minipayAddress
+        })
+            .select('id status transactionVerified fulfillmentStatus fulfillmentError stars isPremium premiumDuration amount celoToken dateCreated')
+            .sort({ dateCreated: -1 })
+            .limit(50)
+            .lean();
+
+        res.json({
+            success: true,
+            orders: orders.map(o => ({
+                orderId: o.id,
+                status: o.status,
+                transactionVerified: !!o.transactionVerified,
+                fulfillmentStatus: o.fulfillmentStatus || 'none',
+                fulfillmentError: o.fulfillmentError || null,
+                stars: o.stars,
+                isPremium: !!o.isPremium,
+                premiumDuration: o.premiumDuration,
+                amountUsd: o.amount,
+                token: o.celoToken,
+                dateCreated: o.dateCreated
+            }))
+        });
+    } catch (error) {
+        console.error('[MiniPay] orders list error:', error);
+        res.status(500).json({ error: 'Failed to fetch orders' });
     }
 });
 
@@ -7067,16 +7207,24 @@ async function handleConfirmedAction(query, data, adminUsername) {
             ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`
             : `❌ Your buy order #${order.id} has been declined.\n\nContact support if you believe this was a mistake.`;
 
-        // Safe Telegram send: handle deactivated/blocked users gracefully
-        try {
-            await bot.sendMessage(order.telegramId, userMessage);
-        } catch (err) {
-            const message = String(err && err.message || '');
-            const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
-            if (forbidden) {
-                console.warn(`Telegram send skipped: user ${order.telegramId} is deactivated or blocked`);
-            } else {
-                throw err;
+        // Safe Telegram send: handle deactivated/blocked users gracefully.
+        // MiniPay orders never have a telegramId (no Telegram auth), so a
+        // real send here would throw a non-"forbidden" error and abort the
+        // whole admin action — skip it entirely for that order type; those
+        // buyers check status via the web page instead.
+        if (!order.telegramId) {
+            console.log(`Telegram send skipped: order #${order.id} has no telegramId (paymentCurrency: ${order.paymentCurrency || 'n/a'})`);
+        } else {
+            try {
+                await bot.sendMessage(order.telegramId, userMessage);
+            } catch (err) {
+                const message = String(err && err.message || '');
+                const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                if (forbidden) {
+                    console.warn(`Telegram send skipped: user ${order.telegramId} is deactivated or blocked`);
+                } else {
+                    throw err;
+                }
             }
         }
 
@@ -7182,9 +7330,15 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             
             order.status = 'completed';
             order.dateCompleted = new Date();
+            // MiniPay buyers track their order purely through GET
+            // /api/minipay/status/:orderId, which reads fulfillmentStatus —
+            // a field only the automated (istar) pipeline normally touches.
+            // Manual admin completion never set it, so a manually-reviewed
+            // order looked "stuck" to the buyer forever even once done.
+            if (order.paymentCurrency === 'MINIPAY') {
+                order.fulfillmentStatus = 'completed';
+            }
             await order.save();
-            
-            // Handle recipient notifications for "buy for others" orders
             if (order.isBuyForOthers && order.recipients && order.recipients.length > 0) {
                 try {
                     // Send notifications to all recipients
@@ -7269,6 +7423,10 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
         } else if (actionType === 'decline') {
             order.status = 'declined';
             order.dateDeclined = new Date();
+            if (order.paymentCurrency === 'MINIPAY') {
+                order.fulfillmentStatus = 'failed';
+                order.fulfillmentError = order.fulfillmentError || 'Declined by admin.';
+            }
             await order.save();
         }
     }
@@ -21809,6 +21967,9 @@ app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
 
         order.status = 'completed';
         order.dateCompleted = new Date();
+        if (orderType === 'buy' && order.paymentCurrency === 'MINIPAY') {
+            order.fulfillmentStatus = 'completed';
+        }
         await order.save();
 
         // Mirror side effects
