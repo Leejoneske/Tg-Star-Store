@@ -72,6 +72,48 @@ export async function validateUsername(username: string): Promise<ValidateUserna
   };
 }
 
+export interface MiniPayOrderSummary {
+  orderId: string;
+  status: string;
+  transactionVerified: boolean;
+  fulfillmentStatus: 'none' | 'queued' | 'in_progress' | 'completed' | 'failed';
+  fulfillmentError: string | null;
+  stars: number | null;
+  isPremium: boolean;
+  premiumDuration: number | null;
+  amountUsd: number;
+  token: string;
+  dateCreated: string;
+}
+
+export async function requestAuthNonce(address: string): Promise<string> {
+  const res = await fetch('/api/minipay/auth/nonce', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+  });
+  const data = await parseOrThrow<{ message: string }>(res);
+  return data.message;
+}
+
+export async function verifyAuthSignature(address: string, signature: string): Promise<string> {
+  const res = await fetch('/api/minipay/auth/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, signature }),
+  });
+  const data = await parseOrThrow<{ token: string }>(res);
+  return data.token;
+}
+
+export async function getMyOrders(token: string): Promise<MiniPayOrderSummary[]> {
+  const res = await fetch('/api/minipay/orders', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await parseOrThrow<{ orders: MiniPayOrderSummary[] }>(res);
+  return data.orders;
+}
+
 export async function createOrder(req: CreateOrderRequest): Promise<CreateOrderResponse> {
   const res = await fetch('/api/minipay/create-order', {
     method: 'POST',
