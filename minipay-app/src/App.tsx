@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Intro } from './screens/Intro';
 import { Buy } from './screens/Buy';
 import { Status } from './screens/Status';
+import { Orders } from './screens/Orders';
 import './styles/common.css';
 
 export interface BuyPrefill {
@@ -14,6 +15,7 @@ export interface BuyPrefill {
 type Route =
   | { name: 'intro' }
   | { name: 'buy' }
+  | { name: 'orders' }
   | { name: 'status'; orderId: string; stars: number | null; isPremium: boolean; premiumDuration: number | null };
 
 const SEEN_INTRO_KEY = 'starstore_minipay_seen_intro';
@@ -47,6 +49,10 @@ function App() {
     );
   }
 
+  if (route.name === 'orders') {
+    return <Orders onBack={() => setRoute({ name: 'buy' })} />;
+  }
+
   if (route.name === 'status') {
     return (
       <Status
@@ -65,6 +71,7 @@ function App() {
       onOrderPlaced={(orderId, stars, isPremium, premiumDuration) =>
         setRoute({ name: 'status', orderId, stars, isPremium, premiumDuration })
       }
+      onViewOrders={() => setRoute({ name: 'orders' })}
     />
   );
 }
