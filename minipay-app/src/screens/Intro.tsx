@@ -45,7 +45,7 @@ export function Intro({ onContinue, onViewOrders }: IntroProps) {
             <SiTelegram size={24} color="white" />
           </div>
           <div className="intro-icon-tile intro-icon-star">
-            <TelegramStarIcon size={30} />
+            <TelegramStarIcon size={42} />
           </div>
           <div className="intro-icon-tile intro-icon-wallet">
             <ShieldCheck size={26} color="var(--green)" strokeWidth={2.2} />
