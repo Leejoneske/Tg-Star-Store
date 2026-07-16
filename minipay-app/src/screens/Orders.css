@@ -58,21 +58,6 @@
   color: var(--text-faint);
 }
 
-.orders-wallet-chip {
-  align-self: flex-start;
-}
-
-.orders-signout {
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0 0 0 6px;
-}
-
 .orders-empty {
   text-align: center;
   font-size: 13.5px;
