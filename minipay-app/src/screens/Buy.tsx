@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Smartphone, ChevronDown, ChevronUp, X, ArrowUpRight } from 'lucide-react';
+import { Smartphone, ChevronDown, ChevronUp, LogOut, ArrowUpRight } from 'lucide-react';
 import { NextSteps } from '../components/NextSteps';
 import { ConfirmSummary } from '../components/ConfirmSummary';
 import { TrustCard } from '../components/TrustCard';
@@ -270,7 +270,7 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
             <button className="wallet-connect-btn connected" onClick={handleDisconnect} data-testid="wallet-disconnect-button">
               <span className="wallet-dot" />
               {shortAddr(wallet)}
-              <X size={13} strokeWidth={2.5} />
+              <LogOut size={13} strokeWidth={2.5} />
             </button>
           ) : (
             <button
@@ -460,17 +460,17 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
             </div>
           </div>
 
-          <button className="view-history-button" onClick={onViewOrders} data-testid="view-history-button">
-            <span>View history</span>
-            <ArrowUpRight size={16} strokeWidth={2.2} />
-          </button>
-
           <div className="inline-footer">
             <button className="btn-primary" onClick={goToReview} data-testid="continue-to-review-button">
               Continue — {formatUsd(total)}
             </button>
             {error && <div className="status-text error" data-testid="buy-form-error">{error}</div>}
           </div>
+
+          <button className="view-history-button" onClick={onViewOrders} data-testid="view-history-button">
+            <span>View history</span>
+            <ArrowUpRight size={16} strokeWidth={2.2} />
+          </button>
         </>
       )}
 
