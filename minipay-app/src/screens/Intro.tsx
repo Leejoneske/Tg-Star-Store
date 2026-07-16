@@ -9,10 +9,9 @@ import './Intro.css';
 
 interface IntroProps {
   onContinue: () => void;
-  onViewOrders: () => void;
 }
 
-export function Intro({ onContinue, onViewOrders }: IntroProps) {
+export function Intro({ onContinue }: IntroProps) {
   const [connecting, setConnecting] = useState(false);
 
   async function handleGetStarted() {
@@ -63,9 +62,6 @@ export function Intro({ onContinue, onViewOrders }: IntroProps) {
       <div className="sticky-footer intro-footer">
         <button className="btn-primary intro-cta" onClick={handleGetStarted} disabled={connecting} data-testid="intro-get-started-button">
           {connecting ? 'Connecting…' : 'Get started'}
-        </button>
-        <button className="btn-intro-secondary intro-cta" onClick={onViewOrders} data-testid="intro-view-orders-button">
-          I already have an order
         </button>
       </div>
     </div>
