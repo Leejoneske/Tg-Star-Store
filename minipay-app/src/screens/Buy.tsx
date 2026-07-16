@@ -35,6 +35,7 @@ const TELEGRAM_BOT_URL = 'https://t.me/TgStarStore_bot';
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{5,32}$/;
 
 const STAR_PACKAGES_VISIBLE = 3;
+const NEXT_STEPS_SEEN_KEY = 'starstore_minipay_next_steps_completed';
 
 type PurchaseType = 'stars' | 'premium';
 type Mode = 'form' | 'review';
@@ -55,6 +56,7 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
   const [walletDebug, setWalletDebug] = useState<string | null>(null);
   const [wallet, setWallet] = useState<string | null>(() => getMySession()?.address ?? null);
   const [connecting, setConnecting] = useState(false);
+  const [showNextSteps] = useState(() => !localStorage.getItem(NEXT_STEPS_SEEN_KEY));
 
   const [type, setType] = useState<PurchaseType>(prefill.isPremium ? 'premium' : 'stars');
   const [stars, setStars] = useState(prefill.stars && STAR_PRICES[prefill.stars] ? prefill.stars : 25);
@@ -208,6 +210,7 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
       );
       return;
     }
+    localStorage.setItem(NEXT_STEPS_SEEN_KEY, '1');
     setMode('review');
   }
 
@@ -268,7 +271,6 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
         <div className="buy-topbar-right">
           {wallet ? (
             <button className="wallet-connect-btn connected" onClick={handleDisconnect} data-testid="wallet-disconnect-button">
-              <span className="wallet-dot" />
               {shortAddr(wallet)}
               <LogOut size={13} strokeWidth={2.5} />
             </button>
@@ -336,26 +338,28 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
             <div className="hero-card-sub">{packageLabel}</div>
           </div>
 
-          <NextSteps
-            steps={[
-              { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
-              {
-                label: 'Add a recipient',
-                sublabel:
-                  usernameCheck === 'valid'
-                    ? `Delivering to @${username}${usernameCheckInfo.firstName ? ` (${usernameCheckInfo.firstName})` : ''}`
-                    : usernameCheck === 'checking'
-                      ? 'Checking username…'
-                      : usernameCheck === 'invalid'
-                        ? 'Username not found on Telegram'
-                        : usernameCheck === 'retry'
-                          ? "Couldn't verify — will retry"
-                          : 'Enter a Telegram username',
-                done: usernameCheck === 'valid',
-              },
-              { label: 'Review & pay', sublabel: 'Confirm the details before paying', done: false },
-            ]}
-          />
+          {showNextSteps && (
+            <NextSteps
+              steps={[
+                { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
+                {
+                  label: 'Add a recipient',
+                  sublabel:
+                    usernameCheck === 'valid'
+                      ? `Delivering to @${username}${usernameCheckInfo.firstName ? ` (${usernameCheckInfo.firstName})` : ''}`
+                      : usernameCheck === 'checking'
+                        ? 'Checking username…'
+                        : usernameCheck === 'invalid'
+                          ? 'Username not found on Telegram'
+                          : usernameCheck === 'retry'
+                            ? "Couldn't verify — will retry"
+                            : 'Enter a Telegram username',
+                  done: usernameCheck === 'valid',
+                },
+                { label: 'Review & pay', sublabel: 'Confirm the details before paying', done: false },
+              ]}
+            />
+          )}
 
           <div className="card">
             <div className="section-title-row">
@@ -482,13 +486,15 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
             packageLabel={packageLabel}
           />
 
-          <NextSteps
-            steps={[
-              { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
-              { label: 'Add a recipient', sublabel: `Delivering to @${username}`, done: true },
-              { label: 'Review & pay', sublabel: 'Confirm the details below', done: true },
-            ]}
-          />
+          {showNextSteps && (
+            <NextSteps
+              steps={[
+                { label: 'Choose a package', sublabel: `${packageLabel} selected`, done: true },
+                { label: 'Add a recipient', sublabel: `Delivering to @${username}`, done: true },
+                { label: 'Review & pay', sublabel: 'Confirm the details below', done: true },
+              ]}
+            />
+          )}
 
           <ConfirmSummary
             rows={[
