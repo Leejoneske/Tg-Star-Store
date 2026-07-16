@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Smartphone, ChevronDown, ChevronUp, History } from 'lucide-react';
+import { Smartphone, ChevronDown, ChevronUp, X, ArrowUpRight } from 'lucide-react';
 import { NextSteps } from '../components/NextSteps';
 import { ConfirmSummary } from '../components/ConfirmSummary';
 import { TrustCard } from '../components/TrustCard';
@@ -16,10 +16,10 @@ import {
   computeStarPrice,
   formatUsd,
 } from '../lib/pricing';
-import { isMiniPayAvailable, connectWallet, sendStablecoinPayment } from '../lib/minipay';
-import { createOrder, submitTx, validateUsername, type TokenSymbol } from '../lib/api';
+import { isMiniPayAvailable, connectWallet, signMessage, sendStablecoinPayment } from '../lib/minipay';
+import { createOrder, submitTx, validateUsername, requestAuthNonce, verifyAuthSignature, type TokenSymbol } from '../lib/api';
 import { extractErrorMessage } from '../lib/errors';
-import { getMySession } from '../lib/session';
+import { getMySession, saveSession, clearSession } from '../lib/session';
 import type { BuyPrefill } from '../App';
 import './Buy.css';
 
@@ -92,6 +92,13 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
     setError(null);
     try {
       const addr = await connectWallet();
+      const existing = getMySession();
+      if (!existing || existing.address.toLowerCase() !== addr.toLowerCase()) {
+        const message = await requestAuthNonce(addr);
+        const signature = await signMessage(addr, message);
+        const token = await verifyAuthSignature(addr, signature);
+        saveSession(token, addr);
+      }
       setWallet(addr);
     } catch (e) {
       console.error('MiniPay wallet connect failed:', e);
@@ -99,6 +106,11 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
     } finally {
       setConnecting(false);
     }
+  }
+
+  function handleDisconnect() {
+    clearSession();
+    setWallet(null);
   }
 
   const total = type === 'stars' ? computeStarPrice(stars) : PREMIUM_PRICES[duration];
@@ -254,15 +266,22 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
           </div>
         </div>
         <div className="buy-topbar-right">
-          {wallet && (
-            <div className="wallet-chip" data-testid="wallet-connected-chip">
+          {wallet ? (
+            <button className="wallet-connect-btn connected" onClick={handleDisconnect} data-testid="wallet-disconnect-button">
               <span className="wallet-dot" />
               {shortAddr(wallet)}
-            </div>
+              <X size={13} strokeWidth={2.5} />
+            </button>
+          ) : (
+            <button
+              className="wallet-connect-btn"
+              onClick={handleConnect}
+              disabled={connecting}
+              data-testid="wallet-connect-topbar-button"
+            >
+              {connecting ? 'Connecting…' : 'Connect wallet'}
+            </button>
           )}
-          <button className="orders-nav-button" onClick={onViewOrders} aria-label="My orders" data-testid="view-orders-button">
-            <History size={18} strokeWidth={2} />
-          </button>
         </div>
       </div>
 
@@ -441,7 +460,12 @@ export function Buy({ prefill, onOrderPlaced, onViewOrders }: BuyProps) {
             </div>
           </div>
 
-          <div className="sticky-footer">
+          <button className="view-history-button" onClick={onViewOrders} data-testid="view-history-button">
+            <span>View history</span>
+            <ArrowUpRight size={16} strokeWidth={2.2} />
+          </button>
+
+          <div className="inline-footer">
             <button className="btn-primary" onClick={goToReview} data-testid="continue-to-review-button">
               Continue — {formatUsd(total)}
             </button>
