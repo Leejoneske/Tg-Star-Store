@@ -3590,6 +3590,29 @@ setInterval(async () => {
                     order.dateVerified = new Date();
                     console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes | Currency: ${order.paymentCurrency || 'TON'} | Verified TX: ${verifyResult.txKey || 'N/A'}`);
                     await order.save();
+
+                    // MiniPay orders skip the at-creation admin notification TON/USDT
+                    // orders get (their "create" only ever happens after the wallet
+                    // payment already exists). For MiniPay, order creation happens
+                    // BEFORE any payment is attempted, so notifying admins here —
+                    // only once transactionVerified is actually true — is the
+                    // earliest point a MiniPay order is a real, paid order.
+                    if (order.paymentCurrency === 'MINIPAY' && bot && !isBotStub && Array.isArray(adminIds) && adminIds.length > 0) {
+                        const item = order.isPremium ? `${order.premiumDuration} months Premium` : `${order.stars} Stars`;
+                        const adminMessage = `🛒 NEW ${order.isPremium ? 'PREMIUM' : 'BUY'} ORDER (MiniPay)\n\nOrder ID: ${order.id}\nRecipient: @${order.username}\nAmount: $${order.amount} (${order.celoToken} on Celo)\n${item}\n\n✅ Payment verified on-chain.`;
+                        const adminKeyboard = { inline_keyboard: [[{ text: '🔓 Login', callback_data: `login_buy_${order.id}` }]] };
+                        for (const adminId of adminIds) {
+                            try {
+                                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                                order.adminMessages.push({ adminId, messageId: message.message_id, originalText: adminMessage });
+                            } catch (err) {
+                                console.warn(`[MiniPay] admin notify failed for ${adminId} on order #${order.id}:`, err?.message || err);
+                            }
+                        }
+                        if (order.adminMessages.length > 0) {
+                            await order.save();
+                        }
+                    }
                     
                     try {
                         if (order.stars && !order.isPremium) {
@@ -5393,28 +5416,6 @@ app.post('/api/minipay/create-order', async (req, res) => {
             verificationAttempts: 0
         });
         await order.save();
-
-        // Notify admins the same way regular Telegram orders do, so this
-        // order gets a trackable admin panel message with a "Login" button.
-        // Populating order.adminMessages here is also what lets the later
-        // auto-fulfillment step EDIT that message in place, instead of
-        // falling back to a bare "please mark manually" warning.
-        if (bot && !isBotStub && Array.isArray(adminIds) && adminIds.length > 0) {
-            const item = order.isPremium ? `${order.premiumDuration} months Premium` : `${order.stars} Stars`;
-            const adminMessage = `🛒 NEW ${order.isPremium ? 'PREMIUM' : 'BUY'} ORDER (MiniPay)\n\nOrder ID: ${order.id}\nRecipient: @${order.username}\nAmount: $${amount} (${celoToken} on Celo)\n${item}`;
-            const adminKeyboard = { inline_keyboard: [[{ text: '🔓 Login', callback_data: `login_buy_${order.id}` }]] };
-            for (const adminId of adminIds) {
-                try {
-                    const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                    order.adminMessages.push({ adminId, messageId: message.message_id, originalText: adminMessage });
-                } catch (err) {
-                    console.warn(`[MiniPay] admin notify failed for ${adminId} on order #${order.id}:`, err?.message || err);
-                }
-            }
-            if (order.adminMessages.length > 0) {
-                await order.save();
-            }
-        }
 
         res.json({
             success: true,
@@ -7318,16 +7319,24 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             // Allow completion if order is pending/processing OR if payment is verified on blockchain even if expired
             const isPaymentVerified = order.transactionVerified === true;
             const isCompletableStatus = order.status === 'pending' || order.status === 'processing' || order.status === 'verified';
-            
+
             if (!isCompletableStatus && !isPaymentVerified) {
                 throw new Error(`Order is ${order.status} - cannot complete. Payment must be verified on blockchain.`);
             }
-            
+
+            // MiniPay orders have no manual proof-of-payment path the way TON
+            // orders sometimes do — completion must never be possible before
+            // the on-chain transfer is actually confirmed, regardless of
+            // order status, or fulfillment could fire on an unpaid order.
+            if (order.paymentCurrency === 'MINIPAY' && !isPaymentVerified) {
+                throw new Error('This MiniPay order has not been verified on-chain yet - cannot complete.');
+            }
+
             // If order expired but payment verified, recover it
             if (order.status === 'expired' && isPaymentVerified) {
                 console.log(`[RECOVERY] Order ${order.id} was expired but payment verified on blockchain - allowing completion`);
             }
-            
+
             order.status = 'completed';
             order.dateCompleted = new Date();
             // MiniPay buyers track their order purely through GET
@@ -21963,6 +21972,9 @@ app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
         }
         if (orderType === 'buy' && order.status !== 'pending' && order.status !== 'processing') {
             return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+        if (orderType === 'buy' && order.paymentCurrency === 'MINIPAY' && order.transactionVerified !== true) {
+            return res.status(409).json({ error: 'This MiniPay order has not been verified on-chain yet - cannot complete.' });
         }
 
         order.status = 'completed';
