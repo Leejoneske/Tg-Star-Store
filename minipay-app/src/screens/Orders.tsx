@@ -6,10 +6,6 @@ import { connectWallet, signMessage, isMiniPayAvailable } from '../lib/minipay';
 import { extractErrorMessage } from '../lib/errors';
 import './Orders.css';
 
-function shortAddr(a: string) {
-  return a.slice(0, 6) + '…' + a.slice(-4);
-}
-
 function describeStatus(o: MiniPayOrderSummary): { text: string; tone: 'pending' | 'success' | 'fail' } {
   if (o.fulfillmentStatus === 'completed') return { text: 'Delivered', tone: 'success' };
   if (o.fulfillmentStatus === 'failed') return { text: 'Failed', tone: 'fail' };
@@ -66,12 +62,6 @@ export function Orders({ onBack }: { onBack: () => void }) {
     }
   }
 
-  function handleSignOut() {
-    clearSession();
-    setSession(null);
-    setOrders(null);
-  }
-
   return (
     <div className="screen orders-screen">
       <div className="orders-topbar">
@@ -113,14 +103,6 @@ export function Orders({ onBack }: { onBack: () => void }) {
 
       {session && (
         <>
-          <div className="wallet-chip orders-wallet-chip" data-testid="orders-wallet-chip">
-            <span className="wallet-dot" />
-            {shortAddr(session.address)}
-            <button className="orders-signout" onClick={handleSignOut} data-testid="orders-signout-button">
-              Sign out
-            </button>
-          </div>
-
           {error && (
             <div className="status-text error" data-testid="orders-load-error">
               {error}
