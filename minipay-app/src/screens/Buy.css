@@ -34,13 +34,6 @@
 .wallet-connect-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .wallet-connect-btn:active:not(:disabled) { opacity: 0.8; }
 
-.wallet-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-}
-
 .notice-card {
   background: var(--accent-soft);
   border: 1px solid var(--line);
