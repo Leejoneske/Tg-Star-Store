@@ -1,5 +1,6 @@
-
 import { useState } from 'react';
+
+const ICON_ZOOM = 1.5;
 
 function IconSlot({ src, label, size }: { src: string; label: string; size: number }) {
   const [failed, setFailed] = useState(false);
@@ -28,17 +29,19 @@ function IconSlot({ src, label, size }: { src: string; label: string; size: numb
   }
 
   return (
-    <img
-      src={src}
-      alt={label}
-      width={size}
-      height={size}
-      style={{ display: 'block' }}
-      onError={() => {
-        console.error(`[icons] ${label} icon failed to load from ${src} — file missing at that exact path, or it isn't valid image content.`);
-        setFailed(true);
-      }}
-    />
+    <div style={{ width: size, height: size, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <img
+        src={src}
+        alt={label}
+        width={Math.round(size * ICON_ZOOM)}
+        height={Math.round(size * ICON_ZOOM)}
+        style={{ display: 'block', flexShrink: 0 }}
+        onError={() => {
+          console.error(`[icons] ${label} icon failed to load from ${src} — file missing at that exact path, or it isn't valid image content.`);
+          setFailed(true);
+        }}
+      />
+    </div>
   );
 }
 
