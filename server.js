@@ -1671,6 +1671,17 @@ async function connectDatabase() {
     try {
       await mongoose.connect(process.env.MONGODB_URI);
       console.log('✅ MongoDB connected successfully');
+      try {
+        const backfillResult = await BuyOrder.updateMany(
+          { paymentCurrency: 'MINIPAY', status: 'completed', fulfillmentStatus: { $ne: 'completed' } },
+          { $set: { fulfillmentStatus: 'completed' } }
+        );
+        if (backfillResult.modifiedCount > 0) {
+          console.log(`[migration] Backfilled fulfillmentStatus on ${backfillResult.modifiedCount} already-completed MiniPay order(s).`);
+        }
+      } catch (migrationErr) {
+        console.error('[migration] MiniPay fulfillmentStatus backfill failed:', migrationErr.message);
+      }
       return;
     } catch (err) {
       console.error('❌ MongoDB connection error:', err.message);
