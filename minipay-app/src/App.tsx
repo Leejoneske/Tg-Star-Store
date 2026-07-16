@@ -46,10 +46,6 @@ function App() {
           localStorage.setItem(SEEN_INTRO_KEY, '1');
           setRoute({ name: 'buy' });
         }}
-        onViewOrders={() => {
-          localStorage.setItem(SEEN_INTRO_KEY, '1');
-          setRoute({ name: 'orders' });
-        }}
       />
     );
   }
