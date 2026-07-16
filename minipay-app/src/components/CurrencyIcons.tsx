@@ -47,5 +47,5 @@ export function TelegramStarIcon({ size = 24 }: { size?: number }) {
 }
 
 export function TelegramPremiumIcon({ size = 24 }: { size?: number }) {
-  return <IconSlot src={`${import.meta.env.BASE_URL}Premium.svg`} label="Premium" size={size} />;
+  return <IconSlot src={`${import.meta.env.BASE_URL}Premium.png`} label="Premium" size={size} />;
 }
