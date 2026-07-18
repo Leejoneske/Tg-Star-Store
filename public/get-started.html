@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Get Started | StarStore</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/favicon.png" type="image/png">
+
+    <!-- Telegram WebApp Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+
+    <!-- Fonts & icons (same stack as the rest of the app) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Shared app theme (light/dark tokens) -->
+    <link rel="stylesheet" href="/css/theme.css">
+
+    <script src="/js/theme.js"></script>
+
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--surface-muted);
+            color: var(--text);
+            overscroll-behavior: none;
+        }
+
+        .onboard-shell {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface-muted);
+            position: relative;
+        }
+
+        /* ---------- Top bar: progress dots + skip ---------- */
+        .onboard-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), 16px) 20px 8px;
+        }
+
+        .onboard-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .onboard-dot {
+            height: 6px;
+            width: 6px;
+            border-radius: 999px;
+            background: var(--border-strong);
+            transition: width .35s cubic-bezier(.4,0,.2,1), background-color .35s ease;
+        }
+        .onboard-dot.is-active {
+            width: 22px;
+            background: var(--brand);
+        }
+        .onboard-dot.is-done {
+            background: var(--brand);
+            opacity: .55;
+        }
+
+        .onboard-skip {
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease;
+        }
+        .onboard-skip:hover { background: var(--surface-elevated); color: var(--text); }
+        .onboard-skip:active { transform: scale(.96); }
+
+        /* ---------- Slide track ---------- */
+        .onboard-viewport {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            touch-action: pan-y;
+        }
+        .onboard-track {
+            display: flex;
+            height: 100%;
+            width: 300%;
+            transition: transform .45s cubic-bezier(.65,0,.35,1);
+            will-change: transform;
+        }
+        .onboard-slide {
+            width: calc(100% / 3);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 12px 32px 8px;
+        }
+
+        /* ---------- Illustration ---------- */
+        .onboard-art {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 36px;
+        }
+        .onboard-art::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 32% 28%, var(--art-a, #818cf8), var(--art-b, #4f46e5) 65%);
+            opacity: .14;
+            transform: scale(1.0);
+        }
+        .onboard-art .art-blob {
+            position: absolute;
+            border-radius: 46% 54% 60% 40% / 45% 40% 60% 55%;
+            background: linear-gradient(145deg, var(--art-a, #818cf8), var(--art-b, #4f46e5));
+            opacity: .16;
+            animation: blobFloat 7s ease-in-out infinite;
+        }
+        .onboard-art .art-blob.b1 { width: 168px; height: 168px; top: 8px; left: 8px; }
+        .onboard-art .art-blob.b2 { width: 90px;  height: 90px;  bottom: 6px; right: 4px; opacity: .22; animation-delay: -3.2s; }
+        @keyframes blobFloat {
+            0%, 100% { transform: translate(0,0) rotate(0deg); }
+            50%      { transform: translate(4px,-6px) rotate(8deg); }
+        }
+
+        .onboard-art .art-core {
+            position: relative;
+            width: 108px;
+            height: 108px;
+            border-radius: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(150deg, var(--art-a, #818cf8), var(--art-b, #4f46e5));
+            box-shadow: 0 16px 32px -12px color-mix(in srgb, var(--art-b, #4f46e5) 55%, transparent);
+        }
+        .onboard-art .art-core i {
+            font-size: 42px;
+            color: #ffffff;
+        }
+        .onboard-art .art-spark {
+            position: absolute;
+            color: var(--art-b, #4f46e5);
+            opacity: .55;
+        }
+        .onboard-art .spark-1 { top: 6px;   right: 24px; font-size: 16px; animation: sparkPulse 2.4s ease-in-out infinite; }
+        .onboard-art .spark-2 { bottom: 22px; left: 10px; font-size: 11px; animation: sparkPulse 2.4s ease-in-out infinite .8s; }
+        .onboard-art .spark-3 { top: 42px;  left: -2px;  font-size: 9px;  animation: sparkPulse 2.4s ease-in-out infinite 1.5s; }
+        @keyframes sparkPulse {
+            0%, 100% { opacity: .25; transform: scale(.85); }
+            50%      { opacity: .8;  transform: scale(1.1); }
+        }
+
+        /* ---------- Copy ---------- */
+        .onboard-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            margin: 0 0 12px;
+            color: var(--text);
+        }
+        .onboard-desc {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-muted);
+            max-width: 320px;
+            margin: 0;
+        }
+
+        /* ---------- Footer / CTA ---------- */
+        .onboard-footer {
+            padding: 18px 20px max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px), 18px);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .onboard-cta {
+            width: 100%;
+            border: none;
+            border-radius: 16px;
+            padding: 16px 20px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-on-brand);
+            background: linear-gradient(135deg, var(--brand), var(--brand-hover));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--brand) 65%, transparent);
+            transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+        }
+        .onboard-cta:active { transform: scale(.98); box-shadow: 0 4px 12px -6px color-mix(in srgb, var(--brand) 65%, transparent); }
+        .onboard-cta i { font-size: 14px; transition: transform .25s ease; }
+        .onboard-cta.is-final i { transform: translateX(2px); }
+
+        .onboard-legal {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        .onboard-legal a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+        .onboard-legal a:hover { color: var(--brand); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .onboard-track, .onboard-dot, .art-blob, .art-spark, .onboard-cta { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+<body data-fast-load="1">
+
+    <div class="onboard-shell">
+
+        <div class="onboard-topbar">
+            <div class="onboard-dots" id="onboardDots"></div>
+            <button type="button" class="onboard-skip" id="onboardSkip">Skip</button>
+        </div>
+
+        <div class="onboard-viewport">
+            <div class="onboard-track" id="onboardTrack">
+
+                <!-- Slide 1 -->
+                <section class="onboard-slide" style="--art-a:#a5b4fc; --art-b:#4f46e5;">
+                    <div class="onboard-art">
+                        <span class="art-blob b1"></span>
+                        <span class="art-blob b2"></span>
+                        <i class="fa-solid fa-star art-spark spark-1"></i>
+                        <i class="fa-solid fa-star art-spark spark-2"></i>
+                        <i class="fa-solid fa-star art-spark spark-3"></i>
+                        <div class="art-core"><i class="fa-solid fa-gift"></i></div>
+                    </div>
+                    <h1 class="onboard-title">Buy &amp; gift Stars<br>instantly</h1>
+                    <p class="onboard-desc">Top up your own Telegram Stars or send them straight to a friend —
+                        delivered in seconds, no waiting around.</p>
+                </section>
+
+                <!-- Slide 2 -->
+                <section class="onboard-slide" style="--art-a:#6ee7b7; --art-b:#059669;">
+                    <div class="onboard-art">
+                        <span class="art-blob b1"></span>
+                        <span class="art-blob b2"></span>
+                        <i class="fa-solid fa-dollar-sign art-spark spark-1"></i>
+                        <i class="fa-solid fa-coins art-spark spark-2"></i>
+                        <i class="fa-solid fa-dollar-sign art-spark spark-3"></i>
+                        <div class="art-core"><i class="fa-solid fa-wallet"></i></div>
+                    </div>
+                    <h1 class="onboard-title">Cash out your<br>Stars anytime</h1>
+                    <p class="onboard-desc">Sell Stars you're not using for USDT and withdraw straight to your
+                        TON wallet — whenever suits you.</p>
+                </section>
+
+                <!-- Slide 3 -->
+                <section class="onboard-slide" style="--art-a:#93c5fd; --art-b:#2563eb;">
+                    <div class="onboard-art">
+                        <span class="art-blob b1"></span>
+                        <span class="art-blob b2"></span>
+                        <i class="fa-solid fa-link art-spark spark-1"></i>
+                        <i class="fa-solid fa-check art-spark spark-2"></i>
+                        <i class="fa-solid fa-lock art-spark spark-3"></i>
+                        <div class="art-core"><i class="fa-solid fa-shield-halved"></i></div>
+                    </div>
+                    <h1 class="onboard-title">Secure, on-chain,<br>always on</h1>
+                    <p class="onboard-desc">Every payment is verified on the blockchain, and support is one tap
+                        away — right inside Telegram.</p>
+                </section>
+
+            </div>
+        </div>
+
+        <div class="onboard-footer">
+            <button type="button" class="onboard-cta" id="onboardCta">
+                <span id="onboardCtaLabel">Next</span>
+                <i class="fa-solid fa-arrow-right" id="onboardCtaIcon"></i>
+            </button>
+            <p class="onboard-legal">By continuing you agree to our
+                <a href="/policy.html#terms">Terms</a> &amp; <a href="/policy.html#privacy">Privacy Policy</a>.</p>
+        </div>
+
+    </div>
+
+    <script>
+    (function () {
+        var SLIDES = 3;
+        var STORAGE_KEY = 'starstore_intro_seen';
+        var params = new URLSearchParams(location.search);
+        var nextUrl = params.get('next') || '/';
+        var isPreview = params.get('preview') === '1';
+
+        // If this device already completed the intro, skip straight through
+        // (unless explicitly previewing it again with ?preview=1).
+        try {
+            if (!isPreview && localStorage.getItem(STORAGE_KEY) === '1') {
+                location.replace(nextUrl);
+                return;
+            }
+        } catch (_) {}
+
+        var track   = document.getElementById('onboardTrack');
+        var dotsBox = document.getElementById('onboardDots');
+        var ctaBtn  = document.getElementById('onboardCta');
+        var ctaLabel = document.getElementById('onboardCtaLabel');
+        var ctaIcon  = document.getElementById('onboardCtaIcon');
+        var skipBtn = document.getElementById('onboardSkip');
+
+        var current = 0;
+        var dots = [];
+
+        for (var i = 0; i < SLIDES; i++) {
+            var d = document.createElement('span');
+            d.className = 'onboard-dot' + (i === 0 ? ' is-active' : '');
+            dotsBox.appendChild(d);
+            dots.push(d);
+        }
+
+        var tg = null;
+        try {
+            tg = window.Telegram && window.Telegram.WebApp;
+            if (tg) { tg.ready(); tg.expand(); }
+        } catch (_) {}
+
+        function haptic(style) {
+            try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(style || 'light'); } catch (_) {}
+        }
+
+        function syncBackButton() {
+            try {
+                if (!tg || !tg.BackButton) return;
+                if (current === 0) { tg.BackButton.hide(); tg.BackButton.offClick(goBack); }
+                else { tg.BackButton.show(); tg.BackButton.onClick(goBack); }
+            } catch (_) {}
+        }
+
+        function render() {
+            track.style.transform = 'translateX(-' + (current * (100 / SLIDES)) + '%)';
+            dots.forEach(function (dot, idx) {
+                dot.classList.toggle('is-active', idx === current);
+                dot.classList.toggle('is-done', idx < current);
+            });
+            var isFinal = current === SLIDES - 1;
+            ctaLabel.textContent = isFinal ? 'Get Started' : 'Next';
+            ctaBtn.classList.toggle('is-final', isFinal);
+            skipBtn.style.visibility = isFinal ? 'hidden' : 'visible';
+            syncBackButton();
+        }
+
+        function finish() {
+            try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
+            haptic('medium');
+            location.href = nextUrl;
+        }
+
+        function goTo(index) {
+            current = Math.max(0, Math.min(SLIDES - 1, index));
+            render();
+        }
+        function goNext() {
+            if (current === SLIDES - 1) { finish(); return; }
+            haptic('light');
+            goTo(current + 1);
+        }
+        function goBack() { haptic('light'); goTo(current - 1); }
+
+        ctaBtn.addEventListener('click', goNext);
+        skipBtn.addEventListener('click', finish);
+
+        dots.forEach(function (dot, idx) {
+            dot.style.cursor = 'pointer';
+            dot.addEventListener('click', function () { haptic('light'); goTo(idx); });
+        });
+
+        // Keyboard support
+        window.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowRight') goNext();
+            if (e.key === 'ArrowLeft') goBack();
+        });
+
+        // Touch / swipe support
+        var viewport = document.querySelector('.onboard-viewport');
+        var startX = 0, startY = 0, dx = 0, dy = 0, tracking = false;
+
+        viewport.addEventListener('touchstart', function (e) {
+            var t = e.touches[0];
+            startX = t.clientX; startY = t.clientY; dx = 0; dy = 0; tracking = true;
+        }, { passive: true });
+
+        viewport.addEventListener('touchmove', function (e) {
+            if (!tracking) return;
+            var t = e.touches[0];
+            dx = t.clientX - startX;
+            dy = t.clientY - startY;
+        }, { passive: true });
+
+        viewport.addEventListener('touchend', function () {
+            if (!tracking) return;
+            tracking = false;
+            if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy)) {
+                if (dx < 0) goNext(); else goBack();
+            }
+        });
+
+        render();
+    })();
+    </script>
+</body>
+</html>
