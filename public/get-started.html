@@ -7,6 +7,7 @@
     <title>Get Started | StarStore</title>
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="preload" href="/star.png" as="image" fetchpriority="high">
 
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
@@ -186,6 +187,8 @@
         }
         .onboard-art .art-spark {
             position: absolute;
+            display: block;
+            object-fit: contain;
             color: var(--art-b, #4f46e5);
             opacity: 0;
             animation: sparkSettle .5s cubic-bezier(.2,.8,.2,1) forwards;
@@ -283,9 +286,9 @@
                     <div class="onboard-art">
                         <span class="art-blob b1"></span>
                         <span class="art-blob b2"></span>
-                        <i class="fa-solid fa-star art-spark spark-1"></i>
-                        <i class="fa-solid fa-star art-spark spark-2"></i>
-                        <i class="fa-solid fa-star art-spark spark-3"></i>
+                        <img src="/star.png" alt="" class="art-spark spark-1" width="16" height="16" decoding="async" fetchpriority="high">
+                        <img src="/star.png" alt="" class="art-spark spark-2" width="11" height="11" decoding="async">
+                        <img src="/star.png" alt="" class="art-spark spark-3" width="9" height="9" decoding="async">
                         <div class="art-core"><i class="fa-solid fa-gift"></i></div>
                     </div>
                     <h1 class="onboard-title">Buy &amp; gift Stars<br>instantly</h1>
