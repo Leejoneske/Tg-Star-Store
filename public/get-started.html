@@ -369,6 +369,20 @@
         function finish() {
             try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
             haptic('medium');
+            // Best-effort: tell the server this account has completed the
+            // intro so /api/whoami stops sending it back here from any
+            // device. Don't block navigation on this — if it fails, the
+            // localStorage flag above still prevents a re-show on this
+            // browser, and it'll just be asked again next launch elsewhere.
+            try {
+                var tgId = tg?.initDataUnsafe?.user?.id;
+                if (tgId) {
+                    fetch('/api/onboarding-complete', {
+                        method: 'POST',
+                        headers: { 'x-telegram-id': tgId }
+                    }).catch(function () {});
+                }
+            } catch (_) {}
             location.href = nextUrl;
         }
 
