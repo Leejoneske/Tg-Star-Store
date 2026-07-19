@@ -41,13 +41,34 @@
             position: relative;
         }
 
+        /* ---------- Brand lockup ---------- */
+        .onboard-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), 14px) 20px 0;
+        }
+        .onboard-brand-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            display: block;
+        }
+        .onboard-brand-name {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text-secondary);
+        }
+
         /* ---------- Top bar: progress dots + skip ---------- */
         .onboard-topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), 16px) 20px 8px;
+            padding: 14px 20px 8px;
         }
 
         .onboard-dots {
@@ -134,13 +155,13 @@
             border-radius: 46% 54% 60% 40% / 45% 40% 60% 55%;
             background: linear-gradient(145deg, var(--art-a, #818cf8), var(--art-b, #4f46e5));
             opacity: .16;
-            animation: blobFloat 7s ease-in-out infinite;
+            animation: blobSettle .6s cubic-bezier(.2,.8,.2,1) both;
         }
         .onboard-art .art-blob.b1 { width: 168px; height: 168px; top: 8px; left: 8px; }
-        .onboard-art .art-blob.b2 { width: 90px;  height: 90px;  bottom: 6px; right: 4px; opacity: .22; animation-delay: -3.2s; }
-        @keyframes blobFloat {
-            0%, 100% { transform: translate(0,0) rotate(0deg); }
-            50%      { transform: translate(4px,-6px) rotate(8deg); }
+        .onboard-art .art-blob.b2 { width: 90px;  height: 90px;  bottom: 6px; right: 4px; opacity: .22; animation-delay: .08s; }
+        @keyframes blobSettle {
+            from { transform: scale(.7) rotate(-8deg); }
+            to   { transform: scale(1) rotate(0deg); }
         }
 
         .onboard-art .art-core {
@@ -153,6 +174,11 @@
             justify-content: center;
             background: linear-gradient(150deg, var(--art-a, #818cf8), var(--art-b, #4f46e5));
             box-shadow: 0 16px 32px -12px color-mix(in srgb, var(--art-b, #4f46e5) 55%, transparent);
+            animation: coreSettle .5s cubic-bezier(.2,.8,.2,1) both;
+        }
+        @keyframes coreSettle {
+            from { transform: scale(.8); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
         }
         .onboard-art .art-core i {
             font-size: 42px;
@@ -161,14 +187,15 @@
         .onboard-art .art-spark {
             position: absolute;
             color: var(--art-b, #4f46e5);
-            opacity: .55;
+            opacity: 0;
+            animation: sparkSettle .5s cubic-bezier(.2,.8,.2,1) forwards;
         }
-        .onboard-art .spark-1 { top: 6px;   right: 24px; font-size: 16px; animation: sparkPulse 2.4s ease-in-out infinite; }
-        .onboard-art .spark-2 { bottom: 22px; left: 10px; font-size: 11px; animation: sparkPulse 2.4s ease-in-out infinite .8s; }
-        .onboard-art .spark-3 { top: 42px;  left: -2px;  font-size: 9px;  animation: sparkPulse 2.4s ease-in-out infinite 1.5s; }
-        @keyframes sparkPulse {
-            0%, 100% { opacity: .25; transform: scale(.85); }
-            50%      { opacity: .8;  transform: scale(1.1); }
+        .onboard-art .spark-1 { top: 6px;   right: 24px; font-size: 16px; animation-delay: .15s; }
+        .onboard-art .spark-2 { bottom: 22px; left: 10px; font-size: 11px; animation-delay: .3s; }
+        .onboard-art .spark-3 { top: 42px;  left: -2px;  font-size: 9px;  animation-delay: .45s; }
+        @keyframes sparkSettle {
+            from { opacity: 0; transform: translateY(4px) scale(.6); }
+            to   { opacity: .55; transform: translateY(0) scale(1); }
         }
 
         /* ---------- Copy ---------- */
@@ -209,10 +236,9 @@
             justify-content: center;
             gap: 8px;
             cursor: pointer;
-            box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--brand) 65%, transparent);
-            transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+            transition: transform .15s ease, opacity .15s ease;
         }
-        .onboard-cta:active { transform: scale(.98); box-shadow: 0 4px 12px -6px color-mix(in srgb, var(--brand) 65%, transparent); }
+        .onboard-cta:active { transform: scale(.98); }
         .onboard-cta i { font-size: 14px; transition: transform .25s ease; }
         .onboard-cta.is-final i { transform: translateX(2px); }
 
@@ -226,13 +252,23 @@
         .onboard-legal a:hover { color: var(--brand); }
 
         @media (prefers-reduced-motion: reduce) {
-            .onboard-track, .onboard-dot, .art-blob, .art-spark, .onboard-cta { transition: none !important; animation: none !important; }
+            .onboard-track, .onboard-dot, .art-blob, .art-spark, .art-core, .onboard-cta {
+                transition: none !important;
+                animation: none !important;
+            }
+            .art-spark { opacity: .55 !important; transform: none !important; }
+            .art-core { opacity: 1 !important; transform: none !important; }
         }
     </style>
 </head>
 <body data-fast-load="1">
 
     <div class="onboard-shell">
+
+        <div class="onboard-brand">
+            <img src="/favicon.png" alt="" class="onboard-brand-icon">
+            <span class="onboard-brand-name">StarStore</span>
+        </div>
 
         <div class="onboard-topbar">
             <div class="onboard-dots" id="onboardDots"></div>
