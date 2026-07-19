@@ -1647,6 +1647,28 @@ document.addEventListener('DOMContentLoaded', function() {
     isInitialized = true;
     
     detectTelegramEnvironment();
+
+    // Server-side onboarding gate: ask the backend whether this Telegram
+    // account has ever finished the 3-slide get-started intro. This works
+    // no matter how the app was opened — the bot's /start message button,
+    // BotFather's static persistent Menu Button, or a plain browser link —
+    // because it's keyed to the Telegram user id in the database, not a
+    // per-browser localStorage flag. Fails open: any error here just skips
+    // the redirect rather than blocking the app.
+    (function checkOnboarding() {
+        try {
+            const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            if (!tgId) return; // no Telegram identity available (e.g. local preview)
+            fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
+                .then(r => r.ok ? r.json() : null)
+                .then(who => {
+                    if (who?.needsOnboarding) {
+                        window.location.replace('/get-started.html?next=' + encodeURIComponent(window.location.href));
+                    }
+                })
+                .catch(() => {});
+        } catch (_) {}
+    })();
     
     const content = document.getElementById('content-container');
     
