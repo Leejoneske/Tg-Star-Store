@@ -2047,7 +2047,7 @@ app.post('/api/admin/bot-simulator/toggle', requireAdmin, (req, res) => {
 app.get('/api/whoami', async (req, res) => {
   try {
     const tgId = String(req.headers['x-telegram-id'] || '').trim();
-    if (!tgId) return res.json({ id: null, isAdmin: false, isBanned: false });
+    if (!tgId) return res.json({ id: null, isAdmin: false, isBanned: false, needsOnboarding: false });
     
     // Check if user is banned
     const isBanned = await checkUserBanStatus(tgId);
@@ -2060,18 +2060,51 @@ app.get('/api/whoami', async (req, res) => {
         caseId: banDetails?.caseId || null,
         appealDeadline: banDetails?.appealDeadline || null,
         reason: banDetails?.reason || null,
-        message: 'Access Denied: Your account is restricted'
+        message: 'Access Denied: Your account is restricted',
+        needsOnboarding: false
       });
     }
     
+    // hasSeenOnboarding defaults to false for every account (new users get
+    // the field's schema default; existing accounts that predate this field
+    // are simply undefined/falsy) — so this naturally shows the intro once
+    // to every account, old or new, and never again once it's set to true
+    // via /api/onboarding-complete.
+    let needsOnboarding = false;
+    try {
+      const user = await User.findOne({ id: tgId }).select('hasSeenOnboarding').lean();
+      // No record at all (e.g. they opened the app via the Menu Button
+      // before ever hitting /start) counts as needing onboarding too.
+      needsOnboarding = !user || !user.hasSeenOnboarding;
+    } catch (lookupErr) {
+      console.error('Error checking onboarding status:', lookupErr);
+    }
+
     return res.json({ 
       id: tgId, 
       isAdmin: Array.isArray(adminIds) && adminIds.includes(tgId),
-      isBanned: false
+      isBanned: false,
+      needsOnboarding
     });
   } catch (error) {
     console.error('Error in /api/whoami:', error);
-    return res.json({ id: null, isAdmin: false, isBanned: false });
+    return res.json({ id: null, isAdmin: false, isBanned: false, needsOnboarding: false });
+  }
+});
+
+// Marks the current account as having completed the get-started intro, so
+// /api/whoami stops reporting needsOnboarding for it on every future launch,
+// on every device.
+app.post('/api/onboarding-complete', async (req, res) => {
+  try {
+    const tgId = String(req.headers['x-telegram-id'] || '').trim();
+    if (!tgId) return res.status(400).json({ success: false, error: 'Missing user id' });
+
+    await User.updateOne({ id: tgId }, { $set: { hasSeenOnboarding: true } });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error in /api/onboarding-complete:', error);
+    return res.status(500).json({ success: false, error: 'Failed to update onboarding status' });
   }
 });
 
@@ -2384,7 +2417,13 @@ const userSchema = new mongoose.Schema({
     }],
     // 21-day hold notice acceptance
     hasAccepted21DayNotice: { type: Boolean, default: false },
-    acceptedAt: Date
+    acceptedAt: Date,
+    // Whether this account has completed the 3-slide get-started intro at
+    // least once. Checked server-side (via /api/whoami) so the intro shows
+    // exactly once per account no matter how the app was launched (bot
+    // /start button, BotFather's static persistent Menu Button, or a plain
+    // browser visit) and no matter what device/browser they're on.
+    hasSeenOnboarding: { type: Boolean, default: false }
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -13731,6 +13770,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     
     try {
         let user = await User.findOne({ id: chatId });
+        const isNewUser = !user; // no DB record yet = first time this account has ever /start'd the bot
         if (!user) {
             try {
                 user = await User.findOneAndUpdate(
@@ -13756,10 +13796,19 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
             console.error('Failed to send sticker:', stickerError);
         }
         
+        // Brand-new accounts get a quick 3-slide intro first; returning accounts
+        // (already have a User record, regardless of device/webview) skip straight
+        // to the app — the intro isn't tied to login/registration, just a one-time
+        // orientation for people who have genuinely never started the bot before.
+        const appUrl = `https://starstore.app?startapp=home_${chatId}`;
+        const launchUrl = isNewUser
+            ? `https://starstore.app/get-started.html?next=${encodeURIComponent(appUrl)}`
+            : appUrl;
+
         await bot.sendMessage(chatId, `👋 Welcome to StarStore, @${username}! ✨\n\nUse the app to purchase stars and enjoy exclusive benefits!`, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '🚀 Launch StarStore', web_app: { url: `https://starstore.app?startapp=home_${chatId}` } }],
+                    [{ text: '🚀 Launch StarStore', web_app: { url: launchUrl } }],
                     [{ text: '👥 Join Community', url: 'https://t.me/StarStore_Chat' }]
                 ]
             }
