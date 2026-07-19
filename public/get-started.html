@@ -2,6 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Fast-path exit: if this device already finished the intro, bail out
+         immediately — before a single stylesheet, font, or script below is
+         even requested. This is what actually prevents the flash; everything
+         else on this page loads too slowly to be a reliable guard on its own. -->
+    <script>
+    (function () {
+        try {
+            var p = new URLSearchParams(location.search);
+            if (p.get('preview') !== '1' && localStorage.getItem('starstore_intro_seen') === '1') {
+                location.replace(p.get('next') || '/');
+            }
+        } catch (_) {}
+    })();
+    </script>
+    <style>
+        /* Hidden by default so a returning account (recognized via the
+           server, not just localStorage — e.g. same account on a new
+           device) never gets to see the slides paint before the
+           /api/whoami check below has a chance to redirect it away. */
+        body { visibility: hidden; }
+    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Get Started | StarStore</title>
@@ -193,9 +214,9 @@
             opacity: 0;
             animation: sparkSettle .5s cubic-bezier(.2,.8,.2,1) forwards;
         }
-        .onboard-art .spark-1 { top: 6px;   right: 24px; font-size: 16px; animation-delay: .15s; }
-        .onboard-art .spark-2 { bottom: 22px; left: 10px; font-size: 11px; animation-delay: .3s; }
-        .onboard-art .spark-3 { top: 42px;  left: -2px;  font-size: 9px;  animation-delay: .45s; }
+        .onboard-art .spark-1 { top: 6px;   right: 24px; font-size: 20px; animation-delay: .15s; }
+        .onboard-art .spark-2 { bottom: 22px; left: 10px; font-size: 16px; animation-delay: .3s; }
+        .onboard-art .spark-3 { top: 42px;  left: -2px;  font-size: 14px; animation-delay: .45s; }
         @keyframes sparkSettle {
             from { opacity: 0; transform: translateY(4px) scale(.6); }
             to   { opacity: .55; transform: translateY(0) scale(1); }
@@ -266,6 +287,10 @@
 </head>
 <body data-fast-load="1">
 
+    <div id="onboardLoading" style="visibility:visible;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface-muted, #fff);z-index:9999;">
+        <img src="/favicon.png" alt="" style="width:40px;height:40px;border-radius:10px;opacity:.85;">
+    </div>
+
     <div class="onboard-shell">
 
         <div class="onboard-brand">
@@ -286,9 +311,9 @@
                     <div class="onboard-art">
                         <span class="art-blob b1"></span>
                         <span class="art-blob b2"></span>
-                        <img src="/star.png" alt="" class="art-spark spark-1" width="18" height="18" decoding="async" fetchpriority="high">
-                        <img src="/star.png" alt="" class="art-spark spark-2" width="14" height="14" decoding="async">
-                        <img src="/star.png" alt="" class="art-spark spark-3" width="12" height="12" decoding="async">
+                        <img src="/star.png" alt="" class="art-spark spark-1" width="20" height="20" decoding="async" fetchpriority="high">
+                        <img src="/star.png" alt="" class="art-spark spark-2" width="16" height="16" decoding="async">
+                        <img src="/star.png" alt="" class="art-spark spark-3" width="14" height="14" decoding="async">
                         <div class="art-core"><i class="fa-solid fa-gift"></i></div>
                     </div>
                     <h1 class="onboard-title">Buy &amp; gift Stars<br>instantly</h1>
@@ -348,32 +373,6 @@
         var nextUrl = params.get('next') || '/';
         var isPreview = params.get('preview') === '1';
 
-        // If this device already completed the intro, skip straight through
-        // (unless explicitly previewing it again with ?preview=1).
-        try {
-            if (!isPreview && localStorage.getItem(STORAGE_KEY) === '1') {
-                location.replace(nextUrl);
-                return;
-            }
-        } catch (_) {}
-
-        var track   = document.getElementById('onboardTrack');
-        var dotsBox = document.getElementById('onboardDots');
-        var ctaBtn  = document.getElementById('onboardCta');
-        var ctaLabel = document.getElementById('onboardCtaLabel');
-        var ctaIcon  = document.getElementById('onboardCtaIcon');
-        var skipBtn = document.getElementById('onboardSkip');
-
-        var current = 0;
-        var dots = [];
-
-        for (var i = 0; i < SLIDES; i++) {
-            var d = document.createElement('span');
-            d.className = 'onboard-dot' + (i === 0 ? ' is-active' : '');
-            dotsBox.appendChild(d);
-            dots.push(d);
-        }
-
         var tg = null;
         try {
             tg = window.Telegram && window.Telegram.WebApp;
@@ -384,97 +383,167 @@
             try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(style || 'light'); } catch (_) {}
         }
 
-        function syncBackButton() {
-            try {
-                if (!tg || !tg.BackButton) return;
-                if (current === 0) { tg.BackButton.hide(); tg.BackButton.offClick(goBack); }
-                else { tg.BackButton.show(); tg.BackButton.onClick(goBack); }
-            } catch (_) {}
+        function reveal() {
+            var loading = document.getElementById('onboardLoading');
+            if (loading) loading.remove();
+            document.body.style.visibility = 'visible';
         }
 
-        function render() {
-            track.style.transform = 'translateX(-' + (current * (100 / SLIDES)) + '%)';
-            dots.forEach(function (dot, idx) {
-                dot.classList.toggle('is-active', idx === current);
-                dot.classList.toggle('is-done', idx < current);
-            });
-            var isFinal = current === SLIDES - 1;
-            ctaLabel.textContent = isFinal ? 'Get Started' : 'Next';
-            ctaBtn.classList.toggle('is-final', isFinal);
-            skipBtn.style.visibility = isFinal ? 'hidden' : 'visible';
-            syncBackButton();
-        }
-
-        function finish() {
+        function bailOut() {
+            // Already onboarded per the server (e.g. this account finished
+            // the intro on a different device) — remember it locally too
+            // so this device takes the instant head-level fast path next
+            // time, then leave without ever revealing the slides.
             try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
-            haptic('medium');
-            // Best-effort: tell the server this account has completed the
-            // intro so /api/whoami stops sending it back here from any
-            // device. Don't block navigation on this — if it fails, the
-            // localStorage flag above still prevents a re-show on this
-            // browser, and it'll just be asked again next launch elsewhere.
-            try {
-                var tgId = tg?.initDataUnsafe?.user?.id;
-                if (tgId) {
-                    fetch('/api/onboarding-complete', {
-                        method: 'POST',
-                        headers: { 'x-telegram-id': tgId }
-                    }).catch(function () {});
-                }
-            } catch (_) {}
-            location.href = nextUrl;
+            location.replace(nextUrl);
         }
 
-        function goTo(index) {
-            current = Math.max(0, Math.min(SLIDES - 1, index));
-            render();
-        }
-        function goNext() {
-            if (current === SLIDES - 1) { finish(); return; }
-            haptic('light');
-            goTo(current + 1);
-        }
-        function goBack() { haptic('light'); goTo(current - 1); }
+        function init() {
+            var track   = document.getElementById('onboardTrack');
+            var dotsBox = document.getElementById('onboardDots');
+            var ctaBtn  = document.getElementById('onboardCta');
+            var ctaLabel = document.getElementById('onboardCtaLabel');
+            var ctaIcon  = document.getElementById('onboardCtaIcon');
+            var skipBtn = document.getElementById('onboardSkip');
 
-        ctaBtn.addEventListener('click', goNext);
-        skipBtn.addEventListener('click', finish);
+            var current = 0;
+            var dots = [];
 
-        dots.forEach(function (dot, idx) {
-            dot.style.cursor = 'pointer';
-            dot.addEventListener('click', function () { haptic('light'); goTo(idx); });
-        });
-
-        // Keyboard support
-        window.addEventListener('keydown', function (e) {
-            if (e.key === 'ArrowRight') goNext();
-            if (e.key === 'ArrowLeft') goBack();
-        });
-
-        // Touch / swipe support
-        var viewport = document.querySelector('.onboard-viewport');
-        var startX = 0, startY = 0, dx = 0, dy = 0, tracking = false;
-
-        viewport.addEventListener('touchstart', function (e) {
-            var t = e.touches[0];
-            startX = t.clientX; startY = t.clientY; dx = 0; dy = 0; tracking = true;
-        }, { passive: true });
-
-        viewport.addEventListener('touchmove', function (e) {
-            if (!tracking) return;
-            var t = e.touches[0];
-            dx = t.clientX - startX;
-            dy = t.clientY - startY;
-        }, { passive: true });
-
-        viewport.addEventListener('touchend', function () {
-            if (!tracking) return;
-            tracking = false;
-            if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy)) {
-                if (dx < 0) goNext(); else goBack();
+            for (var i = 0; i < SLIDES; i++) {
+                var d = document.createElement('span');
+                d.className = 'onboard-dot' + (i === 0 ? ' is-active' : '');
+                dotsBox.appendChild(d);
+                dots.push(d);
             }
-        });
 
-        render();
+            function syncBackButton() {
+                try {
+                    if (!tg || !tg.BackButton) return;
+                    if (current === 0) { tg.BackButton.hide(); tg.BackButton.offClick(goBack); }
+                    else { tg.BackButton.show(); tg.BackButton.onClick(goBack); }
+                } catch (_) {}
+            }
+
+            function render() {
+                track.style.transform = 'translateX(-' + (current * (100 / SLIDES)) + '%)';
+                dots.forEach(function (dot, idx) {
+                    dot.classList.toggle('is-active', idx === current);
+                    dot.classList.toggle('is-done', idx < current);
+                });
+                var isFinal = current === SLIDES - 1;
+                ctaLabel.textContent = isFinal ? 'Get Started' : 'Next';
+                ctaBtn.classList.toggle('is-final', isFinal);
+                skipBtn.style.visibility = isFinal ? 'hidden' : 'visible';
+                syncBackButton();
+            }
+
+            function finish() {
+                try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
+                haptic('medium');
+                // Best-effort: tell the server this account has completed the
+                // intro so /api/whoami stops sending it back here from any
+                // device. Don't block navigation on this — if it fails, the
+                // localStorage flag above still prevents a re-show on this
+                // browser, and it'll just be asked again next launch elsewhere.
+                try {
+                    var tgId = tg?.initDataUnsafe?.user?.id;
+                    if (tgId) {
+                        fetch('/api/onboarding-complete', {
+                            method: 'POST',
+                            headers: { 'x-telegram-id': tgId }
+                        }).catch(function () {});
+                    }
+                } catch (_) {}
+                location.href = nextUrl;
+            }
+
+            function goTo(index) {
+                current = Math.max(0, Math.min(SLIDES - 1, index));
+                render();
+            }
+            function goNext() {
+                if (current === SLIDES - 1) { finish(); return; }
+                haptic('light');
+                goTo(current + 1);
+            }
+            function goBack() { haptic('light'); goTo(current - 1); }
+
+            ctaBtn.addEventListener('click', goNext);
+            skipBtn.addEventListener('click', finish);
+
+            dots.forEach(function (dot, idx) {
+                dot.style.cursor = 'pointer';
+                dot.addEventListener('click', function () { haptic('light'); goTo(idx); });
+            });
+
+            // Keyboard support
+            window.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowRight') goNext();
+                if (e.key === 'ArrowLeft') goBack();
+            });
+
+            // Touch / swipe support
+            var viewport = document.querySelector('.onboard-viewport');
+            var startX = 0, startY = 0, dx = 0, dy = 0, tracking = false;
+
+            viewport.addEventListener('touchstart', function (e) {
+                var t = e.touches[0];
+                startX = t.clientX; startY = t.clientY; dx = 0; dy = 0; tracking = true;
+            }, { passive: true });
+
+            viewport.addEventListener('touchmove', function (e) {
+                if (!tracking) return;
+                var t = e.touches[0];
+                dx = t.clientX - startX;
+                dy = t.clientY - startY;
+            }, { passive: true });
+
+            viewport.addEventListener('touchend', function () {
+                if (!tracking) return;
+                tracking = false;
+                if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy)) {
+                    if (dx < 0) goNext(); else goBack();
+                }
+            });
+
+            render();
+            reveal();
+        }
+
+        // Server-side onboarding gate — catches the cases the head-level
+        // localStorage check can't (same account, different/cleared
+        // device). Bounded by a timeout so a slow or dead connection can
+        // never trap someone behind the loading screen: after ~2.5s with
+        // no answer we fail open and just show the intro.
+        var tgId = null;
+        try { tgId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id; } catch (_) {}
+
+        if (tgId && !isPreview) {
+            var settled = false;
+            var timer = setTimeout(function () {
+                if (settled) return;
+                settled = true;
+                init();
+            }, 2500);
+
+            fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (who) {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    if (who && who.needsOnboarding === false) bailOut();
+                    else init();
+                })
+                .catch(function () {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    init();
+                });
+        } else {
+            init();
+        }
     })();
     </script>
 </body>
