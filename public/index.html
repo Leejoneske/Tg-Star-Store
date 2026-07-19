@@ -1648,6 +1648,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     detectTelegramEnvironment();
 
+    // Server-side onboarding gate: ask the backend whether this Telegram
+    // account has ever finished the 3-slide get-started intro. This works
+    // no matter how the app was opened — the bot's /start message button,
+    // BotFather's static persistent Menu Button, or a plain browser link —
+    // because it's keyed to the Telegram user id in the database, not a
+    // per-browser localStorage flag.
+    //
+    // This is deliberately fire-and-forget and non-blocking: it never
+    // hides or delays the app itself, it only redirects independently if
+    // and when the answer comes back positive. get-started.html never
+    // redirects back to this page based on its own network check — the
+    // redirect only ever flows in this one direction — so there's no way
+    // for the two pages to end up disagreeing and bouncing back and forth.
+    (function checkOnboarding() {
+        try {
+            const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            if (!tgId) return; // no Telegram identity available (e.g. local preview)
+            fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
+                .then(r => r.ok ? r.json() : null)
+                .then(who => {
+                    if (who?.needsOnboarding) {
+                        window.location.replace('/get-started.html?next=' + encodeURIComponent(window.location.href));
+                    }
+                })
+                .catch(() => {});
+        } catch (_) {}
+    })();
+
     const content = document.getElementById('content-container');
     
     if (window.LoadingComponent && typeof LoadingComponent.show === 'function') {
@@ -1658,62 +1686,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (content) content.style.display = 'none';
 
-    // Server-side onboarding gate: ask the backend whether this Telegram
-    // account has ever finished the 3-slide get-started intro. This works
-    // no matter how the app was opened — the bot's /start message button,
-    // BotFather's static persistent Menu Button, or a plain browser link —
-    // because it's keyed to the Telegram user id in the database, not a
-    // per-browser localStorage flag.
-    //
-    // This resolves as a promise that the reveal below actually waits on,
-    // rather than firing the redirect independently after content is
-    // already visible — otherwise the app flashes into view for a moment
-    // and then gets yanked to get-started.html once the network request
-    // finally comes back. Bounded by a timeout so a slow or dead
-    // connection can never leave the app stuck behind the loader forever;
-    // after ~2.5s with no answer we fail open and just show the app.
-    const onboardingCheck = new Promise((resolve) => {
-        try {
-            const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-            if (!tgId) { resolve(false); return; } // no identity available — proceed normally
-            let settled = false;
-            const timer = setTimeout(() => {
-                if (settled) return;
-                settled = true;
-                resolve(false);
-            }, 2500);
-            fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
-                .then(r => r.ok ? r.json() : null)
-                .then(who => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    resolve(!!who?.needsOnboarding);
-                })
-                .catch(() => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    resolve(false);
-                });
-        } catch (_) { resolve(false); }
-    });
-
     requestAnimationFrame(() => {
+        showContent();
         initTelegramApp();
         captureUserLocationOnPageLoad(); // Capture location on every page load
         initWalletConnection();
-
-        // Only reveal the app once we know for sure it doesn't need to
-        // redirect to onboarding first — this is what actually prevents
-        // the flash, not just doing the check early.
-        onboardingCheck.then((needsOnboarding) => {
-            if (needsOnboarding) {
-                window.location.replace('/get-started.html?next=' + encodeURIComponent(window.location.href));
-                return; // never call showContent() — the app stays hidden underneath
-            }
-            showContent();
-        });
         
         setTimeout(() => {
             loadBottomNav()
