@@ -16,13 +16,6 @@
         } catch (_) {}
     })();
     </script>
-    <style>
-        /* Hidden by default so a returning account (recognized via the
-           server, not just localStorage — e.g. same account on a new
-           device) never gets to see the slides paint before the
-           /api/whoami check below has a chance to redirect it away. */
-        body { visibility: hidden; }
-    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Get Started | StarStore</title>
@@ -287,10 +280,6 @@
 </head>
 <body data-fast-load="1">
 
-    <div id="onboardLoading" style="visibility:visible;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface-muted, #fff);z-index:9999;">
-        <img src="/favicon.png" alt="" style="width:40px;height:40px;border-radius:10px;opacity:.85;">
-    </div>
-
     <div class="onboard-shell">
 
         <div class="onboard-brand">
@@ -381,21 +370,6 @@
 
         function haptic(style) {
             try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(style || 'light'); } catch (_) {}
-        }
-
-        function reveal() {
-            var loading = document.getElementById('onboardLoading');
-            if (loading) loading.remove();
-            document.body.style.visibility = 'visible';
-        }
-
-        function bailOut() {
-            // Already onboarded per the server (e.g. this account finished
-            // the intro on a different device) — remember it locally too
-            // so this device takes the instant head-level fast path next
-            // time, then leave without ever revealing the slides.
-            try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
-            location.replace(nextUrl);
         }
 
         function init() {
@@ -525,43 +499,9 @@
             });
 
             render();
-            reveal();
         }
 
-        // Server-side onboarding gate — catches the cases the head-level
-        // localStorage check can't (same account, different/cleared
-        // device). Bounded by a timeout so a slow or dead connection can
-        // never trap someone behind the loading screen: after ~2.5s with
-        // no answer we fail open and just show the intro.
-        var tgId = null;
-        try { tgId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id; } catch (_) {}
-
-        if (tgId && !isPreview) {
-            var settled = false;
-            var timer = setTimeout(function () {
-                if (settled) return;
-                settled = true;
-                init();
-            }, 2500);
-
-            fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
-                .then(function (r) { return r.ok ? r.json() : null; })
-                .then(function (who) {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    if (who && who.needsOnboarding === false) bailOut();
-                    else init();
-                })
-                .catch(function () {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    init();
-                });
-        } else {
-            init();
-        }
+        init();
     })();
     </script>
 </body>
