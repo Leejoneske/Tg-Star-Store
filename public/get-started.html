@@ -139,7 +139,7 @@
             display: flex;
             height: 100%;
             width: 300%;
-            transition: transform .45s cubic-bezier(.65,0,.35,1);
+            transition: transform .55s cubic-bezier(.65,0,.35,1);
             will-change: transform;
         }
         .onboard-slide {
@@ -177,7 +177,7 @@
             border-radius: 46% 54% 60% 40% / 45% 40% 60% 55%;
             background: linear-gradient(145deg, var(--art-a, #818cf8), var(--art-b, #4f46e5));
             opacity: .16;
-            animation: blobSettle .6s cubic-bezier(.2,.8,.2,1) both;
+            animation: blobSettle .65s cubic-bezier(.2,.8,.2,1) both;
         }
         .onboard-art .art-blob.b1 { width: 168px; height: 168px; top: 8px; left: 8px; }
         .onboard-art .art-blob.b2 { width: 90px;  height: 90px;  bottom: 6px; right: 4px; opacity: .22; animation-delay: .08s; }
@@ -196,7 +196,7 @@
             justify-content: center;
             background: linear-gradient(150deg, var(--art-a, #818cf8), var(--art-b, #4f46e5));
             box-shadow: 0 16px 32px -12px color-mix(in srgb, var(--art-b, #4f46e5) 55%, transparent);
-            animation: coreSettle .5s cubic-bezier(.2,.8,.2,1) both;
+            animation: coreSettle .6s cubic-bezier(.2,.8,.2,1) .1s both;
         }
         @keyframes coreSettle {
             from { transform: scale(.8); opacity: 0; }
@@ -212,11 +212,11 @@
             object-fit: contain;
             color: var(--art-b, #4f46e5);
             opacity: 0;
-            animation: sparkSettle .5s cubic-bezier(.2,.8,.2,1) forwards;
+            animation: sparkSettle .55s cubic-bezier(.2,.8,.2,1) forwards;
         }
-        .onboard-art .spark-1 { top: 6px;   right: 24px; font-size: 20px; animation-delay: .15s; }
-        .onboard-art .spark-2 { bottom: 22px; left: 10px; font-size: 16px; animation-delay: .3s; }
-        .onboard-art .spark-3 { top: 42px;  left: -2px;  font-size: 14px; animation-delay: .45s; }
+        .onboard-art .spark-1 { top: 6px;   right: 24px; font-size: 20px; animation-delay: .26s; }
+        .onboard-art .spark-2 { bottom: 22px; left: 10px; font-size: 16px; animation-delay: .38s; }
+        .onboard-art .spark-3 { top: 42px;  left: -2px;  font-size: 14px; animation-delay: .5s; }
         @keyframes sparkSettle {
             from { opacity: 0; transform: translateY(4px) scale(.6); }
             to   { opacity: .55; transform: translateY(0) scale(1); }
@@ -408,12 +408,29 @@
 
             var current = 0;
             var dots = [];
+            var slides = document.querySelectorAll('.onboard-slide');
 
             for (var i = 0; i < SLIDES; i++) {
                 var d = document.createElement('span');
                 d.className = 'onboard-dot' + (i === 0 ? ' is-active' : '');
                 dotsBox.appendChild(d);
                 dots.push(d);
+            }
+
+            // The blob/icon/spark "settle in" animation only plays once,
+            // right when the page first loads — every slide already exists
+            // in the DOM from the start (just shifted off-screen), so by
+            // the time you swipe to slide 2 or 3 their entrance already
+            // finished quietly in the background and nothing visibly
+            // happens. Re-triggering it here means each slide gets its own
+            // little reveal moment as you move through the intro.
+            function playArtEntrance(index) {
+                var slide = slides[index];
+                if (!slide) return;
+                var els = slide.querySelectorAll('.art-blob, .art-spark, .art-core');
+                els.forEach(function (el) { el.style.animation = 'none'; });
+                void slide.offsetWidth; // force reflow so the reset actually takes
+                els.forEach(function (el) { el.style.animation = ''; });
             }
 
             function syncBackButton() {
@@ -435,6 +452,7 @@
                 ctaBtn.classList.toggle('is-final', isFinal);
                 skipBtn.style.visibility = isFinal ? 'hidden' : 'visible';
                 syncBackButton();
+                playArtEntrance(current);
             }
 
             function finish() {
