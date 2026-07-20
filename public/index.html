@@ -1665,10 +1665,21 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
             if (!tgId) return; // no Telegram identity available (e.g. local preview)
+
+            // Hard safety net: never redirect to the intro more than once per
+            // app session (sessionStorage — cleared when the Mini App is
+            // closed, so a legitimate future need to onboard isn't blocked
+            // forever). If the server-side flag ever fails to persist for any
+            // reason, this guarantees we fail open into the app instead of
+            // bouncing between this page and get-started.html forever.
+            const REDIRECT_GUARD_KEY = 'starstore_onboarding_redirect_attempted';
+            if (sessionStorage.getItem(REDIRECT_GUARD_KEY) === '1') return;
+
             fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
                 .then(r => r.ok ? r.json() : null)
                 .then(who => {
                     if (who?.needsOnboarding) {
+                        try { sessionStorage.setItem(REDIRECT_GUARD_KEY, '1'); } catch (_) {}
                         window.location.replace('/get-started.html?next=' + encodeURIComponent(window.location.href));
                     }
                 })
