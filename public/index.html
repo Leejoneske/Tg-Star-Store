@@ -1663,6 +1663,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // for the two pages to end up disagreeing and bouncing back and forth.
     (function checkOnboarding() {
         try {
+            // Same-device fast path: if this browser already finished the
+            // intro, we already know the answer — never make a network
+            // round-trip for it. This is what actually removes the flash;
+            // without this, checkOnboarding always fires /api/whoami, and
+            // if that resolves a few seconds after the app has already
+            // opened, a "needsOnboarding" answer sends the user out to
+            // get-started.html and instantly back — a visible flash reload
+            // even though the redirect itself is correct.
+            if (localStorage.getItem('starstore_intro_seen') === '1') return;
+
             const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
             if (!tgId) return; // no Telegram identity available (e.g. local preview)
 
