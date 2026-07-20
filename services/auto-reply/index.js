@@ -24,6 +24,15 @@ let intents = [...defaultIntents].sort((a, b) => (b.priority || 0) - (a.priority
 // Kick off knowledge-base loading in the background (cache → search-ready fast)
 knowledge.init().catch((e) => console.warn('[auto-reply] kb init failed:', e.message));
 
+// A message using this kind of language deserves a human, not a canned
+// answer. Matching it against intents/the knowledge base risks exactly the
+// tone-deaf outcome that prompted this: someone furious gets handed back an
+// unrelated policy snippet. Better to skip straight to "forward to admins".
+const HOSTILE_PATTERN = /\b(fuck\w*|bullshit|shit\w*|bitch\w*|assh\w*|wtf|goddamn\w*|screw (this|you)|piece of shit)\b/i;
+function looksHostile(text) {
+    return !!text && HOSTILE_PATTERN.test(text);
+}
+
 // Light "humanizing" openers — picked at random for KB answers so the bot
 // doesn't sound robotic. Intent replies keep their own crafted text.
 const KB_OPENERS = [
@@ -101,6 +110,12 @@ function resolveReply(intent, ctx) {
 }
 
 function buildReply(text, ctx) {
+    // Skip auto-reply entirely for hostile/frustrated messages — see
+    // looksHostile() above. Returning null here means the caller treats
+    // this exactly like "no intent matched": forward to admins, no canned
+    // reply, no "did that help?" follow-up.
+    if (looksHostile(text)) return null;
+
     const intent = matchIntent(text);
     if (intent) {
         const { text: replyText, options } = resolveReply(intent, ctx);
@@ -185,4 +200,3 @@ module.exports = {
     kbStats: () => knowledge.stats(),
     kbRebuild: () => knowledge.rebuild(),
 };
-
