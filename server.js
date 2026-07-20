@@ -14824,7 +14824,7 @@ bot.onText(/\/contact/, (msg) => {
     
     // Set up message listener for support request with timeout
     let timeoutId;
-    const supportHandler = (userMsg) => {
+    const supportHandler = async (userMsg) => {
         if (userMsg.chat.id === chatId && userMsg.text) {
             // If user sends a command, end this flow and let the command execute
             if (userMsg.text.startsWith('/')) {
@@ -14837,39 +14837,48 @@ bot.onText(/\/contact/, (msg) => {
             bot.removeListener('message', supportHandler);
             const userMessageText = userMsg.text;
             
-            // 🤖 Auto-reply engine (see services/auto-reply/intents.js to add more)
+            // 🤖 Auto-reply engine (see services/auto-reply/intents.js to add more).
+            // Hostile/frustrated messages are handled inside buildReply() itself —
+            // it returns null for those so they fall straight to the "forward to
+            // admins" branch below instead of getting a canned reply.
             const built = autoReply.buildReply(userMessageText, {
                 username,
                 userId: chatId,
                 chatId,
                 originalText: userMessageText,
             });
-            let autoReplied = false;
 
             if (built) {
-                // Send the matched intent reply
-                bot.sendMessage(chatId, built.text, built.options || {});
-                autoReplied = true;
+                try {
+                    // Send the matched intent/KB reply, and only once that's
+                    // actually delivered, send the escalation prompt — awaiting
+                    // each call keeps them in the order they're meant to be
+                    // read in, instead of firing both at once and letting
+                    // Telegram deliver them in whichever order lands first.
+                    await bot.sendMessage(chatId, built.text, built.options || {});
 
-                // Optional intent-defined follow-up
-                if (built.followUp && built.followUp.text) {
-                    const fuOpts = built.followUp.buttons
-                        ? { reply_markup: { inline_keyboard: built.followUp.buttons } }
-                        : {};
-                    bot.sendMessage(chatId, built.followUp.text, fuOpts);
+                    // Optional intent-defined follow-up
+                    if (built.followUp && built.followUp.text) {
+                        const fuOpts = built.followUp.buttons
+                            ? { reply_markup: { inline_keyboard: built.followUp.buttons } }
+                            : {};
+                        await bot.sendMessage(chatId, built.followUp.text, fuOpts);
+                    }
+
+                    // 🚪 ALWAYS offer a "Talk to Person" bypass so users can skip the bot
+                    const followUpText = built.source === 'knowledge'
+                        ? `Did that help? If not, tap below to reach a real person.`
+                        : `Did this answer your question? Tap below to talk to a real person.`;
+                    const talkToPersonKeyboard = {
+                        inline_keyboard: [[
+                            { text: '👤 Talk to a Person', callback_data: `talk_to_person_${chatId}_${Date.now()}` }
+                        ]]
+                    };
+
+                    await bot.sendMessage(chatId, followUpText, { reply_markup: talkToPersonKeyboard });
+                } catch (e) {
+                    console.error('[contact] failed to send auto-reply:', e.message);
                 }
-
-                // 🚪 ALWAYS offer a "Talk to Person" bypass so users can skip the bot
-                const followUpText = built.source === 'knowledge'
-                    ? `Did that help? If not, tap below to reach a real person.`
-                    : `Did this answer your question? Tap below to talk to a real person.`;
-                const talkToPersonKeyboard = {
-                    inline_keyboard: [[
-                        { text: '👤 Talk to a Person', callback_data: `talk_to_person_${chatId}_${Date.now()}` }
-                    ]]
-                };
-
-                bot.sendMessage(chatId, followUpText, { reply_markup: talkToPersonKeyboard });
 
                 const callbackHandler = (query) => {
                     if (query.data.startsWith(`talk_to_person_${chatId}_`)) {
@@ -14888,7 +14897,9 @@ bot.onText(/\/contact/, (msg) => {
                 }, 5 * 60 * 1000);
 
             } else {
-                // No intent matched — forward to admins immediately
+                // No intent matched (including hostile/frustrated messages,
+                // which buildReply() deliberately refuses to auto-reply to) —
+                // forward to admins immediately, no canned reply.
                 adminIds.forEach(adminId => {
                     bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}\n\n🤖 Auto-replied: No`);
                 });
