@@ -19,8 +19,8 @@ const DEFAULT_REFRESH_MS = 6 * 60 * 60 * 1000; // 6h
 const MIN_PASSAGE_LEN = 60;
 const MAX_PASSAGE_LEN = 380;
 const MIN_SCORE = 4.5;        // BM25 floor — was 1.5, way too loose
-const MIN_QUERY_TOKENS = 2;   // ignore 1-word queries ("stars", "help")
-const MIN_OVERLAP_RATIO = 0.5; // matched passage must contain ≥50% of query terms
+const MIN_QUERY_TOKENS = 3;   // ignore short queries ("stars", "help me") — too easy to false-match
+const MIN_OVERLAP_RATIO = 0.65; // matched passage must contain ≥65% of query terms
 
 
 // ---------- tiny HTTP fetcher (no deps) ----------
