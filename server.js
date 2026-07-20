@@ -2100,7 +2100,7 @@ app.post('/api/onboarding-complete', async (req, res) => {
     const tgId = String(req.headers['x-telegram-id'] || '').trim();
     if (!tgId) return res.status(400).json({ success: false, error: 'Missing user id' });
 
-    await User.updateOne({ id: tgId }, { $set: { hasSeenOnboarding: true } });
+    await User.updateOne({ id: tgId }, { $set: { hasSeenOnboarding: true } }, { upsert: true });
     return res.json({ success: true });
   } catch (error) {
     console.error('Error in /api/onboarding-complete:', error);
