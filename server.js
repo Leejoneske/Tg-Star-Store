@@ -2800,6 +2800,7 @@ const Activity = mongoose.model('Activity', activitySchema);
 // Wallet update request schema: track request state and message IDs for updates
 const walletUpdateRequestSchema = new mongoose.Schema({
     requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
+    batchId: { type: String, index: true }, // groups requests submitted together in one bulk update
     userId: { type: String, required: true, index: true },
     username: String,
     orderType: { type: String, enum: ['sell', 'withdrawal'], required: true },
@@ -2822,6 +2823,32 @@ const walletUpdateRequestSchema = new mongoose.Schema({
 });
 
 const WalletUpdateRequest = mongoose.model('WalletUpdateRequest', walletUpdateRequestSchema);
+
+// Groups several WalletUpdateRequest docs submitted in one go (a user
+// updating many orders to the same new wallet at once) behind a single
+// admin message with one Approve/Reject action, instead of one message
+// per order.
+const walletUpdateBatchSchema = new mongoose.Schema({
+    batchId: { type: String, required: true, unique: true, default: () => generateOrderId() },
+    userId: { type: String, required: true, index: true },
+    username: String,
+    newWalletAddress: { type: String, required: true },
+    newMemoTag: String,
+    items: [{ orderType: String, orderId: String }], // for display only
+    requestIds: [String],
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
+    adminId: String,
+    adminUsername: String,
+    userMessageId: Number,
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String
+    }],
+    createdAt: { type: Date, default: Date.now },
+    processedAt: Date
+});
+const WalletUpdateBatch = mongoose.model('WalletUpdateBatch', walletUpdateBatchSchema);
 
 // Username update request schema: track request state and message IDs for updates
 const usernameUpdateRequestSchema = new mongoose.Schema({
@@ -3359,6 +3386,44 @@ setInterval(() => {
 // Wallet multi-select sessions per user: Map<userId, Set<key>> where key is `sell:ORDERID` or `wd:WITHDRAWALID`
 const walletSelections = new Map();
 
+// Shared keyboard builder for the /wallet screen — used by the initial
+// command, the toggle handlers, and the select-all/clear handlers, so
+// there's exactly one place that defines what these buttons look like.
+function buildWalletKeyboard(userId, bucket) {
+    const kb = { inline_keyboard: [] };
+    const data = walletSelections.get(userId);
+
+    if (data?.sellOrders) {
+        data.sellOrders.forEach(id => {
+            const isSelected = bucket.selections.has(`sell:${id}`);
+            kb.inline_keyboard.push([
+                { text: `${isSelected ? '✓ ' : ''}${id}`, callback_data: `wallet_sel_sell_${id}` },
+                { text: 'Update', callback_data: `wallet_update_sell_${id}` }
+            ]);
+        });
+    }
+
+    if (data?.withdrawals) {
+        data.withdrawals.forEach(id => {
+            const isSelected = bucket.selections.has(`wd:${id}`);
+            kb.inline_keyboard.push([
+                { text: `${isSelected ? '✓ ' : ''}${id}`, callback_data: `wallet_sel_withdrawal_${id}` },
+                { text: 'Update', callback_data: `wallet_update_withdrawal_${id}` }
+            ]);
+        });
+    }
+
+    kb.inline_keyboard.push([
+        { text: 'Select all', callback_data: 'wallet_sel_all' },
+        { text: 'Clear', callback_data: 'wallet_sel_clear' }
+    ]);
+    kb.inline_keyboard.push([
+        { text: `Continue (${bucket.selections.size} selected)`, callback_data: 'wallet_continue_selected' }
+    ]);
+
+    return kb;
+}
+
 // Sell flow state tracking for keyboard-based sell orders
 // Map<userId, { stage: 'amount'|'wallet'|'memo', data: {...}, errors: {} (tracks errors per stage), timeout }>
 const sellFlowStates = new Map();
@@ -3455,7 +3520,15 @@ function isValidTONAddress(address) {
 }
 
 function walletValidationHelpText() {
-    return `❌ Invalid wallet address twice in a row.\n\nNeed a TON/USDT (TON network) wallet format.\nVideo guide: https://t.me/StarStore_Chat/18722\n\nProcess stopped. Please run /wallet again to restart.`;
+    return `That doesn't look like a valid TON wallet address, even on a second try.\n\nMake sure it's a TON (or USDT on the TON network) wallet address.\nVideo guide: https://t.me/StarStore_Chat/18722\n\nThis request has been stopped. Run /wallet again to start over.`;
+}
+
+// Plain-language explanation of the optional "memo" field, shown wherever
+// we ask someone to send a wallet address. Some exchange wallets require an
+// extra short code alongside the address to know which account a payment is
+// for — this avoids the technical term and just says what to do with it.
+function walletMemoGuidanceText() {
+    return `Some wallets also ask for a short code or reference number along with the address. If yours gave you one, add it after a comma, like this:\nEQAbc...xyz, 123456\n\nIf you weren't given one, just send the address on its own.`;
 }
 
 // ==================== BAN SYSTEM HELPERS ====================
@@ -3560,43 +3633,35 @@ function shortWallet(addr) {
 
 function formatWalletOverviewHTML(sellOrders, withdrawals) {
     const out = [];
-    out.push('💰 <b>Your Wallet Overview</b>');
+    out.push('<b>Your orders</b>');
     out.push('');
 
     if (sellOrders && sellOrders.length) {
-        out.push(`🛒 <b>Processing Sell Orders</b> · ${sellOrders.length}`);
-        out.push('━━━━━━━━━━━━━━━━━━━━');
+        out.push(`<b>Processing sell orders</b> (${sellOrders.length})`);
         sellOrders.forEach((o, i) => {
             const id = escHtml(o.id);
             const stars = Number(o.stars) || 0;
             const starLabel = stars === 1 ? 'star' : 'stars';
-            const wallet = escHtml(o.walletAddress || 'N/A');
-            const walletShort = escHtml(shortWallet(o.walletAddress));
-            out.push(`<b>${i + 1}.</b> <code>${id}</code>`);
-            out.push(`   ⭐ ${stars} ${starLabel}`);
-            out.push(`   👛 <code>${wallet}</code>`);
-            if (o.memoTag) out.push(`   🏷 memo: <code>${escHtml(o.memoTag)}</code>`);
-            out.push('');
+            const wallet = escHtml(shortWallet(o.walletAddress) || 'N/A');
+            const memoPart = o.memoTag ? ` · Note: <code>${escHtml(o.memoTag)}</code>` : '';
+            out.push(`${i + 1}. <code>${id}</code> — ${stars} ${starLabel} · Wallet: <code>${wallet}</code>${memoPart}`);
         });
+        out.push('');
     }
 
     if (withdrawals && withdrawals.length) {
-        out.push(`💳 <b>Pending Withdrawals</b> · ${withdrawals.length}`);
-        out.push('━━━━━━━━━━━━━━━━━━━━');
+        out.push(`<b>Pending withdrawals</b> (${withdrawals.length})`);
         withdrawals.forEach((w, i) => {
             const id = escHtml(w.withdrawalId);
             const amount = escHtml(w.amount);
-            const wallet = escHtml(w.walletAddress || 'N/A');
-            const walletShort = escHtml(shortWallet(w.walletAddress));
-            out.push(`<b>${i + 1}.</b> <code>${id}</code>`);
-            out.push(`   💵 ${amount}`);
-            out.push(`   👛 <code>${wallet}</code>`);
-            out.push('');
+            const wallet = escHtml(shortWallet(w.walletAddress) || 'N/A');
+            out.push(`${i + 1}. <code>${id}</code> — ${amount} · Wallet: <code>${wallet}</code>`);
         });
+        out.push('');
     }
 
-    out.push('📌 <i>Tap an item below to select it (turns 🟢), then press</i> <b>Continue</b>.');
-    out.push('🔄 <i>Use the Update button next to an item to change its wallet.</i>');
+    out.push('<i>Tap an order to select it, then press Continue.</i>');
+    out.push('<i>Use Update next to a single order to change just that one.</i>');
     return out.join('\n');
 }
 
@@ -7518,41 +7583,8 @@ bot.on('callback_query', async (query) => {
                 bucket = { selections: new Set(), timestamp: Date.now() };
                 walletSelections.set(userId, bucket);
             }
-            
-            const buildKeyboard = (bucket) => {
-                const kb = { inline_keyboard: [] };
-                const bucket_data = walletSelections.get(userId);
-                
-                if (bucket_data?.sellOrders) {
-                    bucket_data.sellOrders.forEach(id => {
-                        const isSelected = bucket.selections.has(`sell:${id}`);
-                        kb.inline_keyboard.push([
-                            { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_sell_${id}` },
-                            { text: '🔄 Update', callback_data: `wallet_update_sell_${id}` }
-                        ]);
-                    });
-                }
-                
-                if (bucket_data?.withdrawals) {
-                    bucket_data.withdrawals.forEach(id => {
-                        const isSelected = bucket.selections.has(`wd:${id}`);
-                        kb.inline_keyboard.push([
-                            { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_withdrawal_${id}` },
-                            { text: '🔄 Update', callback_data: `wallet_update_withdrawal_${id}` }
-                        ]);
-                    });
-                }
-                
-                kb.inline_keyboard.push([
-                    { text: 'Select All', callback_data: 'wallet_sel_all' },
-                    { text: 'Clear', callback_data: 'wallet_sel_clear' }
-                ]);
-                kb.inline_keyboard.push([
-                    { text: `✅ Continue (${bucket.selections.size} selected)`, callback_data: 'wallet_continue_selected' }
-                ]);
-                
-                return kb;
-            };
+
+            const buildKeyboard = (b) => buildWalletKeyboard(userId, b);
             
             if (data === 'wallet_sel_all') {
                 try {
@@ -7585,7 +7617,7 @@ bot.on('callback_query', async (query) => {
                     }
                     
                     const totalCount = bucket.selections.size;
-                    await bot.answerCallbackQuery(query.id, { text: `Selected all ${totalCount} item(s) ✅` });
+                    await bot.answerCallbackQuery(query.id, { text: `Selected all ${totalCount} item(s)` });
                     return;
                 } catch (err) {
                     console.error('Error selecting all wallet items:', err);
@@ -7613,7 +7645,7 @@ bot.on('callback_query', async (query) => {
                     }
                 }
                 
-                await bot.answerCallbackQuery(query.id, { text: 'Selection cleared ⚪' });
+                await bot.answerCallbackQuery(query.id, { text: 'Selection cleared' });
                 return;
             }
             
@@ -7648,7 +7680,7 @@ bot.on('callback_query', async (query) => {
             }
             
             const isSelected = bucket.selections.has(key);
-            await bot.answerCallbackQuery(query.id, { text: `${isSelected ? '✅ Selected' : '⚪ Deselected'} - Total: ${bucket.selections.size}` });
+            await bot.answerCallbackQuery(query.id, { text: `${isSelected ? 'Selected' : 'Removed'} - Total: ${bucket.selections.size}` });
             return;
         }
 
@@ -7661,7 +7693,7 @@ bot.on('callback_query', async (query) => {
                 return;
             }
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address for ${bucket.selections.size} selected item(s). If needed, you can add a memo after a comma.\n\nSome characters will be removed automatically.\n\nThis request will time out in 10 minutes.`);
+            await bot.sendMessage(chatId, `Send the new wallet address for ${bucket.selections.size} selected order(s).\n\n${walletMemoGuidanceText()}\n\nThis request will time out in 10 minutes.`);
             const selectionAt = Date.now();
 
             let invalidAttempts = 0;
@@ -7669,7 +7701,7 @@ bot.on('callback_query', async (query) => {
                 if (msg.chat.id !== chatId) return;
                 if (Date.now() - selectionAt > 10 * 60 * 1000) {
                     bot.removeListener('message', onMessage);
-                    return bot.sendMessage(chatId, '⌛ Wallet update timed out. Please run /wallet again.');
+                    return bot.sendMessage(chatId, 'This request timed out. Run /wallet again.');
                 }
                 const input = (msg.text || '').trim();
                 // Parse wallet input with special character handling
@@ -7680,7 +7712,7 @@ bot.on('callback_query', async (query) => {
                         bot.removeListener('message', onMessage);
                         return bot.sendMessage(chatId, walletValidationHelpText());
                     }
-                    return bot.sendMessage(chatId, '❌ That does not look like a valid TON wallet. Please try one more time.');
+                    return bot.sendMessage(chatId, "That doesn't look like a valid TON wallet. Please try one more time.");
                 }
                 bot.removeListener('message', onMessage);
                 
@@ -7693,10 +7725,15 @@ bot.on('callback_query', async (query) => {
                 });
 
                 try {
-                    // Create one request per selected item
+                    // Create one request per selected item, but group them under
+                    // one batchId so admins get a single message to review —
+                    // not one message per order.
                     const skipped = [];
                     const noChange = [];
                     const created = [];
+                    const batchId = generateOrderId();
+                    const items = [];
+
                     for (const key of bucket.selections) {
                         const [kind, id] = key.split(':');
                         const orderTypeForReq = kind === 'sell' ? 'sell' : 'withdrawal';
@@ -7723,6 +7760,7 @@ bot.on('callback_query', async (query) => {
                             continue;
                         }
                         const requestDoc = await WalletUpdateRequest.create({
+                            batchId,
                             userId: msg.from.id.toString(),
                             username: msg.from.username || '',
                             orderType: orderTypeForReq,
@@ -7733,40 +7771,58 @@ bot.on('callback_query', async (query) => {
                             adminMessages: []
                         });
                         created.push(id);
-
-                        const adminKeyboard = {
-                            inline_keyboard: [[
-                                { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
-                                { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
-                            ]]
-                        };
-                        const adminText = `🔄 Wallet Update Request\n\n`+
-                            `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
-                            `Type: ${requestDoc.orderType}\n`+
-                            `Order: ${id}\n`+
-                            `Old wallet:\n${oldWallet || 'N/A'}\n\n`+
-                            `New wallet:\n${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
-                        const sentMsgs = [];
-                        for (const adminId of adminIds) {
-                            try {
-                                const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
-                                sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
-                            } catch (_) {}
-                        }
-                        if (sentMsgs.length) {
-                            requestDoc.adminMessages = sentMsgs;
-                            await requestDoc.save();
-                        }
+                        items.push({ orderType: orderTypeForReq, orderId: id });
                     }
 
                     walletSelections.set(userId, new Set());
-                    const parts = [];
-                    if (created.length) parts.push(`✅ Submitted: ${created.join(', ')}`);
-                    if (skipped.length) parts.push(`⛔ Skipped (already requested): ${skipped.join(', ')}`);
-                    if (noChange.length) parts.push(`ℹ️ No change needed (same wallet): ${noChange.join(', ')}`);
-                    await bot.sendMessage(chatId, parts.length ? parts.join('\n') : 'Nothing to submit.');
+
+                    if (created.length === 0) {
+                        const parts = [];
+                        if (skipped.length) parts.push(`Skipped (already requested): ${skipped.join(', ')}`);
+                        if (noChange.length) parts.push(`No change needed (same wallet): ${noChange.join(', ')}`);
+                        await bot.sendMessage(chatId, parts.length ? parts.join('\n') : 'Nothing to submit.');
+                        return;
+                    }
+
+                    // One admin message covering every order in this batch
+                    const batch = await WalletUpdateBatch.create({
+                        batchId,
+                        userId: msg.from.id.toString(),
+                        username: msg.from.username || '',
+                        newWalletAddress: newAddress,
+                        newMemoTag: newMemoTag && newMemoTag !== 'none' ? newMemoTag : undefined,
+                        items,
+                        requestIds: created.slice(),
+                        adminMessages: []
+                    });
+
+                    const orderList = items.map(it => `${it.orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${it.orderId}`).join('\n');
+                    const adminText = `Wallet update requested\n\n` +
+                        `User: @${batch.username || msg.from.id} (ID: ${batch.userId})\n\n` +
+                        `New wallet:\n${newAddress}${batch.newMemoTag ? `\nNote: ${batch.newMemoTag}` : ''}\n\n` +
+                        `Applies to (${items.length}):\n${orderList}`;
+                    const adminKeyboard = {
+                        inline_keyboard: [[
+                            { text: 'Approve all', callback_data: `wallet_batch_approve_${batchId}` },
+                            { text: 'Reject all', callback_data: `wallet_batch_reject_${batchId}` }
+                        ]]
+                    };
+                    const sentMsgs = [];
+                    for (const adminId of adminIds) {
+                        try {
+                            const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                            sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
+                        } catch (_) {}
+                    }
+                    if (sentMsgs.length) {
+                        batch.adminMessages = sentMsgs;
+                        await batch.save();
+                    }
+
+                    const ack = await bot.sendMessage(chatId, `Submitted for review: ${created.length} order(s). An admin will confirm shortly.${skipped.length ? `\nSkipped (already requested): ${skipped.join(', ')}` : ''}${noChange.length ? `\nNo change needed (same wallet): ${noChange.join(', ')}` : ''}`);
+                    try { batch.userMessageId = ack.message_id; await batch.save(); } catch (_) {}
                 } catch (e) {
-                    await bot.sendMessage(chatId, '❌ Failed to submit requests. Please try again later.');
+                    await bot.sendMessage(chatId, 'Could not submit your request. Please try again later.');
                 }
             };
             bot.on('message', onMessage);
@@ -7781,7 +7837,7 @@ bot.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
 
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}. If needed, add a memo after a comma.\n\nSome characters will be removed automatically.\n\nThis request will time out in 10 minutes.`);
+            await bot.sendMessage(chatId, `Send the new wallet address for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\n${walletMemoGuidanceText()}\n\nThis request will time out in 10 minutes.`);
 
             const startedAtSingle = Date.now();
             let invalidAttempts = 0;
@@ -7789,7 +7845,7 @@ bot.on('callback_query', async (query) => {
                 if (msg.chat.id !== chatId) return;
                 if (Date.now() - startedAtSingle > 10 * 60 * 1000) {
                     bot.removeListener('message', onMessage);
-                    return bot.sendMessage(chatId, '⌛ Wallet update timed out. Please run /wallet again.');
+                    return bot.sendMessage(chatId, 'This request timed out. Run /wallet again.');
                 }
                 const input = (msg.text || '').trim();
                 // Parse wallet input with special character handling
@@ -7800,7 +7856,7 @@ bot.on('callback_query', async (query) => {
                         bot.removeListener('message', onMessage);
                         return bot.sendMessage(chatId, walletValidationHelpText());
                     }
-                    return bot.sendMessage(chatId, '❌ That does not look like a valid TON wallet. Please try one more time.');
+                    return bot.sendMessage(chatId, "That doesn't look like a valid TON wallet. Please try one more time.");
                 }
                 bot.removeListener('message', onMessage);
                 
@@ -7836,7 +7892,7 @@ bot.on('callback_query', async (query) => {
 
                     // Check if new address is the same as old address (case-insensitive)
                     if (newAddress.trim().toLowerCase() === (oldWallet || '').trim().toLowerCase()) {
-                        return bot.sendMessage(chatId, `❌ No change needed. The wallet address you submitted is the same as the current one. Please provide a different wallet address if you want to update it.`);
+                        return bot.sendMessage(chatId, `No change needed — that's already the wallet address on file. Send a different one if you'd like to update it.`);
                     }
 
                     const requestDoc = await WalletUpdateRequest.create({
@@ -7852,16 +7908,15 @@ bot.on('callback_query', async (query) => {
 
                     const adminKeyboard = {
                         inline_keyboard: [[
-                            { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
-                            { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
+                            { text: 'Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
+                            { text: 'Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
                         ]]
                     };
-                    const adminText = `🔄 Wallet Update Request\n\n`+
+                    const adminText = `Wallet update requested\n\n`+
                         `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
-                        `Type: ${orderType}\n`+
-                        `Order: ${orderId}\n`+
+                        `${orderType === 'sell' ? 'Sell order' : 'Withdrawal'}: ${orderId}\n`+
                         `Old wallet:\n${oldWallet || 'N/A'}\n\n`+
-                        `New wallet:\n${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
+                        `New wallet:\n${newAddress}${newMemoTag ? `\nNote: ${newMemoTag}` : ''}`;
 
                     const sentMsgs = [];
                     for (const adminId of adminIds) {
@@ -7875,7 +7930,7 @@ bot.on('callback_query', async (query) => {
                         await requestDoc.save();
                     }
 
-                    const ack = await bot.sendMessage(chatId, '✅ Request submitted. An admin will review your new wallet address.');
+                    const ack = await bot.sendMessage(chatId, 'Submitted for review. An admin will confirm your new wallet address shortly.');
                     try { await WalletUpdateRequest.updateOne({ _id: requestDoc._id }, { $set: { userMessageId: ack.message_id } }); } catch (_) {}
                 } catch (e) {
                     await bot.sendMessage(chatId, '❌ Failed to submit request. Please try again later.');
@@ -8385,6 +8440,97 @@ bot.on('callback_query', async (query) => {
         }
 
         // Admin approve/reject handlers for wallet update requests
+        // Applies an APPROVED wallet update request to the underlying sell
+        // order or referral withdrawal: sets the new wallet/memo, keeps an
+        // ambassador's main wallet in sync, and updates that order's own
+        // admin message so the wallet/memo shown there stays correct.
+        // Shared by both the single-request approval flow below and the
+        // batch (many-orders-at-once) approval flow.
+        async function applyWalletUpdateToDB(reqDoc) {
+            if (reqDoc.orderType === 'sell') {
+                const order = await SellOrder.findOne({ id: reqDoc.orderId });
+                if (!order) return;
+                order.walletAddress = reqDoc.newWalletAddress;
+                if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
+                await order.save();
+                const user = await User.findOne({ id: order.telegramId });
+                if (user && user.ambassadorEmail) {
+                    user.ambassadorWalletAddress = reqDoc.newWalletAddress;
+                    await user.save();
+                }
+                if (order.userMessageId) {
+                    try {
+                        const currentText = `✅ Payment successful!\n\n` +
+                            `Order ID: ${order.id}\n` +
+                            `Stars: ${order.stars}\n` +
+                            `Wallet: ${order.walletAddress}\n` +
+                            `${order.memoTag && order.memoTag !== 'none' ? `Memo: ${order.memoTag}\n` : ''}` +
+                            `\nStatus: Processing (21-day hold)\n\n` +
+                            `Funds will be released to your wallet after the hold period.`;
+                        await bot.editMessageText(currentText, { chat_id: order.telegramId, message_id: order.userMessageId });
+                    } catch (e) {
+                        console.warn(`Failed to update wallet info in user message for order ${order.id}:`, e.message);
+                    }
+                }
+                if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                    await Promise.all(order.adminMessages.map(async (m) => {
+                        let text = m.originalText || '';
+                        if (text) {
+                            if (text.includes('\nWallet: ')) {
+                                text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${order.walletAddress}$1`);
+                            }
+                            if (order.memoTag) {
+                                if (text.includes('\nMemo:')) {
+                                    text = text.replace(/\nMemo:.*?(\n|$)/, `\nMemo: ${order.memoTag}$1`);
+                                } else {
+                                    text += `\nMemo: ${order.memoTag}`;
+                                }
+                            }
+                        } else {
+                            const locationStr = order.userLocation ?
+                                `Location: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}\n` : '';
+                            text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username ? `@${order.username}` : 'Unknown'} (ID: ${order.telegramId})\n${locationStr}Stars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
+                        }
+                        m.originalText = text;
+                        const sellButtons = {
+                            inline_keyboard: [[
+                                { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                                { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                                { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                            ]]
+                        };
+                        try {
+                            await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons });
+                        } catch (_) {}
+                    }));
+                    await order.save();
+                }
+            } else {
+                const wd = await ReferralWithdrawal.findOne({ withdrawalId: reqDoc.orderId });
+                if (!wd) return;
+                wd.walletAddress = reqDoc.newWalletAddress;
+                await wd.save();
+                const user = await User.findOne({ id: wd.userId });
+                if (user && user.ambassadorEmail) {
+                    user.ambassadorWalletAddress = reqDoc.newWalletAddress;
+                    await user.save();
+                }
+                if (Array.isArray(wd.adminMessages) && wd.adminMessages.length) {
+                    await Promise.all(wd.adminMessages.map(async (m) => {
+                        let text = m.originalText || '';
+                        if (text && text.includes('\nWallet: ')) {
+                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${wd.walletAddress}$1`);
+                        }
+                        m.originalText = text;
+                        try {
+                            await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+                    }));
+                    await wd.save();
+                }
+            }
+        }
+
         if (data.startsWith('wallet_approve_') || data.startsWith('wallet_reject_')) {
             const approve = data.startsWith('wallet_approve_');
             const requestId = data.replace('wallet_approve_', '').replace('wallet_reject_', '');
@@ -8411,13 +8557,13 @@ bot.on('callback_query', async (query) => {
                 // Update admin messages (all) to reflect final status
                 if (Array.isArray(reqDoc.adminMessages) && reqDoc.adminMessages.length) {
                     await Promise.all(reqDoc.adminMessages.map(async (m) => {
-                        const base = m.originalText || 'Wallet Update Request';
-                        const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
+                        const base = m.originalText || 'Wallet update request';
+                        const final = `${base}\n\n${approve ? 'Approved' : 'Rejected'} by @${adminName}`;
                         try {
                             await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
                         } catch (_) {}
                         // Clear or show status-only keyboard on the wallet request message to avoid action duplication
-                        const statusKeyboard = { inline_keyboard: [[{ text: approve ? '✅ Approved' : '❌ Rejected', callback_data: `wallet_status_${reqDoc.requestId}`}]] };
+                        const statusKeyboard = { inline_keyboard: [[{ text: approve ? 'Approved' : 'Rejected', callback_data: `wallet_status_${reqDoc.requestId}`}]] };
                         try {
                             await bot.editMessageReplyMarkup(statusKeyboard, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
                         } catch (_) {}
@@ -8425,117 +8571,12 @@ bot.on('callback_query', async (query) => {
                 }
 
                 if (approve) {
-                    // Apply to DB
-                    if (reqDoc.orderType === 'sell') {
-                        const order = await SellOrder.findOne({ id: reqDoc.orderId });
-                        if (order) {
-                            order.walletAddress = reqDoc.newWalletAddress;
-                            if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
-                            await order.save();
-                            // Update user's main wallet address if they are an ambassador
-                            const user = await User.findOne({ id: order.telegramId });
-                            if (user && user.ambassadorEmail) {
-                                user.ambassadorWalletAddress = reqDoc.newWalletAddress;
-                                await user.save();
-                            }
-                            // Update user message with new wallet/memo details so they see the change
-                            if (order.userMessageId) {
-                                try {
-                                    // Get current message and update only the wallet/memo fields
-                                    const currentText = `✅ Payment successful!\n\n` +
-                                        `Order ID: ${order.id}\n` +
-                                        `Stars: ${order.stars}\n` +
-                                        `Wallet: ${order.walletAddress}\n` +
-                                        `${order.memoTag && order.memoTag !== 'none' ? `Memo: ${order.memoTag}\n` : ''}` +
-                                        `\nStatus: Processing (21-day hold)\n\n` +
-                                        `Funds will be released to your wallet after the hold period.`;
-                                    await bot.editMessageText(currentText, { chat_id: order.telegramId, message_id: order.userMessageId });
-                                } catch (e) {
-                                    console.warn(`Failed to update wallet info in user message for order ${order.id}:`, e.message);
-                                }
-                            }
-                            // Edit admin messages stored on the order if present
-                            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
-                                await Promise.all(order.adminMessages.map(async (m) => {
-                                    // Replace only wallet and memo lines in the original admin message if present
-                                    let text = m.originalText || '';
-                                    if (text) {
-                                        if (text.includes('\nWallet: ')) {
-                                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${order.walletAddress}$1`);
-                                        }
-                                        if (order.memoTag) {
-                                            if (text.includes('\nMemo:')) {
-                                                text = text.replace(/\nMemo:.*?(\n|$)/, `\nMemo: ${order.memoTag}$1`);
-                                            } else {
-                                                text += `\nMemo: ${order.memoTag}`;
-                                            }
-                                        }
-                                    } else {
-                                        const locationStr = order.userLocation ? 
-                                            `Location: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}\n` : '';
-                                        text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username ? `@${order.username}` : 'Unknown'} (ID: ${order.telegramId})\n${locationStr}Stars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
-                                    }
-                                    
-                                    // Update the originalText in the database to preserve the new wallet address
-                                    m.originalText = text;
-                                    
-                                    // Re-attach the original sell action buttons to guarantee they remain
-                                    const sellButtons = {
-                                        inline_keyboard: [[
-                                            { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                                            { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-                                            { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
-                                        ]]
-                                    };
-                                    try {
-                                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons });
-                                    } catch (_) {}
-                                }));
-                                
-                                // Save the updated admin messages back to the database
-                                await order.save();
-                            }
-                        }
-                    } else {
-                        const wd = await ReferralWithdrawal.findOne({ withdrawalId: reqDoc.orderId });
-                        if (wd) {
-                            wd.walletAddress = reqDoc.newWalletAddress;
-                            await wd.save();
-                            // Update user's main ambassador wallet address
-                            const user = await User.findOne({ id: wd.userId });
-                            if (user && user.ambassadorEmail) {
-                                user.ambassadorWalletAddress = reqDoc.newWalletAddress;
-                                await user.save();
-                            }
-                            // Update admin messages with new wallet address
-                            if (Array.isArray(wd.adminMessages) && wd.adminMessages.length) {
-                                await Promise.all(wd.adminMessages.map(async (m) => {
-                                    // Replace only wallet line in the original admin message if present
-                                    let text = m.originalText || '';
-                                    if (text) {
-                                        if (text.includes('\nWallet: ')) {
-                                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${wd.walletAddress}$1`);
-                                        }
-                                    }
-                                    
-                                    // Update the originalText in the database to preserve the new wallet address
-                                    m.originalText = text;
-                                    
-                                    try {
-                                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
-                                    } catch (_) {}
-                                }));
-                                
-                                // Save the updated admin messages back to the database
-                                await wd.save();
-                            }
-                        }
-                    }
+                    await applyWalletUpdateToDB(reqDoc);
                 }
 
                 // Update user acknowledgement message, if any
                 if (reqDoc.userMessageId) {
-                    const suffix = approve ? '✅ Your new wallet address has been approved and updated.' : '❌ Your wallet update request was rejected.';
+                    const suffix = approve ? 'Your new wallet address has been approved and updated.' : 'Your wallet update request was rejected.';
                     try {
                         await bot.editMessageText(`Request ${approve ? 'approved' : 'rejected'}. ${suffix}`, { chat_id: reqDoc.userId, message_id: reqDoc.userMessageId });
                     } catch (_) {
@@ -8545,8 +8586,87 @@ bot.on('callback_query', async (query) => {
                     }
                 } else {
                     try {
-                        await bot.sendMessage(reqDoc.userId, approve ? '✅ Wallet address updated successfully.' : '❌ Wallet update request rejected.');
+                        await bot.sendMessage(reqDoc.userId, approve ? 'Wallet address updated successfully.' : 'Wallet update request rejected.');
                     } catch (_) {}
+                }
+
+                await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Rejected' });
+            } catch (err) {
+                await bot.answerCallbackQuery(query.id, { text: 'Error processing request' });
+            }
+            return;
+        }
+
+        // Batch approve/reject: one admin action covers every order in a
+        // multi-order wallet update submitted at once (see
+        // 'wallet_continue_selected' below), instead of admins having to
+        // tap Approve/Reject once per order.
+        if (data.startsWith('wallet_batch_approve_') || data.startsWith('wallet_batch_reject_')) {
+            const approve = data.startsWith('wallet_batch_approve_');
+            const batchId = data.replace('wallet_batch_approve_', '').replace('wallet_batch_reject_', '');
+            const adminChatId = query.from.id.toString();
+            const adminName = adminUsername;
+
+            try {
+                const batch = await WalletUpdateBatch.findOne({ batchId });
+                if (!batch) {
+                    await bot.answerCallbackQuery(query.id, { text: 'Request not found' });
+                    return;
+                }
+                if (batch.status !== 'pending') {
+                    await bot.answerCallbackQuery(query.id, { text: `Already ${batch.status}` });
+                    return;
+                }
+
+                batch.status = approve ? 'approved' : 'rejected';
+                batch.adminId = adminChatId;
+                batch.adminUsername = adminName;
+                batch.processedAt = new Date();
+                await batch.save();
+
+                // Process every individual request in the batch the same
+                // way a single approval would — reusing the exact same
+                // DB-apply logic, just looped.
+                const reqDocs = await WalletUpdateRequest.find({ batchId, status: 'pending' });
+                for (const reqDoc of reqDocs) {
+                    reqDoc.status = approve ? 'approved' : 'rejected';
+                    reqDoc.adminId = adminChatId;
+                    reqDoc.adminUsername = adminName;
+                    reqDoc.processedAt = new Date();
+                    await reqDoc.save();
+                    if (approve) {
+                        try { await applyWalletUpdateToDB(reqDoc); } catch (_) {}
+                    }
+                }
+
+                // Update the one consolidated admin message (for every admin)
+                if (Array.isArray(batch.adminMessages) && batch.adminMessages.length) {
+                    await Promise.all(batch.adminMessages.map(async (m) => {
+                        const base = m.originalText || 'Wallet update request';
+                        const final = `${base}\n\n${approve ? 'Approved' : 'Rejected'} by @${adminName}`;
+                        try {
+                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+                        const statusKeyboard = { inline_keyboard: [[{ text: approve ? 'Approved' : 'Rejected', callback_data: `wallet_status_batch_${batch.batchId}` }]] };
+                        try {
+                            await bot.editMessageReplyMarkup(statusKeyboard, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+                    }));
+                }
+
+                // One acknowledgement to the user, covering every order at once
+                const count = batch.requestIds.length;
+                const suffix = approve
+                    ? `Your new wallet address has been approved and updated for ${count} order${count === 1 ? '' : 's'}.`
+                    : `Your wallet update request for ${count} order${count === 1 ? '' : 's'} was rejected.`;
+                if (batch.userMessageId) {
+                    try {
+                        await bot.editMessageText(`Request ${approve ? 'approved' : 'rejected'}. ${suffix}`, { chat_id: batch.userId, message_id: batch.userMessageId });
+                    } catch (_) {
+                        try { await bot.sendMessage(batch.userId, suffix); } catch (_) {}
+                    }
+                } else {
+                    try { await bot.sendMessage(batch.userId, suffix); } catch (_) {}
                 }
 
                 await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Rejected' });
@@ -14431,7 +14551,7 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
         ]);
 
         if ((!sellOrders || sellOrders.length === 0) && (!withdrawals || withdrawals.length === 0)) {
-            return bot.sendMessage(chatId, 'ℹ️ You have no processing orders.');
+            return bot.sendMessage(chatId, 'You have no processing orders.');
         }
 
         const overviewText = formatWalletOverviewHTML(sellOrders, withdrawals);
@@ -14446,42 +14566,7 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
             messageId: null // Will be set after sending
         });
 
-        const buildKeyboard = (bucket) => {
-            const kb = { inline_keyboard: [] };
-            const bucket_data = walletSelections.get(userId);
-            
-            if (bucket_data?.sellOrders) {
-                bucket_data.sellOrders.forEach(id => {
-                    const isSelected = bucket.selections.has(`sell:${id}`);
-                    kb.inline_keyboard.push([
-                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_sell_${id}` },
-                        { text: '🔄 Update', callback_data: `wallet_update_sell_${id}` }
-                    ]);
-                });
-            }
-            
-            if (bucket_data?.withdrawals) {
-                bucket_data.withdrawals.forEach(id => {
-                    const isSelected = bucket.selections.has(`wd:${id}`);
-                    kb.inline_keyboard.push([
-                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_withdrawal_${id}` },
-                        { text: '🔄 Update', callback_data: `wallet_update_withdrawal_${id}` }
-                    ]);
-                });
-            }
-            
-            kb.inline_keyboard.push([
-                { text: 'Select All', callback_data: 'wallet_sel_all' },
-                { text: 'Clear', callback_data: 'wallet_sel_clear' }
-            ]);
-            kb.inline_keyboard.push([
-                { text: `✅ Continue (${bucket.selections.size} selected)`, callback_data: 'wallet_continue_selected' }
-            ]);
-            
-            return kb;
-        };
-
-        const initialKeyboard = buildKeyboard(walletSelections.get(userId));
+        const initialKeyboard = buildWalletKeyboard(userId, walletSelections.get(userId));
         const sentMsg = await bot.sendMessage(chatId, overviewText, { reply_markup: initialKeyboard, parse_mode: 'HTML', disable_web_page_preview: true });
         
         // Store message ID so we can edit it later
@@ -14638,7 +14723,7 @@ async function handleWalletCommand(msg) {
         ]);
         
         if ((!sellOrders || sellOrders.length === 0) && (!withdrawals || withdrawals.length === 0)) {
-            return await bot.sendMessage(chatId, 'ℹ️ You have no processing orders.');
+            return await bot.sendMessage(chatId, 'You have no processing orders.');
         }
         
         const overviewText = formatWalletOverviewHTML(sellOrders, withdrawals);
@@ -14652,43 +14737,8 @@ async function handleWalletCommand(msg) {
             messageId: null
         });
         
-        const buildKeyboard = (bucket) => {
-            const kb = { inline_keyboard: [] };
-            const bucket_data = walletSelections.get(userId);
-            
-            if (bucket_data?.sellOrders) {
-                bucket_data.sellOrders.forEach(id => {
-                    const isSelected = bucket.selections.has(`sell:${id}`);
-                    kb.inline_keyboard.push([
-                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_sell_${id}` },
-                        { text: '🔄 Update', callback_data: `wallet_update_sell_${id}` }
-                    ]);
-                });
-            }
-            
-            if (bucket_data?.withdrawals) {
-                bucket_data.withdrawals.forEach(id => {
-                    const isSelected = bucket.selections.has(`wd:${id}`);
-                    kb.inline_keyboard.push([
-                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_withdrawal_${id}` },
-                        { text: '🔄 Update', callback_data: `wallet_update_withdrawal_${id}` }
-                    ]);
-                });
-            }
-            
-            kb.inline_keyboard.push([
-                { text: 'Select All', callback_data: 'wallet_sel_all' },
-                { text: 'Clear', callback_data: 'wallet_sel_clear' }
-            ]);
-            kb.inline_keyboard.push([
-                { text: `✅ Continue (${bucket.selections.size} selected)`, callback_data: 'wallet_continue_selected' }
-            ]);
-            
-            return kb;
-        };
-        
         const bucket = walletSelections.get(userId);
-        const initialKeyboard = buildKeyboard(bucket);
+        const initialKeyboard = buildWalletKeyboard(userId, bucket);
         const msg_sent = await bot.sendMessage(chatId, overviewText, { reply_markup: initialKeyboard, parse_mode: 'HTML', disable_web_page_preview: true });
         
         // Store message ID so we can edit it later
