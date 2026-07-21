@@ -1661,41 +1661,45 @@ document.addEventListener('DOMContentLoaded', function() {
     // redirects back to this page based on its own network check — the
     // redirect only ever flows in this one direction — so there's no way
     // for the two pages to end up disagreeing and bouncing back and forth.
-    (function checkOnboarding() {
-        try {
-            // Same-device fast path: if this browser already finished the
-            // intro, we already know the answer — never make a network
-            // round-trip for it. This is what actually removes the flash;
-            // without this, checkOnboarding always fires /api/whoami, and
-            // if that resolves a few seconds after the app has already
-            // opened, a "needsOnboarding" answer sends the user out to
-            // get-started.html and instantly back — a visible flash reload
-            // even though the redirect itself is correct.
-            if (localStorage.getItem('starstore_intro_seen') === '1') return;
+    // Decide, before revealing anything, whether this account needs the
+    // get-started intro — so a genuinely new user sees the loading spinner
+    // go straight into get-started.html, instead of seeing the app for a
+    // moment and then getting redirected out of it. A same-device returning
+    // user takes an instant, zero-network path (resolves immediately,
+    // below). Anyone else is bounded by a short timeout so a slow or dead
+    // connection can never leave the loading spinner stuck — it just shows
+    // the app instead, same as before this check existed.
+    function decideOnboarding() {
+        return new Promise((resolve) => {
+            try {
+                if (localStorage.getItem('starstore_intro_seen') === '1') return resolve(false);
 
-            const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-            if (!tgId) return; // no Telegram identity available (e.g. local preview)
+                const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+                if (!tgId) return resolve(false); // no Telegram identity available (e.g. local preview)
 
-            // Hard safety net: never redirect to the intro more than once per
-            // app session (sessionStorage — cleared when the Mini App is
-            // closed, so a legitimate future need to onboard isn't blocked
-            // forever). If the server-side flag ever fails to persist for any
-            // reason, this guarantees we fail open into the app instead of
-            // bouncing between this page and get-started.html forever.
-            const REDIRECT_GUARD_KEY = 'starstore_onboarding_redirect_attempted';
-            if (sessionStorage.getItem(REDIRECT_GUARD_KEY) === '1') return;
+                const REDIRECT_GUARD_KEY = 'starstore_onboarding_redirect_attempted';
+                if (sessionStorage.getItem(REDIRECT_GUARD_KEY) === '1') return resolve(false);
 
-            fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
-                .then(r => r.ok ? r.json() : null)
-                .then(who => {
-                    if (who?.needsOnboarding) {
-                        try { sessionStorage.setItem(REDIRECT_GUARD_KEY, '1'); } catch (_) {}
-                        window.location.replace('/get-started.html?next=' + encodeURIComponent(window.location.href));
-                    }
-                })
-                .catch(() => {});
-        } catch (_) {}
-    })();
+                let settled = false;
+                const done = (needsOnboarding) => {
+                    if (settled) return;
+                    settled = true;
+                    resolve(needsOnboarding);
+                };
+
+                // Cap how long we'll wait for an answer — fail open into the
+                // app rather than hold the loading spinner indefinitely.
+                setTimeout(() => done(false), 1200);
+
+                fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(who => done(!!who?.needsOnboarding))
+                    .catch(() => done(false));
+            } catch (_) {
+                resolve(false);
+            }
+        });
+    }
 
     const content = document.getElementById('content-container');
     
@@ -1707,7 +1711,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (content) content.style.display = 'none';
 
-    requestAnimationFrame(() => {
+    decideOnboarding().then((needsOnboarding) => {
+        if (needsOnboarding) {
+            try { sessionStorage.setItem('starstore_onboarding_redirect_attempted', '1'); } catch (_) {}
+            window.location.replace('/get-started.html?next=' + encodeURIComponent(window.location.href));
+            return; // don't reveal the app underneath the redirect
+        }
+
+        requestAnimationFrame(() => {
         showContent();
         initTelegramApp();
         captureUserLocationOnPageLoad(); // Capture location on every page load
@@ -1783,6 +1794,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Initialization error:', error);
                 });
         }, 300);
+        });
     });
 });
 
