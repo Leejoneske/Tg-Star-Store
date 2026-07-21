@@ -1,6 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Telegram WebApp SDK loads synchronously, first, before anything
+         else on this page (fonts, other scripts, stylesheets) — so the
+         onboarding check right after it can start and finish as early as
+         physically possible, instead of waiting for the whole page to
+         parse. Mirrors the same trick used on get-started.html. -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+    // Decide, before anything else loads, whether this account needs the
+    // get-started intro. A same-device returning user (localStorage flag
+    // set) resolves instantly with no network call. Anyone else is bounded
+    // by a short timeout so a slow or dead connection can never hang here —
+    // the rest of the page just loads normally instead.
+    window.__onboardingDecision = new Promise((resolve) => {
+        try {
+            if (localStorage.getItem('starstore_intro_seen') === '1') return resolve(false);
+
+            const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            if (!tgId) return resolve(false); // no Telegram identity (e.g. local preview)
+
+            const REDIRECT_GUARD_KEY = 'starstore_onboarding_redirect_attempted';
+            if (sessionStorage.getItem(REDIRECT_GUARD_KEY) === '1') return resolve(false);
+
+            let settled = false;
+            const done = (needsOnboarding) => {
+                if (settled) return;
+                settled = true;
+                if (needsOnboarding) {
+                    try { sessionStorage.setItem(REDIRECT_GUARD_KEY, '1'); } catch (_) {}
+                    location.replace('/get-started.html?next=' + encodeURIComponent(location.href));
+                }
+                resolve(needsOnboarding);
+            };
+
+            setTimeout(() => done(false), 1200);
+
+            fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
+                .then(r => r.ok ? r.json() : null)
+                .then(who => done(!!who?.needsOnboarding))
+                .catch(() => done(false));
+        } catch (_) {
+            resolve(false);
+        }
+    });
+    </script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-HJ1ZPZ1R7C"></script>
     <script>
@@ -150,8 +194,7 @@
     <link rel="canonical" href="https://starstore.app/">
     
 
-    <!-- Telegram WebApp Script -->
-    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <!-- Telegram WebApp Script (moved to the very top of <head> — see below) -->
     <script src="/js/ban-guard.js?v=1" defer></script>
 
     <!-- CSS & Fonts -->
@@ -1655,51 +1698,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // because it's keyed to the Telegram user id in the database, not a
     // per-browser localStorage flag.
     //
-    // This is deliberately fire-and-forget and non-blocking: it never
-    // hides or delays the app itself, it only redirects independently if
-    // and when the answer comes back positive. get-started.html never
-    // redirects back to this page based on its own network check — the
-    // redirect only ever flows in this one direction — so there's no way
-    // for the two pages to end up disagreeing and bouncing back and forth.
-    // Decide, before revealing anything, whether this account needs the
-    // get-started intro — so a genuinely new user sees the loading spinner
-    // go straight into get-started.html, instead of seeing the app for a
-    // moment and then getting redirected out of it. A same-device returning
-    // user takes an instant, zero-network path (resolves immediately,
-    // below). Anyone else is bounded by a short timeout so a slow or dead
-    // connection can never leave the loading spinner stuck — it just shows
-    // the app instead, same as before this check existed.
-    function decideOnboarding() {
-        return new Promise((resolve) => {
-            try {
-                if (localStorage.getItem('starstore_intro_seen') === '1') return resolve(false);
-
-                const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-                if (!tgId) return resolve(false); // no Telegram identity available (e.g. local preview)
-
-                const REDIRECT_GUARD_KEY = 'starstore_onboarding_redirect_attempted';
-                if (sessionStorage.getItem(REDIRECT_GUARD_KEY) === '1') return resolve(false);
-
-                let settled = false;
-                const done = (needsOnboarding) => {
-                    if (settled) return;
-                    settled = true;
-                    resolve(needsOnboarding);
-                };
-
-                // Cap how long we'll wait for an answer — fail open into the
-                // app rather than hold the loading spinner indefinitely.
-                setTimeout(() => done(false), 1200);
-
-                fetch('/api/whoami', { headers: { 'x-telegram-id': tgId } })
-                    .then(r => r.ok ? r.json() : null)
-                    .then(who => done(!!who?.needsOnboarding))
-                    .catch(() => done(false));
-            } catch (_) {
-                resolve(false);
-            }
-        });
-    }
+    // The actual decision was already started at the very top of <head>
+    // (window.__onboardingDecision), before this page even began loading
+    // its fonts, stylesheets, or other scripts — that's what makes the
+    // redirect to get-started.html near-instant when it's needed. We just
+    // wait on that same promise here rather than starting a second, slower
+    // check from scratch.
+    const decideOnboarding = () => window.__onboardingDecision || Promise.resolve(false);
 
     const content = document.getElementById('content-container');
     
@@ -1713,9 +1718,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     decideOnboarding().then((needsOnboarding) => {
         if (needsOnboarding) {
-            try { sessionStorage.setItem('starstore_onboarding_redirect_attempted', '1'); } catch (_) {}
-            window.location.replace('/get-started.html?next=' + encodeURIComponent(window.location.href));
-            return; // don't reveal the app underneath the redirect
+            // The redirect already happened inside window.__onboardingDecision
+            // (see <head>) the moment the answer came back — nothing to do
+            // here except make sure we don't reveal the app underneath it.
+            return;
         }
 
         requestAnimationFrame(() => {
