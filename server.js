@@ -3519,16 +3519,81 @@ function isValidTONAddress(address) {
     return false;
 }
 
+// Single source of truth for the admin command list — used by both /help
+// (for admins) and /adminhelp, so they can't drift out of sync with each
+// other or with what commands actually exist. Audited against every
+// bot.onText(...) registration in this file: removed commands that don't
+// exist (the old /cso- and /cbo- with an order id — the real commands are
+// /cso and /cbo, and they recreate an order, not complete one), added
+// commands that existed but were never listed, and reworded anything overly
+// technical.
+function buildAdminHelpText() {
+    return `🔧 *Admin Commands*
+
+*People*
+/ban [user id] — Ban someone from using the bot
+/unban [user id] — Lift a ban
+/warn [user id] — Send someone a warning
+/warnings [user id] — See all warnings on a user
+/users — List everyone in the system
+/userinfo [user id] — Full profile: referrals, activity, location, devices
+/detect_users — Scan for and register any new users
+/audit_users — Run a data-consistency check across all users
+/add_amb [user id] [email] — Make someone an ambassador and notify them
+/suspend_sell [user id] [amount] — Put a hold on a user's sell payouts
+/unsuspend [user id] — Remove a sell payout hold
+
+*Wallets*
+/updatewallet [user id] [sell|withdrawal] [order id] [wallet address] — Change the wallet on one order
+/userwallet [user id] — See every wallet address on file for a user
+/adminwallethelp — Full syntax and examples for /updatewallet
+
+*Orders*
+/findorder [order id] — Look up an order's full details
+/getpayment [order id] — Get the payment details for an order
+/sell_complete [order id] — Mark a sell order complete
+/sell_decline [order id] — Decline a sell order
+/cso — Recreate a sell order from scratch (asks for the order id, step by step)
+/cbo — Recreate a buy order from scratch (asks for the order id, step by step)
+
+*Refunds*
+/adminrefund [order id] — Start a refund
+/refundtx [order id] [tx hash] — Attach the refund's transaction hash
+
+*Messaging*
+/reply [user id, user id, ...] [message] — Message specific users
+/broadcast — Send a message to everyone
+/broadcast_status [job id] — Check on a broadcast that's in progress
+/notify [all | @username | user id] [message] — Send a targeted notification
+/sendemail — Send a one-off email (asks for the details, step by step)
+
+*Reports*
+/activity [timeframe] — Bot activity summary (default: last 24h)
+/referral_stats — Top 20 referrers, active vs pending
+/geo_analysis [cities] — Where your users are signing in from
+/version — Current app version and recent updates
+
+*Support bot*
+/botinfo — Status of the auto-reply system
+/botrefresh — Rebuild its knowledge base right now
+/bottest [message] — See what the auto-reply bot would say to a message
+
+*Reference*
+/adminhelp — This list
+/adminwallethelp — Wallet command details
+
+Wallet changes always need approval — use the Approve/Reject buttons on the request.`;
+}
+
 function walletValidationHelpText() {
     return `That doesn't look like a valid TON wallet address, even on a second try.\n\nMake sure it's a TON (or USDT on the TON network) wallet address.\nVideo guide: https://t.me/StarStore_Chat/18722\n\nThis request has been stopped. Run /wallet again to start over.`;
 }
 
 // Plain-language explanation of the optional "memo" field, shown wherever
-// we ask someone to send a wallet address. Some exchange wallets require an
-// extra short code alongside the address to know which account a payment is
-// for — this avoids the technical term and just says what to do with it.
+// we ask someone to send a wallet address. Kept short — this is a chat
+// message, not a help page.
 function walletMemoGuidanceText() {
-    return `Some wallets also ask for a short code or reference number along with the address. If yours gave you one, add it after a comma, like this:\nEQAbc...xyz, 123456\n\nIf you weren't given one, just send the address on its own.`;
+    return `If your wallet gave you a short code or number to include, add it after a comma: EQAbc...xyz, 123456\nOtherwise just send the address.`;
 }
 
 // ==================== BAN SYSTEM HELPERS ====================
@@ -14597,43 +14662,7 @@ async function handleHelpCommand(msg) {
         const isAdmin = adminIds.includes(userId);
 
         if (isAdmin) {
-            const adminHelpText = `🔧 **Admin Commands Help**
-
-**👥 User Management:**
-/ban [user_id] - Ban a user from using the bot
-/unban [user_id] - Unban a previously banned user
-/warn [user_id] - Send a warning to a user
-/warnings [user_id] - Check all warnings for a user
-/users - List all users in the system
-/detect_users - Detect and process new users
-/add_amb [user_id] [email] - Add user as ambassador and notify them
-
-**💰 Wallet Management:**
-/updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
-  - Update a user's wallet address for specific order
-/userwallet [user_id] - View all wallet addresses for a user
-
-**📋 Order Management:**
-/findorder [order_id] - Find detailed order information
-/getpayment [order_id] - Get payment details for an order
-/cso- [order_id] - Complete sell order
-/cbo- [order_id] - Complete buy order
-/sell_complete [order_id] - Complete sell order (alternative)
-/sell_decline [order_id] - Decline sell order
-
-**💸 Refund Management:**
-/adminrefund [order_id] - Process a refund for an order
-/refundtx [order_id] [tx_hash] - Update refund transaction hash
-
-**📢 Communication:**
-/reply [user_id1,user_id2,...] [message] - Send message to multiple users
-/broadcast - Send broadcast message to all users
-/notify [all|@username|user_id] [message] - Send targeted notification
-
-**🔍 Information:**
-/version - Check app version and update information
-/adminhelp - Show this admin help menu
-/adminwallethelp - Show detailed wallet management help`;
+            const adminHelpText = buildAdminHelpText();
             await bot.sendMessage(chatId, adminHelpText, { parse_mode: 'Markdown' });
         } else {
             const userHelpText = `🤖 **StarStore Bot**
@@ -15406,57 +15435,7 @@ bot.onText(/\/adminhelp/, (msg) => {
         return bot.sendMessage(chatId, "❌ Unauthorized");
     }
     
-    const helpText = `🔧 **Admin Commands Help**
-
-**👥 User Management:**
-/ban [user_id] - Ban a user from using the bot
-/unban [user_id] - Unban a previously banned user
-/warn [user_id] - Send a warning to a user
-/warnings [user_id] - Check all warnings for a user
-/users - List all users in the system
-/detect_users - Detect and process new users
-
-**👤 User Activity & Location Logs:**
-/userinfo [user_id] - View comprehensive user info (referrals, activity, location, devices)
-
-**�💰 Wallet Management:**
-/updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
-  - Update a user's wallet address for specific order
-  - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
-/userwallet [user_id] - View all wallet addresses for a user
-
-**📋 Order Management:**
-/findorder [order_id] - Find detailed order information
-/getpayment [order_id] - Get payment details for an order
-/cso- [order_id] - Complete sell order
-/cbo- [order_id] - Complete buy order
-/sell_complete [order_id] - Complete sell order (alternative)
-/sell_decline [order_id] - Decline sell order
-
-**💸 Refund Management:**
-/adminrefund [order_id] - Process a refund for an order
-/refundtx [order_id] [tx_hash] - Update refund transaction hash
-
-**� Referral Management:**
-/referral_stats - Show top 20 referrers with active and pending referral counts
-
-**�📢 Communication:**
-/reply [user_id1,user_id2,...] [message] - Send message to multiple users
-/broadcast - Send broadcast message to all users
-/notify [all|@username|user_id] [message] - Send targeted notification
-/add_amb [user_id] [email] - Add user as ambassador
-/sendemail - Send custom email to users (interactive session)
-
-**🔍 Information:**
-/version - Check app version and update information
-/adminhelp - Show this admin help menu
-/adminwallethelp - Show detailed wallet management help
-
-**Wallet Update Requests:**
-• Use the inline buttons on wallet update requests to approve/reject
-• All wallet changes require admin approval for security`;
-    
-    bot.sendMessage(chatId, helpText);
+    bot.sendMessage(chatId, buildAdminHelpText(), { parse_mode: 'Markdown' });
 });
 
 // Admin command to check activity and bot status
