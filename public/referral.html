@@ -231,7 +231,7 @@
             max-width: 600px;
             margin: 0 auto;
             background: var(--surface, #ffffff);
-            padding-bottom: 120px;
+            padding-bottom: 190px;
             overflow-y: auto;
         }
 
@@ -257,6 +257,16 @@
 
         /* Statement — the commission total, framed like an actual figure owed */
         .statement { padding: 6px 24px 22px; }
+
+        .hero-icons { display: flex; gap: 8px; margin-bottom: 16px; }
+        .hero-icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: #fff;
+        }
+        .hero-icon.money { background: #16a34a; }
+        .hero-icon.invite { background: var(--brand, #4f46e5); }
+        @media (prefers-color-scheme: dark) { .hero-icon.invite { background: #6366f1; } }
         .statement-label {
             font-size: 12.5px; color: var(--text-muted, #999);
             margin-bottom: 6px;
@@ -288,7 +298,6 @@
         .link-text {
             font-size: 13px; color: var(--text-secondary, #555);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
         .copy-btn {
             background: none; border: none; flex-shrink: 0;
@@ -344,13 +353,16 @@
             text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;
         }
         .how-row {
-            display: flex; gap: 12px; padding: 8px 0;
+            display: flex; gap: 12px; padding: 8px 0; align-items: flex-start;
         }
-        .how-row .n {
-            font-size: 13px; font-weight: 700; color: var(--text-muted, #bbb);
-            width: 16px; flex-shrink: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        .how-icon {
+            width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+            background: var(--surface-elevated, #f0f0f0);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; color: var(--text-secondary, #666);
         }
-        .how-row .t { font-size: 13.5px; color: var(--text-secondary, #555); line-height: 1.5; }
+        .how-icon.earn { background: rgba(22,163,74,0.12); color: #16a34a; }
+        .how-row .t { font-size: 13.5px; color: var(--text-secondary, #555); line-height: 1.5; padding-top: 5px; }
         .how-row .t b { color: var(--text, #111); font-weight: 600; }
 
         /* Referrals list — ledger rows, no card wrapper, right-aligned figures */
@@ -375,7 +387,6 @@
         .ref-figure { text-align: right; flex-shrink: 0; }
         .ref-figure .amt {
             font-size: 15px; font-weight: 700; color: var(--text, #111);
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
         .ref-figure .amt.money { color: #16a34a; }
         .ref-figure .cap { font-size: 11px; color: var(--text-muted, #bbb); }
@@ -418,13 +429,13 @@
         }
         .telegram-fullscreen .bottom-cta { max-width: 100%; }
         .cta-share, .cta-withdraw {
-            flex: 1; border: none; border-radius: 12px; padding: 14px;
-            font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 700;
+            flex: 1; border: none; border-radius: 12px; padding: 10px 16px;
+            font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
             cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
         }
-        .cta-share { background: var(--text, #111); color: var(--surface, #fff); }
-        .cta-withdraw { background: #16a34a; color: #fff; }
-        .cta-share:active, .cta-withdraw:active { opacity: 0.7; }
+        .cta-share { background: var(--text, #111); color: var(--surface, #fff); transition: opacity 0.2s, transform 0.2s; }
+        .cta-withdraw { background: #16a34a; color: #fff; transition: opacity 0.2s, transform 0.2s; }
+        .cta-share:active, .cta-withdraw:active { opacity: 0.8; transform: scale(0.98); }
         @media (prefers-color-scheme: dark) {
             .cta-share { background: #f5f5f5; color: #111; }
         }
@@ -450,6 +461,10 @@
     </header>
 
     <div class="statement">
+        <div class="hero-icons">
+            <div class="hero-icon money"><i class="fas fa-percent"></i></div>
+            <div class="hero-icon invite"><i class="fas fa-user-plus"></i></div>
+        </div>
         <div class="statement-label" data-translate="totalEarned">Total commission earned</div>
         <div class="statement-figure">
             <span class="amt figure" id="totalEarned">0.00</span>
@@ -479,15 +494,15 @@
     <div class="how-section">
         <div class="how-title" data-translate="howItWorksReferral">How it works</div>
         <div class="how-row">
-            <span class="n">1</span>
+            <span class="how-icon"><i class="fas fa-link"></i></span>
             <span class="t" data-translate="step1Desc"><b>Share your link</b> — send it once, it works forever.</span>
         </div>
         <div class="how-row">
-            <span class="n">2</span>
+            <span class="how-icon"><i class="fas fa-star"></i></span>
             <span class="t" data-translate="step2Desc">They buy or sell stars, or activate Premium.</span>
         </div>
         <div class="how-row">
-            <span class="n">3</span>
+            <span class="how-icon earn"><i class="fas fa-bolt"></i></span>
             <span class="t" data-translate="step3Desc">You earn <b>30% of everything they trade</b>, up to <b>$50 total</b> per person.</span>
         </div>
     </div>
