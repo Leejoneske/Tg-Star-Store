@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Referral Program - Earn USDT with StarStore | Telegram Stars Trading</title>
-    <meta name="description" content="StarStore Referral Program - Earn 0.5 USDT per referral. Share your referral link and grow your earnings by inviting friends to trade Telegram Stars.">
+    <meta name="description" content="StarStore Referral Program - Earn 30% commission on every trade your invites make, up to $50 per referral. Share your referral link and grow your earnings by inviting friends to trade Telegram Stars.">
     <meta name="keywords" content="referral program, earn USDT, Telegram Stars referral, affiliate program, StarStore earnings">
     
     <!-- Load Telegram API -->
@@ -216,6 +216,12 @@
             font-family: 'Inter', sans-serif;
             background: var(--surface-muted, #f5f5f5);
             color: var(--text, #111111);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .figure {
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: 'tnum' 1;
         }
 
         .app-container {
@@ -229,358 +235,199 @@
             overflow-y: auto;
         }
 
-        .telegram-fullscreen .app-container { 
-            max-width: 100%; 
+        .telegram-fullscreen .app-container {
+            max-width: 100%;
             width: 100%;
             margin: 0;
             border-radius: 0;
         }
 
-        /* Page Header - Matches other pages */
+        /* Header — plain, no badges */
         .page-header {
-            background: var(--surface, #ffffff);
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border, #f0f0f0);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            padding: 16px 24px 4px;
         }
-
         .header-title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
-            color: var(--text, #111);
-            letter-spacing: 0;
-            margin: 0;
-        }
-
-        /* Hero */
-        .hero { padding: 24px 24px 20px; }
-
-        .icon-cluster {
-            display: flex;
-            margin-bottom: 24px;
-        }
-
-        .cluster-icon {
-            width: 60px; height: 60px;
-            border-radius: 18px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px; color: white;
-            margin-right: -10px;
-            border: 3px solid var(--surface, white);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        .cluster-icon:nth-child(1) { background: #4ade80; z-index: 3; }
-        .cluster-icon:nth-child(2) { background: #22c55e; z-index: 2; }
-        .cluster-icon:nth-child(3) { background: #86efac; z-index: 1; }
-
-        .hero-title {
-            font-size: 28px;
-            font-weight: 700;
-            line-height: 1.2;
-            letter-spacing: 0;
-            color: var(--text, #111);
-            margin-bottom: 10px;
-        }
-
-        .hero-sub {
-            font-size: 15px;
-            color: var(--text-secondary, #666);
-            line-height: 1.55;
-        }
-
-        /* Link Box */
-        .link-section { padding: 0 24px 20px; }
-
-        .link-box {
-            background: var(--surface-elevated, #f5f5f5);
-            border-radius: 14px;
-            padding: 13px 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border: 1px solid var(--border, transparent);
-        }
-
-        .link-text {
-            font-size: 13px;
-            color: var(--text-muted, #555);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            flex: 1;
-        }
-
-        .copy-btn {
-            background: #4f46e5; 
-            color: white;
-            border: none; border-radius: 9px;
-            padding: 8px 14px;
-            font-size: 13px; font-weight: 600;
-            cursor: pointer; flex-shrink: 0;
-            font-family: 'Inter', sans-serif;
-            transition: opacity 0.15s, transform 0.12s;
-        }
-        .copy-btn:active { transform: scale(0.95); opacity: 0.8; }
-        @media (prefers-color-scheme: dark) {
-            .copy-btn {
-                background: #6366f1;
-                color: white;
-            }
-        }
-
-        /* Stats */
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            padding: 0 24px 24px;
-        }
-
-        .stat-pill {
-            background: var(--surface-elevated, #f5f5f5);
-            border-radius: 14px;
-            padding: 14px 10px;
-            text-align: center;
-            border: 1px solid var(--border, transparent);
-        }
-
-        .stat-pill .val {
-            font-size: 20px; font-weight: 600;
-            color: var(--text, #111); letter-spacing: 0; line-height: 1.1;
-        }
-
-        .stat-pill .lbl {
-            font-size: 11px; font-weight: 500;
-            color: var(--text-muted, #999); margin-top: 4px;
-            text-transform: uppercase; letter-spacing: 0.3px;
-        }
-
-        /* Divider */
-        .divider { height: 1px; background: var(--border, #f0f0f0); margin: 0 24px 20px; }
-
-        /* Section label */
-        .section-label {
-            font-size: 13px; font-weight: 600;
-            color: var(--text-muted, #999); padding: 0 24px 14px;
+            color: var(--text-muted, #999);
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.06em;
         }
 
-        /* Steps */
-        .steps-list { padding: 0 24px; }
-
-        .step-row {
-            display: flex; align-items: flex-start;
-            gap: 14px; padding: 14px 0;
-            border-bottom: 1px solid var(--border, #f3f3f3);
+        /* Statement — the commission total, framed like an actual figure owed */
+        .statement { padding: 6px 24px 22px; }
+        .statement-label {
+            font-size: 12.5px; color: var(--text-muted, #999);
+            margin-bottom: 6px;
         }
-        .step-row:last-child { border-bottom: none; }
+        .statement-figure {
+            display: flex; align-items: baseline; gap: 6px;
+        }
+        .statement-figure .amt {
+            font-size: 44px; font-weight: 700; letter-spacing: -0.02em;
+            color: var(--text, #111);
+        }
+        .statement-figure .cur {
+            font-size: 16px; font-weight: 500; color: var(--text-muted, #999);
+        }
+        .statement-desc {
+            margin-top: 10px; font-size: 14px; line-height: 1.55;
+            color: var(--text-secondary, #666);
+            max-width: 42ch;
+        }
+        .statement-desc b { color: var(--text, #111); font-weight: 600; }
 
-        .step-icon-wrap {
-            width: 42px; height: 42px;
-            background: var(--surface-elevated, #f3f3f3); 
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 17px; color: var(--text-muted, #555); 
-            flex-shrink: 0;
+        /* Link row — plain, no card fill, just a bottom rule */
+        .link-row {
+            margin: 0 24px 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border, #ececec);
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .link-text {
+            font-size: 13px; color: var(--text-secondary, #555);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .copy-btn {
+            background: none; border: none; flex-shrink: 0;
+            font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+            color: var(--brand, #4f46e5); cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .copy-btn:active { opacity: 0.6; }
+        @media (prefers-color-scheme: dark) { .copy-btn { color: #818cf8; } }
+
+        /* Totals row — three columns, hairline separators, no fill */
+        .totals-row {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            margin: 0 24px 26px;
+        }
+        .totals-row.totals-row-2 { grid-template-columns: 1fr 1fr; }
+        .totals-row .col {
+            padding: 0 14px;
+            border-left: 1px solid var(--border, #ececec);
+        }
+        .totals-row .col:first-child { padding-left: 0; border-left: none; }
+        .totals-row .val {
+            font-size: 21px; font-weight: 700; color: var(--text, #111);
+            letter-spacing: -0.01em;
+        }
+        .totals-row .lbl {
+            font-size: 11px; color: var(--text-muted, #999);
+            margin-top: 3px;
         }
 
-        .step-text h4 {
-            font-size: 15px; font-weight: 600;
-            color: var(--text-secondary, #555); margin-bottom: 2px;
+        /* Legacy balance — plain text row, not a card */
+        .legacy-strip {
+            margin: 0 24px 22px; padding: 12px 0;
+            border-top: 1px solid var(--border, #ececec);
+            border-bottom: 1px solid var(--border, #ececec);
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
         }
-
-        .step-text p { 
-            font-size: 13px; 
-            color: var(--text-secondary, #888); 
-            line-height: 1.4; 
+        .legacy-strip p { font-size: 12.5px; color: var(--text-secondary, #666); line-height: 1.4; margin: 0; }
+        .legacy-strip p b { color: var(--text, #111); }
+        .legacy-strip button {
+            flex-shrink: 0; background: none; border: none;
+            color: var(--brand, #4f46e5); font-family: 'Inter', sans-serif;
+            font-size: 12.5px; font-weight: 700; cursor: pointer;
         }
+        @media (prefers-color-scheme: dark) { .legacy-strip button { color: #818cf8; } }
 
-        /* Referrals */
-        .referrals-section {
-            padding: 0 24px 180px 24px;
-            margin-bottom: 0;
+        /* How it works — three plain lines, numbered by digit not icon */
+        .how-section { padding: 4px 24px 26px; }
+        .how-title {
+            font-size: 12px; font-weight: 600; color: var(--text-muted, #999);
+            text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;
+        }
+        .how-row {
+            display: flex; gap: 12px; padding: 8px 0;
+        }
+        .how-row .n {
+            font-size: 13px; font-weight: 700; color: var(--text-muted, #bbb);
+            width: 16px; flex-shrink: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .how-row .t { font-size: 13.5px; color: var(--text-secondary, #555); line-height: 1.5; }
+        .how-row .t b { color: var(--text, #111); font-weight: 600; }
+
+        /* Referrals list — ledger rows, no card wrapper, right-aligned figures */
+        .list-section { padding: 4px 24px 40px; }
+        .list-title {
+            font-size: 12px; font-weight: 600; color: var(--text-muted, #999);
+            text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
         }
 
         .referral-row {
-            display: flex; align-items: center;
-            justify-content: space-between;
             padding: 14px 0;
-            border-bottom: 1px solid var(--border, #f3f3f3);
+            border-bottom: 1px solid var(--border, #f0f0f0);
         }
         .referral-row:last-child { border-bottom: none; }
-
-        .ref-left { display: flex; align-items: center; gap: 12px; }
-
-        .ref-avatar {
-            width: 40px; height: 40px;
-            background: var(--surface-elevated, #f0f0f0); 
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 700; 
-            color: var(--text-secondary, #666); 
-            flex-shrink: 0;
+        .ref-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+        .ref-left { min-width: 0; }
+        .ref-name {
+            font-size: 14.5px; font-weight: 600; color: var(--text, #111);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-
-        .ref-name { 
-            font-size: 15px; 
-            font-weight: 500; 
-            color: var(--text, #111); 
+        .ref-meta { font-size: 12px; color: var(--text-muted, #999); margin-top: 2px; }
+        .ref-figure { text-align: right; flex-shrink: 0; }
+        .ref-figure .amt {
+            font-size: 15px; font-weight: 700; color: var(--text, #111);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
-        .ref-date { 
-            font-size: 12px; 
-            color: var(--text-muted, #aaa); 
-            margin-top: 2px; 
+        .ref-figure .cap { font-size: 11px; color: var(--text-muted, #bbb); }
+
+        .ref-meter-track {
+            margin-top: 9px; height: 3px; border-radius: 2px;
+            background: var(--border, #f0f0f0); overflow: hidden;
         }
-
-        .ref-right { text-align: right; }
-
-        .ref-amount { 
-            font-size: 16px; 
-            font-weight: 800; 
-            color: #16a34a; 
+        .ref-meter-fill {
+            height: 100%; background: var(--brand, #4f46e5);
+            transition: width .3s ease;
+        }
+        .ref-meter-fill.capped { background: #16a34a; }
+        @media (prefers-color-scheme: dark) {
+            .ref-meter-fill { background: #818cf8; }
         }
 
-        .ref-badge {
-            display: inline-block; 
-            font-size: 10px; font-weight: 600;
-            padding: 2px 8px; border-radius: 20px; margin-top: 3px;
-            text-transform: uppercase; letter-spacing: 0.3px;
-        }
-        .ref-badge.paid { background: rgba(5, 150, 105, 0.15); color: var(--success); }
-        .ref-badge.pending { background: rgba(202, 138, 4, 0.15); color: var(--warning); }
+        .ref-status { font-size: 11px; margin-top: 6px; color: var(--text-muted, #bbb); }
+        .ref-status.capped { color: #16a34a; font-weight: 600; }
+        .ref-status.trading { color: var(--brand, #4f46e5); }
+        @media (prefers-color-scheme: dark) { .ref-status.trading { color: #a5b4fc; } }
 
-        /* Empty */
-        .empty-state {
-            text-align: center; padding: 40px 20px; color: var(--text-muted, #ccc);
-        }
-        .empty-state i { 
-            font-size: 34px; 
-            margin-bottom: 12px; 
-            display: block;
-            color: var(--text-secondary, #999);
-        }
-        .empty-state h3 { 
-            font-size: 15px; 
-            font-weight: 700; 
-            color: var(--text, #555); 
-            margin-bottom: 6px; 
-        }
-        .empty-state p { 
-            font-size: 13px; 
-            color: var(--text-secondary, #999); 
-        }
+        /* Empty state */
+        .empty-state { text-align: center; padding: 36px 20px; }
+        .empty-state i { font-size: 26px; color: var(--text-muted, #ccc); margin-bottom: 10px; }
+        .empty-state h3 { font-size: 14.5px; font-weight: 600; color: var(--text, #111); margin-bottom: 4px; }
+        .empty-state p { font-size: 12.5px; color: var(--text-muted, #999); }
 
         /* Bottom CTA */
         .bottom-cta {
-            position: fixed; 
-            bottom: 64px; 
-            left: 0; 
-            right: 0;
-            background: var(--surface, white);
-            padding: 12px 16px;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            border-top: 1px solid var(--border, #f0f0f0);
-            display: flex; 
-            gap: 8px;
-            max-width: 600px;
-            margin: 0 auto;
-            z-index: 100;
-            transition: all 0.3s ease;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            position: fixed; bottom: 0; left: 0; right: 0;
+            max-width: 600px; margin: 0 auto;
+            background: var(--surface, #fff);
+            border-top: 1px solid var(--border, #eee);
+            padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+            display: flex; gap: 10px;
+            z-index: 10;
         }
-        .telegram-fullscreen .bottom-cta { max-width: 100%; }
-
-        .cta-share {
-            flex: 1; background: #4f46e5; color: white;
-            border: none; border-radius: 12px;
-            padding: 8px 16px; font-size: 13px; font-weight: 600;
-            cursor: pointer; font-family: 'Inter', sans-serif;
-            transition: opacity 0.2s, transform 0.2s;
+        .cta-share, .cta-withdraw {
+            flex: 1; border: none; border-radius: 12px; padding: 14px;
+            font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
         }
-        .cta-share:active { transform: scale(0.98); opacity: 0.8; }
+        .cta-share { background: var(--text, #111); color: var(--surface, #fff); }
+        .cta-withdraw { background: none; border: 1.5px solid var(--border, #e2e2e2); color: var(--text, #111); }
+        .cta-share:active, .cta-withdraw:active { opacity: 0.7; }
         @media (prefers-color-scheme: dark) {
-            .cta-share {
-                background: #6366f1;
-                color: white;
-            }
+            .cta-share { background: #f5f5f5; color: #111; }
         }
 
-        .cta-withdraw {
-            background: var(--surface-elevated, #f3f3f3); 
-            color: var(--text, #111);
-            border: none; border-radius: 12px;
-            padding: 8px 16px; font-size: 13px; font-weight: 600;
-            cursor: pointer; font-family: 'Inter', sans-serif;
-            transition: opacity 0.2s, transform 0.2s;
-        }
-        .cta-withdraw:active { transform: scale(0.98); opacity: 0.75; }
-
-        /* Toast */
-        .toast {
-            position: fixed; bottom: 110px; left: 50%;
-            transform: translateX(-50%);
-            background: var(--text, #111); 
-            color: var(--surface, white);
-            padding: 10px 20px; border-radius: 50px;
-            font-size: 13px; font-weight: 600; z-index: 9999;
-            white-space: nowrap; transition: opacity 0.3s;
-        }
-        .toast.success { background: var(--success); color: var(--surface); }
-        .toast.error { background: var(--error); color: var(--surface); }
-
-        /* SweetAlert Dark Theme Support */
-        [data-theme="dark"] .swal2-popup {
-            background: var(--surface, #161b22);
-            color: var(--text, #e6edf3);
-        }
-        [data-theme="dark"] .swal2-title {
-            color: var(--text, #e6edf3);
-        }
-        [data-theme="dark"] .swal2-html-container {
-            color: var(--text, #e6edf3);
-        }
-        [data-theme="dark"] .swal2-input {
-            background: var(--surface-elevated, #1c2128);
-            border: 1.5px solid var(--border, #21262d);
-            color: var(--text, #e6edf3);
-        }
-        @media (prefers-color-scheme: dark) {
-            .swal2-popup {
-                background: var(--surface, #161b22);
-                color: var(--text, #e6edf3);
-            }
-            .swal2-title {
-                color: var(--text, #e6edf3);
-            }
-            .swal2-html-container {
-                color: var(--text, #e6edf3);
-            }
-            .swal2-input {
-                background: var(--surface-elevated, #1c2128);
-                border: 1.5px solid var(--border, #21262d);
-                color: var(--text, #e6edf3);
-            }
-            .swal2-input::placeholder {
-                color: var(--text-secondary, #6e7681);
-            }
-            .swal2-confirm {
-                background: var(--brand, #58a6ff);
-                color: var(--surface, #161b22);
-            }
-            .swal2-cancel {
-                background: var(--border, #21262d);
-                color: var(--text, #e6edf3);
-            }
-        }
-
-        /* Responsive */
         @media (max-width: 600px) {
-            .hero-title {
-                font-size: 26px;
-            }
+            .statement-figure .amt { font-size: 40px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, .ref-meter-fill { transition: none !important; }
         }
     </style>
     <script src="/js/global-loader.js?v=1"></script>
@@ -592,81 +439,58 @@
     <div id="bottomnav-container"></div>
 
     <header class="page-header">
-        <h1 class="header-title" data-translate="referral">Referral</h1>
+        <h1 class="header-title" data-translate="referral">Referrals</h1>
     </header>
 
-    <div class="hero">
-        <div class="icon-cluster">
-            <div class="cluster-icon"><i class="fas fa-star"></i></div>
-            <div class="cluster-icon"><i class="fas fa-dollar-sign"></i></div>
-            <div class="cluster-icon"><i class="fas fa-user-plus"></i></div>
+    <div class="statement">
+        <div class="statement-label" data-translate="totalEarnedLabel">Total commission earned</div>
+        <div class="statement-figure">
+            <span class="amt figure" id="totalEarned">0.00</span>
+            <span class="cur">USDT</span>
         </div>
-        <h2 class="hero-title" data-translate="referralTitle">Earn 0.5 USDT<br>per referral</h2>
-        <p class="hero-sub" data-translate="referralSubtitle">Invite friends to StarStore. Every time they purchase 200+ stars using your link, you get rewarded instantly.</p>
+        <p class="statement-desc" data-translate="referralSubtitle">You earn <b>30% of every trade</b> your invites make — stars, sells, and Premium — up to <b>$50 per person</b>.</p>
     </div>
 
-    <div class="link-section">
-        <div class="link-box">
-            <div class="link-text" id="referralLinkDisplay" data-translate="loading">Loading your link…</div>
-            <button class="copy-btn" id="copyButton" onclick="copyReferralLink()"><i class="fas fa-copy"></i> <span data-translate="copy">Copy</span></button>
-        </div>
+    <div class="link-row">
+        <div class="link-text" id="referralLinkDisplay" data-translate="loading">Loading your link…</div>
+        <button class="copy-btn" id="copyButton" onclick="copyReferralLink()"><i class="fas fa-copy"></i><span data-translate="copy">Copy</span></button>
     </div>
 
-    <div class="stats-row">
-        <div class="stat-pill">
-            <div class="val" id="availableBalance">0.00</div>
-            <div class="lbl" data-translate="availableBalance">Available</div>
+    <div id="legacyStrip"></div>
+
+    <div class="totals-row totals-row-2">
+        <div class="col">
+            <div class="val figure" id="availableBalance">0.00</div>
+            <div class="lbl" data-translate="availableBalance">Available now</div>
         </div>
-        <div class="stat-pill">
-            <div class="val" id="referralsCount">0</div>
-            <div class="lbl" data-translate="referrals">Referrals</div>
-        </div>
-        <div class="stat-pill">
-            <div class="val" id="totalEarned">0.00</div>
-            <div class="lbl" data-translate="totalEarned">Earned</div>
+        <div class="col">
+            <div class="val figure" id="referralsCount">0</div>
+            <div class="lbl" data-translate="referrals">People invited</div>
         </div>
     </div>
 
-    <div class="divider"></div>
-    <div class="section-label" data-translate="howItWorksReferral">How it works</div>
-    <div class="steps-list">
-        <div class="step-row">
-            <div class="step-icon-wrap"><i class="fas fa-link"></i></div>
-            <div class="step-text">
-                <h4 data-translate="step1Title">Share your link</h4>
-                <p data-translate="step1Desc">Copy and send your unique referral link to friends</p>
-            </div>
+    <div class="how-section">
+        <div class="how-title" data-translate="howItWorksReferral">How it works</div>
+        <div class="how-row">
+            <span class="n">1</span>
+            <span class="t" data-translate="step1Desc"><b>Share your link</b> — send it once, it works forever.</span>
         </div>
-        <div class="step-row">
-            <div class="step-icon-wrap"><i class="fas fa-star"></i></div>
-            <div class="step-text">
-                <h4 data-translate="step2Title">Friends make a purchase</h4>
-                <p data-translate="step2Desc">They get instant access to Premium or Stars</p>
-            </div>
+        <div class="how-row">
+            <span class="n">2</span>
+            <span class="t" data-translate="step2Desc">They buy or sell stars, or activate Premium.</span>
         </div>
-        <div class="step-row">
-            <div class="step-icon-wrap"><i class="fas fa-bolt"></i></div>
-            <div class="step-text">
-                <h4 data-translate="step3Title">You earn rewards</h4>
-                <p data-translate="step3Desc">Get 0.5 USDT for each successful referral</p>
-            </div>
-        </div>
-        <div class="step-row">
-            <div class="step-icon-wrap"><i class="fas fa-wallet"></i></div>
-            <div class="step-text">
-                <h4 data-translate="step4Title">Withdraw earnings</h4>
-                <p data-translate="step4Desc">Transfer funds to your TON wallet when ready</p>
-            </div>
+        <div class="how-row">
+            <span class="n">3</span>
+            <span class="t" data-translate="step3Desc">You earn <b>30% of everything they trade</b>, up to <b>$50 total</b> per person.</span>
         </div>
     </div>
 
-    <div class="divider"></div>
-    <div class="section-label" data-translate="myReferrals">My Referrals</div>
-    <div class="referrals-section">
+    <div class="list-section">
+        <div class="list-title" data-translate="myReferrals">Your invites</div>
         <div id="noReferrals" class="empty-state">
             <i class="fas fa-user-friends"></i>
-            <h3 data-translate="noReferrals">You don't have any referrals yet</h3>
-            <p data-translate="referralEmptyHint">Share your link to get started</p>
+            <h3 data-translate="noReferrals">No invites yet</h3>
+            <p data-translate="referralEmptyHint">Share your link above to get started</p>
         </div>
         <div id="referralsList"></div>
     </div>
@@ -674,8 +498,8 @@
 </div>
 
 <div class="bottom-cta">
-    <button class="cta-share" id="shareButton"><i class="fas fa-share-alt"></i> &nbsp;<span data-translate="shareInvite">Invite Friends</span></button>
-    <button class="cta-withdraw" id="withdrawButton"><i class="fas fa-arrow-up"></i> &nbsp;<span data-translate="withdraw">Withdraw</span></button>
+    <button class="cta-share" id="shareButton"><i class="fas fa-share-alt"></i><span data-translate="shareInvite">Invite Friends</span></button>
+    <button class="cta-withdraw" id="withdrawButton"><i class="fas fa-arrow-up"></i><span data-translate="withdraw">Withdraw</span></button>
 </div>
 
 <script>
@@ -734,6 +558,7 @@
             pendingAmount: 0
         },
         referrals: [],
+        legacyBalance: 0,
         isWithdrawInProgress: false,
         lastRefresh: 0,
         authError: false
@@ -821,6 +646,10 @@
                     referralsCount: parseInt(data.stats?.referralsCount || 0),
                     pendingAmount: parseFloat(data.stats?.pendingAmount || 0)
                 };
+
+                // New commission-model field — old-system earnings not yet
+                // withdrawn, kept separate from the new balance above.
+                state.legacyBalance = parseFloat(data.legacyBalance || 0);
                 
                 state.referrals = data.referrals || [];
                 state.lastRefresh = Date.now();
@@ -852,6 +681,17 @@
             linkEl.textContent = state.referralLink;
             linkEl.removeAttribute('data-translate');
         }
+
+        const legacyEl = document.getElementById('legacyStrip');
+        if (legacyEl) {
+            legacyEl.innerHTML = state.legacyBalance > 0 ? `
+                <div class="legacy-strip">
+                    <p>From the old referral program: <b>${state.legacyBalance.toFixed(2)} USDT</b> still available.</p>
+                    <button id="legacyWithdrawBtn" type="button">Withdraw</button>
+                </div>` : '';
+            const legacyBtn = document.getElementById('legacyWithdrawBtn');
+            if (legacyBtn) legacyBtn.addEventListener('click', () => showWithdrawPopup(true));
+        }
         
         renderReferrals();
         applyTranslations();
@@ -872,32 +712,32 @@
         
         const html = state.referrals.map(ref => {
             const name = ref.name || `User #${ref.userId.substring(0, 6)}`;
-            const initials = name
-                .split(' ')
-                .map(w => w[0])
-                .join('')
-                .toUpperCase()
-                .substring(0, 2) || '?';
             
             const date = new Date(ref.date);
             const dateStr = date.toLocaleDateString();
-            const status = (ref.status || 'pending').toLowerCase();
-            const badgeClass = status === 'active' || status === 'completed' || status === 'paid' ? 'paid' : 'pending';
-            const badgeText = badgeClass === 'paid' ? 'Active' : 'Pending';
+
+            const CAP = 50;
+            const earned = Math.min(parseFloat(ref.earned || 0), CAP);
+            const traded = parseFloat(ref.tradedVolume || 0);
+            const capped = !!ref.capped || earned >= CAP;
+            const pct = Math.min(100, Math.round((earned / CAP) * 100));
+            const badgeClass = capped ? 'capped' : traded > 0 ? 'trading' : 'joined';
+            const badgeText = capped ? 'Capped' : traded > 0 ? 'Trading' : 'Joined';
             
             return `
                 <div class="referral-row">
-                    <div class="ref-left">
-                        <div class="ref-avatar">${initials}</div>
-                        <div>
+                    <div class="ref-top">
+                        <div class="ref-left">
                             <div class="ref-name">${name}</div>
-                            <div class="ref-date">${dateStr}</div>
+                            <div class="ref-meta">${traded > 0 ? `$${traded.toFixed(2)} traded` : dateStr}</div>
+                        </div>
+                        <div class="ref-figure">
+                            <div class="amt figure">$${earned.toFixed(2)}</div>
+                            <div class="cap">of $${CAP} cap</div>
                         </div>
                     </div>
-                    <div class="ref-right">
-                        <div class="ref-amount">+0.5 USDT</div>
-                        <span class="ref-badge ${badgeClass}">${badgeText}</span>
-                    </div>
+                    <div class="ref-meter-track"><div class="ref-meter-fill ${capped ? 'capped' : ''}" style="width:${pct}%"></div></div>
+                    <div class="ref-status ${badgeClass}">${badgeText}</div>
                 </div>
             `;
         }).join('');
@@ -935,8 +775,8 @@
         }
         
         if (withdrawBtn) {
-            withdrawBtn.removeEventListener('click', showWithdrawPopup);
-            withdrawBtn.addEventListener('click', showWithdrawPopup);
+            withdrawBtn.removeEventListener('click', withdrawBtnHandler);
+            withdrawBtn.addEventListener('click', withdrawBtnHandler);
         }
 
         const emptyShareBtn = document.getElementById('emptyStateShareBtn');
@@ -1006,13 +846,17 @@
     }
 
     // Show withdraw popup
-    async function showWithdrawPopup() {
+    // Wrapper so the main Withdraw button never accidentally passes its
+    // click Event through as the isLegacy argument.
+    function withdrawBtnHandler() { showWithdrawPopup(false); }
+
+    async function showWithdrawPopup(isLegacy) {
         if (state.isWithdrawInProgress) {
             showToast('Withdrawal in progress...', 'error');
             return;
         }
         
-        const available = state.stats.availableBalance;
+        const available = isLegacy ? state.legacyBalance : state.stats.availableBalance;
         
         if (available < 0.5) {
             Swal.fire({
@@ -1028,7 +872,7 @@
         
         try {
             const { value } = await Swal.fire({
-                title: TranslationUtils?.get('withdrawTitle') || 'Withdraw Earnings',
+                title: isLegacy ? 'Withdraw Old Balance' : (TranslationUtils?.get('withdrawTitle') || 'Withdraw Earnings'),
                 html: `
                     <div style="text-align:left;">
                         <label style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;color:var(--text,#111);">${TranslationUtils?.get('amount') || 'Amount'} (USDT)</label>
@@ -1065,7 +909,7 @@
             });
             
             if (value) {
-                await processWithdrawal(value.amount, value.walletAddress);
+                await processWithdrawal(value.amount, value.walletAddress, isLegacy);
             }
         } finally {
             state.isWithdrawInProgress = false;
@@ -1073,7 +917,7 @@
     }
 
     // Process withdrawal request
-    async function processWithdrawal(amount, walletAddress) {
+    async function processWithdrawal(amount, walletAddress, isLegacy) {
         try {
             const response = await fetch(`${BASE_API_URL}/referral-withdrawals`, {
                 method: 'POST',
@@ -1085,7 +929,8 @@
                 body: JSON.stringify({
                     userId: state.userId,
                     amount: amount,
-                    walletAddress: walletAddress
+                    walletAddress: walletAddress,
+                    legacy: !!isLegacy
                 })
             });
             
@@ -1142,4 +987,3 @@
 <script src="/js/version-display.js?v=3"></script>
 </body>
 </html>
-
