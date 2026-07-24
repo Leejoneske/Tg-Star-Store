@@ -244,14 +244,15 @@
 
         /* Header — plain, no badges */
         .page-header {
-            padding: 16px 24px 4px;
+            background: var(--surface, #ffffff);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border, #f0f0f0);
         }
         .header-title {
-            font-size: 14px;
+            font-size: 18px;
             font-weight: 600;
-            color: var(--text-muted, #999);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
+            color: var(--text, #111);
+            margin: 0;
         }
 
         /* Statement — the commission total, framed like an actual figure owed */
@@ -265,7 +266,7 @@
         }
         .statement-figure .amt {
             font-size: 44px; font-weight: 700; letter-spacing: -0.02em;
-            color: var(--text, #111);
+            color: #16a34a;
         }
         .statement-figure .cur {
             font-size: 16px; font-weight: 500; color: var(--text-muted, #999);
@@ -313,10 +314,12 @@
             font-size: 21px; font-weight: 700; color: var(--text, #111);
             letter-spacing: -0.01em;
         }
+        .totals-row .val.money { color: #16a34a; }
         .totals-row .lbl {
             font-size: 11px; color: var(--text-muted, #999);
             margin-top: 3px;
         }
+        .totals-row .lbl i { font-size: 10px; margin-right: 2px; }
 
         /* Legacy balance — plain text row, not a card */
         .legacy-strip {
@@ -374,6 +377,7 @@
             font-size: 15px; font-weight: 700; color: var(--text, #111);
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
+        .ref-figure .amt.money { color: #16a34a; }
         .ref-figure .cap { font-size: 11px; color: var(--text-muted, #bbb); }
 
         .ref-meter-track {
@@ -402,21 +406,24 @@
 
         /* Bottom CTA */
         .bottom-cta {
-            position: fixed; bottom: 0; left: 0; right: 0;
+            position: fixed; bottom: 64px; left: 0; right: 0;
             max-width: 600px; margin: 0 auto;
             background: var(--surface, #fff);
             border-top: 1px solid var(--border, #eee);
-            padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+            padding: 12px 20px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
             display: flex; gap: 10px;
-            z-index: 10;
+            z-index: 100;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
         }
+        .telegram-fullscreen .bottom-cta { max-width: 100%; }
         .cta-share, .cta-withdraw {
             flex: 1; border: none; border-radius: 12px; padding: 14px;
             font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 700;
             cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
         }
         .cta-share { background: var(--text, #111); color: var(--surface, #fff); }
-        .cta-withdraw { background: none; border: 1.5px solid var(--border, #e2e2e2); color: var(--text, #111); }
+        .cta-withdraw { background: #16a34a; color: #fff; }
         .cta-share:active, .cta-withdraw:active { opacity: 0.7; }
         @media (prefers-color-scheme: dark) {
             .cta-share { background: #f5f5f5; color: #111; }
@@ -443,7 +450,7 @@
     </header>
 
     <div class="statement">
-        <div class="statement-label" data-translate="totalEarnedLabel">Total commission earned</div>
+        <div class="statement-label" data-translate="totalEarned">Total commission earned</div>
         <div class="statement-figure">
             <span class="amt figure" id="totalEarned">0.00</span>
             <span class="cur">USDT</span>
@@ -452,7 +459,7 @@
     </div>
 
     <div class="link-row">
-        <div class="link-text" id="referralLinkDisplay" data-translate="loading">Loading your link…</div>
+        <div class="link-text"><i class="fas fa-link" style="font-size:11px;color:var(--text-muted,#999);margin-right:7px;"></i><span id="referralLinkDisplay" data-translate="loading">Loading your link…</span></div>
         <button class="copy-btn" id="copyButton" onclick="copyReferralLink()"><i class="fas fa-copy"></i><span data-translate="copy">Copy</span></button>
     </div>
 
@@ -460,12 +467,12 @@
 
     <div class="totals-row totals-row-2">
         <div class="col">
-            <div class="val figure" id="availableBalance">0.00</div>
-            <div class="lbl" data-translate="availableBalance">Available now</div>
+            <div class="val figure money" id="availableBalance">0.00</div>
+            <div class="lbl"><i class="fas fa-wallet"></i> <span data-translate="availableBalance">Available now</span></div>
         </div>
         <div class="col">
             <div class="val figure" id="referralsCount">0</div>
-            <div class="lbl" data-translate="referrals">People invited</div>
+            <div class="lbl"><i class="fas fa-users"></i> <span data-translate="referrals">People invited</span></div>
         </div>
     </div>
 
@@ -732,7 +739,7 @@
                             <div class="ref-meta">${traded > 0 ? `$${traded.toFixed(2)} traded` : dateStr}</div>
                         </div>
                         <div class="ref-figure">
-                            <div class="amt figure">$${earned.toFixed(2)}</div>
+                            <div class="amt figure${earned > 0 ? ' money' : ''}">$${earned.toFixed(2)}</div>
                             <div class="cap">of $${CAP} cap</div>
                         </div>
                     </div>
