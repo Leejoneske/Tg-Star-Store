@@ -1,18 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Telegram WebApp SDK loads synchronously, first, before anything
-         else on this page (fonts, other scripts, stylesheets) — so the
-         onboarding check right after it can start and finish as early as
-         physically possible, instead of waiting for the whole page to
-         parse. Mirrors the same trick used on get-started.html. -->
+    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
-    // Decide, before anything else loads, whether this account needs the
-    // get-started intro. A same-device returning user (localStorage flag
-    // set) resolves instantly with no network call. Anyone else is bounded
-    // by a short timeout so a slow or dead connection can never hang here —
-    // the rest of the page just loads normally instead.
+
     window.__onboardingDecision = new Promise((resolve) => {
         try {
             if (localStorage.getItem('starstore_intro_seen') === '1') return resolve(false);
